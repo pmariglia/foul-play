@@ -11903,7 +11903,7 @@
         "basePower": 0,
         "category": "status",
         "flags": {},
-        "id": "recharge",
+        "id": "nothing",
         "name": "Recharge",
         "pp": 40,
         "priority": 0,
