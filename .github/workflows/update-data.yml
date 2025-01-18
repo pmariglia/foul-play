@@ -6,18 +6,21 @@ on:
 jobs:
   Update-data-files:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: "."
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           ref: main
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.13
       - name: Install Requirements
         run: |
-          python -m pip install requests
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
       - name: Run update script pokedex
         run: |
           python ./data/scripts/update_pokedex.py
