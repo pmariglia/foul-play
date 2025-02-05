@@ -14,15 +14,19 @@ from fp.helpers import (
 logger = logging.getLogger(__name__)
 
 
-def log_pkmn_set(pkmn: Pokemon):
-    s = "Predicted set: {} {} {} {}".format(
+def log_pkmn_set(pkmn: Pokemon, source=None):
+    nature_evs = f"{pkmn.nature},{','.join(str(x) for x in pkmn.evs)}"
+    s = "\t{} {} {} {} {}".format(
         pkmn.name.rjust(15),
+        nature_evs.rjust(25),
         str(pkmn.ability).rjust(12),
         str(pkmn.item).rjust(12),
         pkmn.moves,
     )
-    if pkmn.tera_type is not None:
+    if pkmn.tera_type is not None and pkmn.tera_type != "nothing":
         s += " ttype={}".format(pkmn.tera_type)
+    if source is not None:
+        s += " source={}".format(source)
 
     logger.info(s)
 
@@ -43,16 +47,16 @@ def get_all_remaining_sets_for_revealed_pkmn(battle: Battle) -> dict:
 
     ret = {}
     for pkmn in revealed_pkmn:
-        sets = datasets.get_all_remaining_sets(pkmn) or datasets.get_all_remaining_sets(
-            pkmn, match_traits=False
-        )
+        sets = datasets.get_all_remaining_sets(pkmn)
         random.shuffle(sets)
         ret[pkmn.name] = sets
 
     return ret
 
 
-def populate_pkmn_from_set(pkmn: Pokemon, set_: PredictedPokemonSet):
+def populate_pkmn_from_set(
+    pkmn: Pokemon, set_: PredictedPokemonSet, source: str = None
+):
     known_pokemon_moves = pkmn.moves
 
     pkmn.moves = []
@@ -67,7 +71,7 @@ def populate_pkmn_from_set(pkmn: Pokemon, set_: PredictedPokemonSet):
     )
     if set_.pkmn_set.tera_type is not None:
         pkmn.tera_type = set_.pkmn_set.tera_type
-    log_pkmn_set(pkmn)
+    log_pkmn_set(pkmn, source)
 
     # newly created moves have max PP
     # copy over the current pp from the known moves

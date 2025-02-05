@@ -1,7 +1,7 @@
 import unittest
 
 import constants
-from fp.battle import Battler, Move
+from fp.battle import Battler, Move, LastUsedMove
 from fp.battle import Pokemon
 
 
@@ -108,6 +108,164 @@ class TestUpdateFromRequestJson(unittest.TestCase):
                 Move("nastyplot"),
             ],
         )
+
+    def test_gigatonhammer_un_disabled_if_it_is_last_used_move(self):
+        request_dict = {
+            "active": [
+                {
+                    "moves": [
+                        {
+                            "move": "Gigaton Hammer",
+                            "id": "gigatonhammer",
+                            "pp": 31,
+                            "maxpp": 32,
+                            "target": "self",
+                            "disabled": True,
+                        },
+                        {
+                            "move": "Thunderbolt",
+                            "id": "thunderbolt",
+                            "pp": 8,
+                            "maxpp": 8,
+                            "target": "normal",
+                            "disabled": False,
+                        },
+                        {
+                            "move": "Hidden Power Ice 60",
+                            "id": "hiddenpower",
+                            "pp": 16,
+                            "maxpp": 16,
+                            "target": "allAdjacent",
+                            "disabled": False,
+                        },
+                        {
+                            "move": "Nasty Plot",
+                            "id": "nastyplot",
+                            "pp": 8,
+                            "maxpp": 8,
+                            "target": "normal",
+                            "disabled": False,
+                        },
+                    ],
+                }
+            ],
+            "side": {
+                "name": "BigBluePikachu",
+                "id": "p2",
+                "pokemon": [
+                    {
+                        "ident": "p2: PikachuNickname",
+                        "details": "Pikachu, L84, M",
+                        "condition": "152/335",
+                        "active": True,
+                        "stats": {
+                            "atk": 200,
+                            "def": 210,
+                            "spa": 220,
+                            "spd": 230,
+                            "spe": 240,
+                        },
+                        "moves": [
+                            "volttackle",
+                            "thunderbolt",
+                            "hiddenpowerice60",
+                            "nastyplot",
+                        ],
+                        "baseAbility": "static",
+                        "item": "lightball",
+                        "ability": "static",
+                    },
+                ],
+            },
+        }
+        self.battler.active = Pokemon("pikachu", 100)
+        self.battler.last_used_move = LastUsedMove(
+            pokemon_name="pikachu", move="gigatonhammer", turn=0
+        )
+
+        self.battler.update_from_request_json(request_dict)
+
+        self.assertEqual(self.battler.active.get_move("gigatonhammer").disabled, False)
+
+    def test_gigatonhammer_remains_disabled_when_choice_item_selecting_another_move(
+        self,
+    ):
+        request_dict = {
+            "active": [
+                {
+                    "moves": [
+                        {
+                            "move": "Gigaton Hammer",
+                            "id": "gigatonhammer",
+                            "pp": 31,
+                            "maxpp": 32,
+                            "target": "self",
+                            "disabled": True,
+                        },
+                        {
+                            "move": "Thunderbolt",
+                            "id": "thunderbolt",
+                            "pp": 8,
+                            "maxpp": 8,
+                            "target": "normal",
+                            "disabled": False,
+                        },
+                        {
+                            "move": "Hidden Power Ice 60",
+                            "id": "hiddenpower",
+                            "pp": 16,
+                            "maxpp": 16,
+                            "target": "allAdjacent",
+                            "disabled": True,
+                        },
+                        {
+                            "move": "Nasty Plot",
+                            "id": "nastyplot",
+                            "pp": 8,
+                            "maxpp": 8,
+                            "target": "normal",
+                            "disabled": True,
+                        },
+                    ],
+                }
+            ],
+            "side": {
+                "name": "BigBluePikachu",
+                "id": "p2",
+                "pokemon": [
+                    {
+                        "ident": "p2: PikachuNickname",
+                        "details": "Pikachu, L84, M",
+                        "condition": "152/335",
+                        "active": True,
+                        "stats": {
+                            "atk": 200,
+                            "def": 210,
+                            "spa": 220,
+                            "spd": 230,
+                            "spe": 240,
+                        },
+                        "moves": [
+                            "volttackle",
+                            "thunderbolt",
+                            "hiddenpowerice60",
+                            "nastyplot",
+                        ],
+                        "baseAbility": "static",
+                        "item": "lightball",
+                        "ability": "static",
+                    },
+                ],
+            },
+        }
+        self.battler.active = Pokemon("pikachu", 100)
+        self.battler.last_used_move = LastUsedMove(
+            pokemon_name="pikachu", move="thunderbolt", turn=0
+        )
+
+        self.battler.update_from_request_json(request_dict)
+
+        self.assertEqual(self.battler.active.get_move("gigatonhammer").disabled, True)
 
     def test_sets_trapped(self):
         request_dict = {

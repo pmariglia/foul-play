@@ -1,7 +1,13 @@
 import unittest
 
-from data.pkmn_sets import TeamDatasets, SmogonSets
-from fp.battle import Pokemon
+from data.pkmn_sets import (
+    TeamDatasets,
+    SmogonSets,
+    PredictedPokemonSet,
+    PokemonSet,
+    PokemonMoveset,
+)
+from fp.battle import Pokemon, Move
 
 
 class TestTeamDatasets(unittest.TestCase):
@@ -179,18 +185,7 @@ class TestPredictSet(unittest.TestCase):
         )
         self.assertTrue(all_sets_have_airballoon)
 
-    def test_does_not_predict_set_when_there_is_no_removed_item(self):
-        TeamDatasets.initialize(
-            "gen9battlefactory", {"gholdengo"}, battle_factory_tier_name="ou"
-        )
-
-        pkmn = Pokemon("gholdengo", 100)
-        pkmn.item = None
-
-        sets_after_removed_item = TeamDatasets.get_all_remaining_sets(pkmn)
-        self.assertEqual(0, len(sets_after_removed_item))
-
-    def test_does_predict_set_when_there_is_no_removed_item_but_match_traits_is_off(
+    def test_predicts_set_when_there_is_no_removed_item(
         self,
     ):
         TeamDatasets.initialize(
@@ -200,7 +195,43 @@ class TestPredictSet(unittest.TestCase):
         pkmn = Pokemon("gholdengo", 100)
         pkmn.item = None
 
-        sets_after_removed_item = TeamDatasets.get_all_remaining_sets(
-            pkmn, match_traits=False
-        )
+        sets_after_removed_item = TeamDatasets.get_all_remaining_sets(pkmn)
+        self.assertNotEqual(0, len(sets_after_removed_item))
+
+    def test_removed_item_is_used_when_another_item_was_tricked(
+        self,
+    ):
+        TeamDatasets.initialize("gen5ou", {"starmie"})
+        TeamDatasets.raw_pkmn_sets = {
+            "starmie": {
+                "|analytic|choicespecs|timid|0,0,0,252,4,252|trick|rapidspin|thunder|surf",
+            }
+        }
+        TeamDatasets.pkmn_sets = {
+            "starmie": [
+                PredictedPokemonSet(
+                    pkmn_set=PokemonSet(
+                        nature="timid",
+                        item="choicespecs",
+                        ability="analytic",
+                        evs=[0, 0, 0, 252, 4, 252],
+                        count=1,
+                    ),
+                    pkmn_moveset=PokemonMoveset(
+                        moves=["trick", "rapidspin", "thunder", "surf"],
+                    ),
+                )
+            ]
+        }
+
+        pkmn = Pokemon("starmie", 100)
+        pkmn.moves = [
+            Move("trick"),
+            Move("rapidspin"),
+            Move("thunder"),
+        ]
+        pkmn.item = "leftovers"
+        pkmn.removed_item = "choicespecs"
+
+        sets_after_removed_item = TeamDatasets.get_all_remaining_sets(pkmn)
         self.assertNotEqual(0, len(sets_after_removed_item))

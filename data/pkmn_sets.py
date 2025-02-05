@@ -49,13 +49,40 @@ def spreads_are_alike(s1, s2):
     diff = [abs(i - j) for i, j in zip(s1, s2)]
 
     # 24 is arbitrarily chosen as the threshold for EVs to be "alike"
-    return all(v < 24 for v in diff)
+    return all(v <= 48 for v in diff)
 
 
 @dataclass
 class PredictedPokemonSet:
     pkmn_set: PokemonSet
     pkmn_moveset: PokemonMoveset
+
+    def full_set_pkmn_can_have_set(
+        self,
+        pkmn: Pokemon,
+        match_ability=True,
+        match_item=True,
+        speed_check=True,
+        tera_check=True,
+    ) -> bool:
+        return self.pkmn_set.set_makes_sense(
+            pkmn,
+            match_ability=match_ability,
+            match_item=match_item,
+            speed_check=speed_check,
+            match_tera=tera_check,
+        ) and self.pkmn_moveset.full_set_pkmn_can_have_moves(pkmn)
+
+
+@dataclass
+class PokemonSet:
+    ability: str
+    item: str
+    nature: str
+    evs: tuple[int, ...] | list[int]
+    count: int
+    level: Optional[int] = 100
+    tera_type: Optional[str] = None
 
     def speed_check(self, pkmn: Pokemon):
         """
@@ -65,110 +92,63 @@ class PredictedPokemonSet:
         stats = calculate_stats(
             pkmn.base_stats,
             pkmn.level,
-            evs=self.pkmn_set.evs,
-            nature=self.pkmn_set.nature,
+            evs=self.evs,
+            nature=self.nature,
         )
         speed = stats[constants.SPEED]
-        if self.pkmn_set.item == "choicescarf":
+        if self.item == "choicescarf":
             speed = int(speed * 1.5)
 
         return pkmn.speed_range.min <= speed <= pkmn.speed_range.max
 
     def item_check(self, pkmn: Pokemon) -> bool:
-        if pkmn.item == self.pkmn_set.item:
+        if pkmn.item == self.item and pkmn.removed_item is None:
             return True
-        elif pkmn.item is None and pkmn.removed_item == self.pkmn_set.item:
+        elif pkmn.removed_item == self.item:
             return True
         elif pkmn.item is None and pkmn.removed_item is None:
             return False
-        if self.pkmn_set.item in pkmn.impossible_items:
+        if self.item in pkmn.impossible_items:
             return False
-        elif (
-            self.pkmn_set.item in constants.CHOICE_ITEMS
-            and not pkmn.can_have_choice_item
-        ):
+        elif self.item in constants.CHOICE_ITEMS and not pkmn.can_have_choice_item:
             return False
         else:
             return pkmn.item == constants.UNKNOWN_ITEM
 
     def ability_check(self, pkmn: Pokemon) -> bool:
-        if self.pkmn_set.ability == pkmn.ability:
+        if self.ability == pkmn.ability:
             return True
-        elif self.pkmn_set.ability in pkmn.impossible_abilities:
+        elif self.ability in pkmn.impossible_abilities:
             return False
         else:
             return pkmn.ability is None
 
-    def moveset_makes_sense(self):
-        has_hiddenpower = False
-        for mv in self.pkmn_moveset.moves:
-            # only 1 hiddenpower in a moveset
-            if mv.startswith(constants.HIDDEN_POWER) and has_hiddenpower:
-                return False
-            elif mv.startswith(constants.HIDDEN_POWER):
-                has_hiddenpower = True
-
-            # dont pick certain moves with choice items
-            if self.pkmn_set.item in constants.CHOICE_ITEMS:
-                if all_move_json[mv][
-                    constants.CATEGORY
-                ] not in constants.DAMAGING_CATEGORIES and mv not in [
-                    "trick",
-                    "switcheroo",
-                ]:
-                    return False
-        return True
-
-    def predicted_set_makes_sense(
-        self, pkmn: Pokemon, match_ability=True, match_item=True, speed_check=True
-    ) -> bool:
+    def set_makes_sense(
+        self,
+        pkmn: Pokemon,
+        match_ability=True,
+        match_item=True,
+        speed_check=True,
+        match_tera=True,
+    ):
         ability_check = not match_ability or self.ability_check(pkmn)
         item_check = not match_item or self.item_check(pkmn)
         speed_check = not speed_check or self.speed_check(pkmn)
         tera_check = True
         if (
-            self.pkmn_set.tera_type is not None
+            match_tera
+            and self.tera_type is not None
             and pkmn.terastallized
-            and self.pkmn_set.tera_type != pkmn.tera_type
+            and self.tera_type != pkmn.tera_type
         ):
             tera_check = False
 
         return ability_check and item_check and speed_check and tera_check
 
-    def full_set_pkmn_can_have_set(
-        self, pkmn: Pokemon, match_ability=True, match_item=True, speed_check=True
-    ) -> bool:
-        return self.predicted_set_makes_sense(
-            pkmn,
-            match_ability=match_ability,
-            match_item=match_item,
-            speed_check=speed_check,
-        ) and self.pkmn_moveset.full_set_pkmn_can_have_moves(pkmn)
-
-
-@dataclass
-class PokemonSet:
-    ability: str
-    item: str
-    nature: str
-    evs: Tuple[int, int, int, int, int, int]
-    count: int
-    level: Optional[int] = 100
-    tera_type: Optional[str] = None
-
-    def set_makes_sense(self, pkmn: Pokemon, match_traits):
-        p = PredictedPokemonSet(pkmn_set=self, pkmn_moveset=PokemonMoveset(moves=()))
-        return p.predicted_set_makes_sense(
-            pkmn,
-            match_ability=match_traits,
-            match_item=match_traits,
-            speed_check=True,
-        )
-
 
 @dataclass
 class PokemonMoveset:
-    moves: Tuple[str, ...]
+    moves: Tuple[str, ...] | list[str]
 
     def full_set_pkmn_can_have_moves(self, pkmn: Pokemon) -> bool:
         for mv in pkmn.moves:
@@ -214,12 +194,6 @@ class PokemonSets(ABC):
     @abstractmethod
     def predict_set(self, pkmn: Pokemon) -> Optional[PredictedPokemonSet]: ...
 
-    @abstractmethod
-    def remove_item_possibility(self, pkmn_name: str, item: str): ...
-
-    @abstractmethod
-    def remove_ability_possibility(self, pkmn_name: str, ability: str): ...
-
     def get_pkmn_sets_from_pkmn_name(self, pkmn_name: str, pkmn_base_name: str):
         if pkmn_name in self.pkmn_sets:
             return self.pkmn_sets[pkmn_name]
@@ -241,7 +215,7 @@ class PokemonSets(ABC):
             for p in self.raw_pkmn_sets:
                 if pkmn_name.startswith(p) or p.startswith(pkmn_name):
                     return self.raw_pkmn_sets[p]
-        return []
+        return {}
 
 
 class _RandomBattleSets(PokemonSets):
@@ -297,18 +271,6 @@ class _RandomBattleSets(PokemonSets):
         self._load_raw_sets(pkmn_mode)
         self._initialize_pkmn_sets()
 
-    def remove_item_possibility(self, pkmn_name: str, item: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].pkmn_set.item == item:
-                pkmn_sets.pop(i)
-
-    def remove_ability_possibility(self, pkmn_name: str, ability: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].pkmn_set.ability == ability:
-                pkmn_sets.pop(i)
-
     def predict_set(
         self, pkmn: Pokemon, match_traits=True
     ) -> Optional[PredictedPokemonSet]:
@@ -321,14 +283,13 @@ class _RandomBattleSets(PokemonSets):
                 match_ability=match_traits,
                 match_item=match_traits,
                 speed_check=False,  # speed check never makes sense for randombattles because we know the nature/evs
+                tera_check=match_traits,
             ):
                 return pkmn_set
 
         return None
 
-    def get_all_remaining_sets(
-        self, pkmn: Pokemon, match_traits=True
-    ) -> list[PredictedPokemonSet]:
+    def get_all_remaining_sets(self, pkmn: Pokemon) -> list[PredictedPokemonSet]:
         if not self.pkmn_sets:
             logger.warning("Called `predict_set` when pkmn_sets was empty")
             return []
@@ -337,11 +298,25 @@ class _RandomBattleSets(PokemonSets):
         for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
-                match_ability=match_traits,
-                match_item=match_traits,
+                match_ability=True,
+                match_item=True,
                 speed_check=False,  # speed check never makes sense for randombattles because we know the nature/evs
+                tera_check=True,
             ):
                 remaining_sets.append(pkmn_set)
+
+        if not remaining_sets:
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
+                pkmn.name, pkmn.base_name
+            ):
+                if pkmn_set.full_set_pkmn_can_have_set(
+                    pkmn,
+                    match_ability=False,
+                    match_item=False,
+                    speed_check=False,
+                    tera_check=False,
+                ):
+                    remaining_sets.append(pkmn_set)
 
         return remaining_sets
 
@@ -433,36 +408,44 @@ class _TeamDatasets(PokemonSets):
             return
         self._add_to_pkmn_sets({pkmn_name: sets_dict[pkmn_name]})
 
-    def remove_item_possibility(self, pkmn_name: str, item: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].pkmn_set.item == item:
-                pkmn_sets.pop(i)
-
-    def remove_ability_possibility(self, pkmn_name: str, ability: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].pkmn_set.ability == ability:
-                pkmn_sets.pop(i)
-
-    def get_all_remaining_sets(
-        self, pkmn: Pokemon, match_traits=True
-    ) -> list[PredictedPokemonSet]:
+    def get_all_remaining_sets(self, pkmn: Pokemon) -> list[PredictedPokemonSet]:
         if not self.pkmn_sets:
-            logger.warning("Called `predict_set` when pkmn_sets was empty")
             return []
 
         remaining_sets = []
         for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
-                match_ability=match_traits,
-                match_item=match_traits,
-                speed_check=match_traits,
+                match_ability=True,
+                match_item=True,
+                speed_check=True,
+                tera_check=True,
             ):
                 remaining_sets.append(pkmn_set)
 
+        # do not do this extra check for TeamDatasets unless in battlefactory mode
+        if not remaining_sets and self.pkmn_mode.endswith("battlefactory"):
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
+                pkmn.name, pkmn.base_name
+            ):
+                if pkmn_set.full_set_pkmn_can_have_set(
+                    pkmn,
+                    match_ability=False,
+                    match_item=False,
+                    speed_check=False,
+                    tera_check=False,
+                ):
+                    remaining_sets.append(pkmn_set)
+
         return remaining_sets
+
+    def get_all_possible_move_combinations(self, pkmn: Pokemon):
+        pkmn_movesets = {}
+        raw_pkmn_sets = self.get_raw_pkmn_sets_from_pkmn_name(pkmn.name)
+        for pkmn_set, count in raw_pkmn_sets.items():
+            pkmn_moves = tuple(sorted(pkmn_set.split("|")[5:]))
+            pkmn_movesets[pkmn_moves] = pkmn_movesets.get(pkmn_moves, 0) + count
+        return pkmn_movesets
 
     def get_all_possible_moves(self, pkmn: Pokemon):
         if not self.pkmn_sets:
@@ -485,6 +468,7 @@ class _TeamDatasets(PokemonSets):
                 match_ability=match_traits,
                 match_item=match_traits,
                 speed_check=True,
+                tera_check=match_traits,
             ):
                 return pkmn_set
 
@@ -520,9 +504,6 @@ class _SmogonSets(PokemonSets):
                     return False
         return True
 
-    def smogon_set_makes_sense(self, pkmn: Pokemon, predicted_set: PredictedPokemonSet):
-        return self._smogon_predicted_move_set_makes_sense(predicted_set)
-
     def _pokemon_is_similar(self, normalized_name, list_of_pkmn_names):
         return any(normalized_name.startswith(n) for n in list_of_pkmn_names) or any(
             n.startswith(normalized_name) for n in list_of_pkmn_names
@@ -549,7 +530,7 @@ class _SmogonSets(PokemonSets):
 
         return infos
 
-    def _get_pokemon_information(self, smogon_stats_url, pkmn_names=None):
+    def _get_pokemon_information(self, smogon_stats_url, pkmn_names) -> dict:
         infos = self._get_smogon_stats_json(smogon_stats_url)
 
         final_infos = {}
@@ -589,7 +570,7 @@ class _SmogonSets(PokemonSets):
             for spread, count in sorted(
                 pkmn_information["Spreads"].items(), key=lambda x: x[1], reverse=True
             ):
-                percentage = round(100 * count / total_count, 2)
+                percentage = count / total_count
                 if percentage > 0:
                     nature, evs = [normalize_name(i) for i in spread.split(":")]
                     evs = evs.replace("/", ",")
@@ -602,21 +583,21 @@ class _SmogonSets(PokemonSets):
 
             for item, count in pkmn_information["Items"].items():
                 if count > 0:
-                    items.append((item, round(100 * count / total_count, 2)))
+                    items.append((item, count / total_count))
 
             for move, count in pkmn_information["Moves"].items():
                 if count > 0 and move and move.lower() != "nothing":
                     if move.startswith(constants.HIDDEN_POWER):
                         move = f"{move}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
-                    moves.append((move, round(100 * count / total_count, 2)))
+                    moves.append((move, count / total_count))
 
             for ability, count in pkmn_information["Abilities"].items():
                 if count > 0:
-                    abilities.append((ability, round(100 * count / total_count, 2)))
+                    abilities.append((ability, count / total_count))
 
             for tera_type, count in pkmn_information["Tera Types"].items():
                 if count > 0:
-                    tera_types.append((tera_type, round(100 * count / total_count, 2)))
+                    tera_types.append((tera_type, count / total_count))
 
             final_infos[normalized_name][SPREADS_STRING] = sorted(
                 spreads, key=lambda x: x[2], reverse=True
@@ -626,23 +607,14 @@ class _SmogonSets(PokemonSets):
             )[:10]
             final_infos[normalized_name][MOVES_STRING] = sorted(
                 moves, key=lambda x: x[1], reverse=True
-            )[:20]
+            )[:100]
             final_infos[normalized_name][ABILITY_STRING] = sorted(
                 abilities, key=lambda x: x[1], reverse=True
             )
             final_infos[normalized_name][TERA_TYPE_STRING] = sorted(
                 tera_types, key=lambda x: x[1], reverse=True
-            )[:3]
+            )[:6]
             final_infos[normalized_name][EFFECTIVENESS] = matchup_effectiveness
-
-            cumsum = 0
-            for i, item in enumerate(final_infos[normalized_name][SPREADS_STRING]):
-                cumsum += item[2]
-                if cumsum > 85 and i >= 14:
-                    final_infos[normalized_name][SPREADS_STRING] = final_infos[
-                        normalized_name
-                    ][SPREADS_STRING][: i + 1]
-                    break
 
         return final_infos
 
@@ -667,12 +639,15 @@ class _SmogonSets(PokemonSets):
         return smogon_url.format(year, month, game_mode)
 
     def _pokemon_set_makes_sense(self, pkmn_set: PokemonSet):
-        if pkmn_set.item == "choiceband" and pkmn_set.evs[1] < 230:
+        # Without a large amount in the supporting stat choice items don't make sense
+        if pkmn_set.item == "choiceband" and pkmn_set.evs[1] < 204:
             return False
-        if pkmn_set.item == "choicespecs" and pkmn_set.evs[3] < 230:
+        if pkmn_set.item == "choicespecs" and pkmn_set.evs[3] < 204:
             return False
-        if pkmn_set.item == "choicescarf" and pkmn_set.evs[5] < 200:
+        if pkmn_set.item == "choicescarf" and pkmn_set.evs[5] < 204:
             return False
+
+        # without a large amount in an offensive stat life orb and expert belt don't make sense
         if pkmn_set.item in ["lifeorb", "expertbelt"] and (
             pkmn_set.evs[1] < 200 and pkmn_set.evs[3] < 200
         ):
@@ -693,7 +668,7 @@ class _SmogonSets(PokemonSets):
                                 nature=spread[0],
                                 evs=tuple(int(i) for i in spread[1].split(",")),
                                 tera_type=tera_type[0],
-                                count=(ability[1] + item[1] + spread[2]),
+                                count=(ability[1] * item[1] * spread[2] * tera_type[1]),
                             )
                             if self._pokemon_set_makes_sense(pkmn_set):
                                 self.pkmn_sets[pkmn].append(pkmn_set)
@@ -723,17 +698,31 @@ class _SmogonSets(PokemonSets):
         self.raw_pkmn_sets.update(pkmn_information)
         self._initialize(pkmn_information)
 
-    def remove_item_possibility(self, pkmn_name: str, item: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].item == item:
-                pkmn_sets.pop(i)
+    def get_all_remaining_sets(self, pkmn: Pokemon) -> list[PredictedPokemonSet]:
+        if not self.pkmn_sets:
+            logger.warning("Called `predict_set` when pkmn_sets was empty")
+            return []
 
-    def remove_ability_possibility(self, pkmn_name: str, ability: str):
-        pkmn_sets = self.pkmn_sets.get(pkmn_name, [])
-        for i in reversed(range(len(pkmn_sets))):
-            if pkmn_sets[i].ability == ability:
-                pkmn_sets.pop(i)
+        remaining_sets = []
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+            if pkmn_set.set_makes_sense(
+                pkmn,
+            ):
+                remaining_sets.append(pkmn_set)
+
+        if not remaining_sets:
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
+                pkmn.name, pkmn.base_name
+            ):
+                if pkmn_set.set_makes_sense(
+                    pkmn,
+                    match_ability=False,
+                    match_item=False,
+                    match_tera=False,
+                ):
+                    remaining_sets.append(pkmn_set)
+
+        return remaining_sets
 
     def predict_set(
         self, pkmn: Pokemon, num_predicted_moves=4, match_traits=True
@@ -778,18 +767,10 @@ class _SmogonSets(PokemonSets):
                 continue
 
             predicted_pokemon_set.pkmn_moveset.add_move(mv)
-            if not self.smogon_set_makes_sense(pkmn, predicted_pokemon_set):
+            if not self._smogon_predicted_move_set_makes_sense(predicted_pokemon_set):
                 predicted_pokemon_set.pkmn_moveset.remove_move(mv)
 
         return predicted_pokemon_set
-
-    def pokemon_can_have_move(self, pkmn_name: str, move: str) -> bool:
-        for mv, _count in self.get_raw_pkmn_sets_from_pkmn_name(pkmn_name)[
-            MOVES_STRING
-        ]:
-            if move == mv:
-                return True
-        return False
 
 
 TeamDatasets = _TeamDatasets()

@@ -4,9 +4,10 @@ from concurrent.futures import ProcessPoolExecutor
 from poke_engine import MctsResult
 
 import constants
-from data.pkmn_sets import TeamDatasets
+from data.pkmn_sets import TeamDatasets, SmogonSets
 from fp.battle import Battle
 from config import FoulPlayConfig
+from .standard_battles import prepare_battles
 
 from .team_sampler import (
     prepare_random_battles,
@@ -103,6 +104,41 @@ class BattleBot(Battle):
 
         return search_time_per_battle
 
+    def _search_time_num_battles_standard_battle(self):
+        num_opponent_fainted = self.opponent.num_fainted_pkmn()
+        opponent_active_num_moves = len(self.opponent.active.moves)
+        in_time_pressure = self.time_remaining is not None and self.time_remaining <= 60
+
+        # team preview or opponent has no revealed moves
+        # search a lot of battles shallowly
+        if self.team_preview or (
+            self.opponent.active.hp > 0 and opponent_active_num_moves == 0
+        ):
+            num_battles_multiplier = 4 if in_time_pressure else 16
+            return FoulPlayConfig.parallelism * num_battles_multiplier, int(
+                FoulPlayConfig.search_time_ms // 4
+            )
+
+        # opponent has a lot of pkmn remaining
+        # search many battles a bit shallower
+        elif num_opponent_fainted < 3:
+            return FoulPlayConfig.parallelism * 2, int(
+                FoulPlayConfig.search_time_ms // 2
+            )
+
+        # opponent has few pokemon remaining and few revealed moves on their active
+        # search many battles deeply if time allows
+        elif opponent_active_num_moves < 3:
+            search_time_divisor = 2 if in_time_pressure else 1
+            return FoulPlayConfig.parallelism * 2, int(
+                FoulPlayConfig.search_time_ms // search_time_divisor
+            )
+
+        # opponent has few pokemon remaining and lots of revealed moves on their active
+        # search few battles deeply
+        else:
+            return FoulPlayConfig.parallelism, FoulPlayConfig.search_time_ms
+
     def find_best_move(self):
         if self.team_preview:
             self.user.active = self.user.reserve.pop(0)
@@ -117,15 +153,21 @@ class BattleBot(Battle):
             search_time_per_battle = self._search_time_per_battle_randombattles(
                 num_battles
             )
+            battles = prepare_random_battles(self, num_battles)
         elif self.battle_type == constants.BATTLE_FACTORY:
             num_battles = self._num_battles_battle_factory(TeamDatasets)
             search_time_per_battle = self._search_time_per_battle_battle_factory(
                 num_battles
             )
+            battles = prepare_random_battles(self, num_battles)
+        elif self.battle_type == constants.STANDARD_BATTLE:
+            num_battles, search_time_per_battle = (
+                self._search_time_num_battles_standard_battle()
+            )
+            battles = prepare_battles(self, num_battles)
         else:
             raise ValueError("Unsupported battle type: {}".format(self.battle_type))
 
-        battles = prepare_random_battles(self, num_battles)
         for b, _ in battles:
             fill_in_opponent_unrevealed_pkmn(b)
 

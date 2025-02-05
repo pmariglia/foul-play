@@ -23,6 +23,11 @@ natures = {
     "hasty": {"plus": constants.SPEED, "minus": constants.DEFENSE},
     "jolly": {"plus": constants.SPEED, "minus": constants.SPECIAL_ATTACK},
     "naive": {"plus": constants.SPEED, "minus": constants.SPECIAL_DEFENSE},
+    "hardy": {"plus": None, "minus": None},
+    "docile": {"plus": None, "minus": None},
+    "serious": {"plus": None, "minus": None},
+    "bashful": {"plus": None, "minus": None},
+    "quirky": {"plus": None, "minus": None},
 }
 
 

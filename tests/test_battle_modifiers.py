@@ -22,6 +22,8 @@ from fp.battle_modifier import (
     switch,
     clearboost,
     remove_item,
+    set_item,
+    ITEMS_REVEALED_ON_SWITCH_IN,
 )
 from fp.battle_modifier import terastallize
 from fp.battle_modifier import activate
@@ -269,6 +271,17 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         self.assertEqual("caterpie", self.battle.opponent.active.name)
         self.assertIn("intimidate", self.battle.opponent.active.impossible_abilities)
+
+    def test_adds_impossible_items_when_switching_in(self):
+        split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
+
+        for item in ITEMS_REVEALED_ON_SWITCH_IN:
+            self.assertNotIn(item, self.battle.opponent.active.impossible_items)
+
+        switch_or_drag(self.battle, split_msg)
+
+        for item in ITEMS_REVEALED_ON_SWITCH_IN:
+            self.assertIn(item, self.battle.opponent.active.impossible_items)
 
     def test_cramorantgulping_reverts_to_cramorant_in_switchout(self):
         self.battle.opponent.active.name = "cramorantgulping"
@@ -2335,6 +2348,87 @@ class TestStartFutureSight(unittest.TestCase):
         start_volatile_status(self.battle, split_msg)
 
         self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+
+
+class TestSetItem(unittest.TestCase):
+    def setUp(self):
+        self.battle = Battle(None)
+        self.battle.user.name = "p1"
+        self.battle.opponent.name = "p2"
+
+        self.opponent_active = Pokemon("caterpie", 100)
+        self.battle.opponent.active = self.opponent_active
+
+        self.user_active = Pokemon("weedle", 100)
+        self.battle.user.active = self.user_active
+
+    def test_sets_remove_item_when_tricked(self):
+        split_msg = ["", "-item", "p2a: Caterpie", "Leftovers", "[from] move: Trick"]
+        self.battle.opponent.active.item = "choicescarf"
+        set_item(self.battle, split_msg)
+
+        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        self.assertEqual("choicescarf", self.battle.opponent.active.removed_item)
+
+    def test_does_not_set_removed_item_when_removed_item_already_exists(self):
+        split_msg = ["", "-item", "p2a: Caterpie", "Choice Scarf", "[from] move: Trick"]
+        self.battle.opponent.active.item = "leftovers"
+        self.battle.opponent.active.removed_item = (
+            "choicescarf"  # should not be overwritten with leftovers
+        )
+        set_item(self.battle, split_msg)
+
+        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        self.assertEqual("choicescarf", self.battle.opponent.active.removed_item)
+
+    def test_does_not_set_removed_item_if_unknown(self):
+        split_msg = ["", "-item", "p2a: Caterpie", "Choice Scarf", "[from] move: Trick"]
+        self.battle.opponent.active.item = constants.UNKNOWN_ITEM
+        self.battle.opponent.active.removed_item = None
+        set_item(self.battle, split_msg)
+
+        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        self.assertEqual(None, self.battle.opponent.active.removed_item)
+
+    def test_two_trick_protocol_messages_properly_sets_opponents_removed_item(self):
+        split_msg_1 = ["", "-item", "p2a: Caterpie", "Leftovers", "[from] move: Trick"]
+        split_msg_2 = ["", "-item", "p1a: Weedle", "Choice Specs", "[from] move: Trick"]
+        self.battle.opponent.active.item = constants.UNKNOWN_ITEM
+        self.battle.opponent.active.removed_item = None
+        self.battle.user.active.item = "leftovers"
+        self.battle.user.active.removed_item = None
+        set_item(self.battle, split_msg_1)
+        set_item(self.battle, split_msg_2)
+
+        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        self.assertEqual("choicespecs", self.battle.user.active.item)
+
+        self.assertEqual("choicespecs", self.battle.opponent.active.removed_item)
+
+    def test_two_trick_protocol_messages_does_not_overwrite_removed_item_for_opponent(
+        self,
+    ):
+        # trick had already previously swapped items so removed_item is already set for the opponent
+        split_msg_1 = [
+            "",
+            "-item",
+            "p2a: Caterpie",
+            "Choice Specs",
+            "[from] move: Trick",
+        ]
+        split_msg_2 = ["", "-item", "p1a: Weedle", "Leftovers", "[from] move: Trick"]
+        self.battle.opponent.active.item = "leftovers"
+        self.battle.opponent.active.removed_item = "choicespecs"
+        self.battle.user.active.item = "choicespecs"
+        self.battle.user.active.removed_item = None
+        set_item(self.battle, split_msg_1)
+        set_item(self.battle, split_msg_2)
+
+        self.assertEqual("choicespecs", self.battle.opponent.active.item)
+        self.assertEqual("leftovers", self.battle.user.active.item)
+
+        # unchanged because removed_item was already set
+        self.assertEqual("choicespecs", self.battle.opponent.active.removed_item)
 
 
 class TestStartVolatileStatus(unittest.TestCase):

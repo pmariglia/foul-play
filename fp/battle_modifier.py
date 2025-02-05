@@ -32,6 +32,26 @@ logger = logging.getLogger(__name__)
 
 
 MOVE_END_STRINGS = {"move", "switch", "upkeep", "-miss", ""}
+ITEMS_REVEALED_ON_SWITCH_IN = [
+    # boosterenergy technically only revealed if pkmn has quarkdrive/protosynthesis
+    # but if they don't have that it doesn't matter
+    "boosterenergy",
+    "airballoon",
+]
+
+
+def crit_rate_for_generation(generation):
+    if generation == "gen1":
+        return 205 / 105
+    elif generation in [
+        "gen2",
+        "gen3",
+        "gen4",
+        "gen5",
+    ]:
+        return 2.0
+    else:
+        return 1.5
 
 
 def can_have_priority_modified(battle, pokemon, move_name):
@@ -477,6 +497,13 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             )
         )
         pkmn.impossible_abilities.add("intimidate")
+
+    for item in ITEMS_REVEALED_ON_SWITCH_IN:
+        if item not in pkmn.impossible_items:
+            logger.info(
+                "{} switched in, adding {} to impossible items".format(item, pkmn.name)
+            )
+            pkmn.impossible_items.add(item)
 
     if baton_passed_boosts is not None:
         logger.info(
@@ -1383,6 +1410,25 @@ def set_item(battle, split_msg):
         other_side = battle.opponent
 
     item = normalize_name(split_msg[3].strip())
+
+    if (
+        len(split_msg) >= 5
+        and side.active.removed_item is None
+        and item != side.active.item
+        and side.active.item not in [constants.UNKNOWN_ITEM]
+    ):
+        logger.info("{}'s removed item is {}".format(side.active.name, item))
+        side.active.removed_item = side.active.item
+
+    # when the bot gets tricked we set the opponent's removed item
+    if (
+        len(split_msg) >= 5
+        and "[from] move: Trick" in split_msg[4]
+        and not is_opponent(battle, split_msg)
+        and other_side.active.removed_item is None
+    ):
+        logger.info("Setting opponent's removed_item to {}".format(item))
+        other_side.active.removed_item = item
 
     # for gen5 frisk only
     # the frisk message will (incorrectly imo) show the item as belonging to the
@@ -2406,6 +2452,8 @@ def _do_check(
     allow_emptying=False,
 ):
     actual_damage_dealt = damage_dealt.percent_damage * battle_copy.user.active.max_hp
+    if damage_dealt.crit:
+        actual_damage_dealt /= crit_rate_for_generation(battle.generation)
 
     indicies_to_remove = []
     num_starting_possibilites = len(possibilites)
@@ -2427,6 +2475,8 @@ def _do_check(
             actual_damage_dealt = (
                 damage_dealt.percent_damage * battle_copy.opponent.active.max_hp
             )
+            if damage_dealt.crit:
+                actual_damage_dealt /= crit_rate_for_generation(battle.generation)
 
             if bot_went_first:
                 opponent_move = constants.DO_NOTHING_MOVE
@@ -2483,7 +2533,6 @@ def update_dataset_possibilities(
         or damage_dealt.move not in all_move_json
         or all_move_json[damage_dealt.move][constants.CATEGORY] == constants.STATUS
         or damage_dealt.move.startswith(constants.HIDDEN_POWER)
-        or damage_dealt.crit
         or damage_dealt.percent_damage == 0
         or (
             check_type == "damage_dealt"
@@ -2824,7 +2873,7 @@ def update_battle(battle, msg):
         if action == "turn":
             return True
 
-    if action in ["inactive", "updatesearch", "c"]:
+    if action in ["inactive", "updatesearch", "c", "l", "j", "player"]:
         return False
 
     if action != "request":

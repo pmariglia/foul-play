@@ -201,6 +201,14 @@ class Battler:
         self.last_selected_move = LastUsedMove("", "", 0)
         self.last_used_move = LastUsedMove("", "", 0)
 
+    def num_fainted_pkmn(self):
+        num_fainted = 0
+        for pkmn in self.reserve + [self.active]:
+            if not pkmn.is_alive():
+                num_fainted += 1
+
+        return num_fainted
+
     def mega_revealed(self):
         return self.active.is_mega or any(p.is_mega for p in self.reserve)
 
@@ -302,6 +310,14 @@ class Battler:
                 self.active.add_move(move[constants.ID])
             self.active.moves[-1].disabled = move.get(constants.DISABLED, False)
             self.active.moves[-1].current_pp = move.get(constants.PP, 1)
+
+            # PokemonShowdown disables these moves in the protocol after they are used once,
+            # but poke-engine does not expect them to be disabled
+            # poke-engine deals with this by not allowing these moves to be selected if they are the last used move
+            if self.last_used_move.move in ["gigatonhammer", "bloodmoon"]:
+                for m in self.active.moves:
+                    if m.name == self.last_used_move.move and m.disabled:
+                        m.disabled = False
 
             try:
                 self.active.moves[index].can_z = request_json[constants.ACTIVE][0][
