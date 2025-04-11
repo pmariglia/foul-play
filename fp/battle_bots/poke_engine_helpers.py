@@ -146,6 +146,7 @@ def battler_to_poke_engine_side(
     side = PokeEngineSide(
         active_index="0",
         baton_passing=battler.baton_passing,
+        shed_tailing=battler.shed_tailing,
         pokemon=[pokemon_to_poke_engine_pkmn(battler.active)]
         + [pokemon_to_poke_engine_pkmn(p) for p in battler.reserve],
         side_conditions=PokeEngineSideConditions(

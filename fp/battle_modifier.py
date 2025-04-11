@@ -293,7 +293,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         side.side_conditions[constants.TOXIC_COUNT] = 0
 
     baton_passed_boosts = None
-    baton_passed_volatiles = []
+    switch_keep_volatiles = []
     if side.active is not None:
         # set the pkmn's types back to their original value if the types were changed
         # if the pkmn is terastallized, this does not happen
@@ -341,10 +341,16 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
             if constants.SUBSTITUTE in side.active.volatile_statuses:
                 logger.info("Baton passing, preserving substitute")
-                baton_passed_volatiles.append(constants.SUBSTITUTE)
+                switch_keep_volatiles.append(constants.SUBSTITUTE)
             if constants.LEECH_SEED in side.active.volatile_statuses:
                 logger.info("Baton passing, preserving leechseed")
-                baton_passed_volatiles.append(constants.LEECH_SEED)
+                switch_keep_volatiles.append(constants.LEECH_SEED)
+        elif split_msg[-1] == "[from] Shed Tail":
+            side.shed_tailing = False
+
+            if constants.SUBSTITUTE in side.active.volatile_statuses:
+                logger.info("Shed tailing, preserving substitute")
+                switch_keep_volatiles.append(constants.SUBSTITUTE)
 
         # gen5 rest turns are reset upon switching
         if battle.generation == "gen5" and side.active.status == constants.SLEEP:
@@ -539,8 +545,8 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             )
         )
         side.active.boosts = baton_passed_boosts
-    for volatile in baton_passed_volatiles:
-        logger.info("Baton passing volatile: {}".format(volatile))
+    for volatile in switch_keep_volatiles:
+        logger.info("Keeping volatile on switch: {}".format(volatile))
         side.active.volatile_statuses.append(volatile)
 
 
@@ -1215,6 +1221,13 @@ def start_volatile_status(battle, split_msg):
         pkmn.volatile_statuses.append(volatile_status)
 
     if volatile_status == constants.SUBSTITUTE:
+        if split_msg[4] == "[from] move: Shed Tail":
+            logger.info(
+                "{} started a substitute from shed tail - setting shed_tailing to True".format(
+                    pkmn.name
+                )
+            )
+            side.shed_tailing = True
         logger.info(
             "{} started a substitute - setting substitute_hit to False".format(
                 pkmn.name

@@ -183,6 +183,7 @@ SWITCH_OUT_MOVES = {
     "teleport",
     "flipturn",
     "chillyreception",
+    "shedtail",
 }
 
 # volatile statuses

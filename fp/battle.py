@@ -189,6 +189,7 @@ class Battler:
         self.name = None
         self.trapped = False
         self.baton_passing = False
+        self.shed_tailing = False
         self.wish = (0, 0)
         self.future_sight = (0, "")
 

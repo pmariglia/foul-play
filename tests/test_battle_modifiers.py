@@ -852,6 +852,26 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         self.assertEqual(["normal"], ditto.types)
 
+    def test_shed_tail_switching_in_gets_shed_tailing_flag_set_to_false(self):
+        self.battle.user.shed_tailing = True
+
+        split_msg = ["", "switch", "p1a: Pikachu", "Pikachu, L100, M", "100/100", "[from] Shed Tail"]
+        switch_or_drag(self.battle, split_msg)
+
+        self.assertFalse(self.battle.user.shed_tailing)
+
+    def test_shed_tail_switching_in_only_keeps_substitute(self):
+        self.battle.user.active.volatile_statuses = [constants.SUBSTITUTE, constants.LEECH_SEED]
+        self.battle.user.active.boosts[constants.SPEED] = 1
+        self.battle.user.active.boosts[constants.ATTACK] = -2
+
+        split_msg = ["", "switch", "p1a: Pikachu", "Pikachu, L100, M", "100/100", "[from] Shed Tail"]
+        switch_or_drag(self.battle, split_msg)
+
+        self.assertEqual(0, self.battle.user.active.boosts[constants.SPEED])
+        self.assertEqual(0, self.battle.user.active.boosts[constants.ATTACK])
+        self.assertEqual([constants.SUBSTITUTE], self.battle.user.active.volatile_statuses)
+
 
 class TestHealOrDamage(unittest.TestCase):
     def setUp(self):
@@ -2638,6 +2658,24 @@ class TestStartVolatileStatus(unittest.TestCase):
 
         start_volatile_status(self.battle, split_msg)
         self.assertFalse(self.battle.opponent.active.substitute_hit)
+
+    def test_substitute_gets_shed_tailing_flag_set_to_true(self):
+        self.battle.user.active.max_hp = 100
+        self.battle.user.active.hp = 100
+
+        self.battle.opponent.active.hp = 100
+        self.battle.user.active.hp = 100
+
+        messages = [
+            "|move|p1a: Cyclizar|Shed Tail|p1a: Cyclizar",
+            "|-start|p1a: Cyclizar|Substitute|[from] move: Shed Tail",
+            "|-damage|p1a: Cyclizar|50/100",  # damage from sub should not be caught
+        ]
+
+        split_msg = messages[1].split("|")
+
+        start_volatile_status(self.battle, split_msg)
+        self.assertTrue(self.battle.user.shed_tailing)
 
     def test_flashfire_sets_ability_on_opponent(self):
         split_msg = ["", "-start", "p2a: Caterpie", "ability: Flash Fire"]
