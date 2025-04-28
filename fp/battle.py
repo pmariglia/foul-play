@@ -90,6 +90,8 @@ class Battle:
         self.request_json = None
         self.msg_list = []
 
+        self.game_review = False
+
     def initialize_team_preview(self, opponent_pokemon, battle_type):
         self.user.reserve.insert(0, self.user.active)
         self.user.active = None

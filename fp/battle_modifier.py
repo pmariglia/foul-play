@@ -482,7 +482,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         side.reserve.remove(pkmn)
 
     split_hp_msg = split_msg[4].split("/")
-    if is_opponent(battle, split_msg):
+    if is_opponent(battle, split_msg) or battle.game_review:
         new_hp_percentage = float(split_hp_msg[0]) / 100
         if (
             pkmn.hp != new_hp_percentage * pkmn.max_hp
@@ -595,8 +595,12 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
 def sethp(battle, split_msg):
     # |-sethp|p2a: Jellicent|317/403|[from] move: Pain Split|[silent]
-    if is_opponent(battle, split_msg):
+    if is_opponent(battle, split_msg) or battle.game_review:
         pkmn = battle.opponent.active
+        new_hp_percentage = float(split_msg[3].split("/")[0]) / 100
+        pkmn.hp = int(pkmn.max_hp * new_hp_percentage)
+    elif battle.game_review:
+        pkmn = battle.user.active
         new_hp_percentage = float(split_msg[3].split("/")[0]) / 100
         pkmn.hp = int(pkmn.max_hp * new_hp_percentage)
     else:
@@ -634,6 +638,9 @@ def heal_or_damage(battle, split_msg):
             pkmn = side.find_reserve_pokemon_by_nickname(nickname)
         if constants.FNT in split_msg[3]:
             pkmn.hp = 0
+        elif battle.game_review:
+            new_hp_percentage = float(split_msg[3].split("/")[0]) / 100
+            pkmn.hp = pkmn.max_hp * new_hp_percentage
         else:
             pkmn.hp = float(split_msg[3].split("/")[0])
             pkmn.max_hp = float(split_msg[3].split("/")[1].split()[0])
@@ -2567,6 +2574,7 @@ def check_speed_ranges(battle, msg_lines):
         number_of_moves == 1
         and moves[0][0].startswith(battle.opponent.name)
         and moves[0][1][constants.ID] != "pursuit"
+        and not battle.game_review
     ):
         moves.append(
             (
@@ -2743,6 +2751,9 @@ def check_choicescarf(battle, msg_lines):
 
     # if the bot went first we cannot ever infer a choicescarf
     if number_of_moves not in [1, 2] or moves[0][0].startswith(battle.user.name):
+        return
+
+    elif number_of_moves == 1 and battle.game_review:
         return
 
     elif number_of_moves == 1:
