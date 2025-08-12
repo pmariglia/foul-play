@@ -164,10 +164,11 @@ async def start_random_battle(
         if m.startswith("|switch|p2a:"):
             lvl = 100
             # Check for non level 100
-            if "L" in m.split("|")[3].split(",")[1]:
-                lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
-            battle.opponent.active = Pokemon(m.split("|")[3].split(",")[0], lvl)
-            break
+            try:
+                if "L" in m.split("|")[3].split(",")[1]:
+                    lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
+            except:
+                pass
 
     # apply the messages that were held onto
     process_battle_updates(battle)
@@ -227,8 +228,11 @@ async def start_standard_battle(
             if m.startswith("|switch|p2a:"):
                 lvl = 100
                 # Check for non level 100
-                if "L" in m.split("|")[3].split(",")[1]:
-                    lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
+                try:
+                    if "L" in m.split("|")[3].split(",")[1]:
+                        lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
+                except:
+                    pass
                 battle.opponent.active = Pokemon(m.split("|")[3].split(",")[0], lvl)
                 break
 
