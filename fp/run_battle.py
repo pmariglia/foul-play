@@ -189,7 +189,9 @@ async def start_standard_battle(
 
     # Some old gen formats have team preview (e.g. Gen 1 Stadium OU)
     # Read first message then check for team preview
-    msg = await ps_websocket_client.receive_message()
+    while not((constants.START_STRING in msg) or (constants.START_TEAM_PREVIEW in msg)):
+        msg = await ps_websocket_client.receive_message()
+
 
     if constants.START_TEAM_PREVIEW not in msg:
         while True:
