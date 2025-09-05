@@ -217,7 +217,7 @@ def request(battle, split_msg):
 
 
 def inactive(battle, split_msg):
-    regex_string = "(\d+) sec this turn"
+    regex_string = r"(\d+) sec this turn"
     if split_msg[2].startswith(constants.TIME_LEFT):
         capture = re.search(regex_string, split_msg[2])
         try:
