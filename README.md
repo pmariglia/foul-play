@@ -2,7 +2,7 @@
 A Pokémon battle-bot that can play battles on [Pokemon Showdown](https://pokemonshowdown.com/).
 
 Foul Play can play single battles in all generations
-though currently dynamax, mega-evolutions, and z-moves are not supported.
+though currently dynamax and z-moves are not supported.
 
 ![badge](https://github.com/pmariglia/foul-play/actions/workflows/ci.yml/badge.svg)
 

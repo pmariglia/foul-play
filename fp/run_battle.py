@@ -44,7 +44,9 @@ async def async_pick_move(battle):
     with concurrent.futures.ThreadPoolExecutor() as pool:
         best_move = await loop.run_in_executor(pool, battle_copy.find_best_move)
     battle.user.last_selected_move = LastUsedMove(
-        battle.user.active.name, best_move.removesuffix("-tera"), battle.turn
+        battle.user.active.name,
+        best_move.removesuffix("-tera").removesuffix("-mega"),
+        battle.turn,
     )
     return format_decision(battle_copy, best_move)
 
@@ -105,6 +107,7 @@ async def start_battle_common(
         "fp.battle_bots.{}.main".format(FoulPlayConfig.battle_bot_module)
     ).BattleBot(battle_tag)
     battle.opponent.account_name = opponent_name
+    battle.pokemon_mode = pokemon_battle_type
     battle.generation = pokemon_battle_type[:4]
 
     # wait until the opponent's identifier is received. This will be `p1` or `p2`.

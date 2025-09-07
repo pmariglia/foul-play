@@ -159,11 +159,16 @@ def format_decision(battle, decision):
             raise ValueError("Tried to switch to: {}".format(switch_pokemon))
     else:
         tera = False
+        mega = False
         if decision.endswith("-tera"):
             decision = decision.replace("-tera", "")
             tera = True
+        elif decision.endswith("-mega"):
+            decision = decision.replace("-mega", "")
+            mega = True
         message = "/choose move {}".format(decision)
-        if battle.user.active.can_mega_evo:
+
+        if battle.user.active.can_mega_evo and mega:
             message = "{} {}".format(message, constants.MEGA)
         elif battle.user.active.can_ultra_burst:
             message = "{} {}".format(message, constants.ULTRA_BURST)

@@ -466,6 +466,9 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         if unknown_forme_pkmn:
             side.reserve.remove(unknown_forme_pkmn)
     else:
+        if pkmn.name != temp_pkmn.name:
+            logger.info("Renaming {} -> {}".format(pkmn.name, temp_pkmn.name))
+            pkmn.name = temp_pkmn.name
         pkmn.nickname = temp_pkmn.nickname
 
         # Zoroark edge-case nonsense
@@ -2975,22 +2978,18 @@ def update_dataset_possibilities(
 
     if battle.battle_type == constants.RANDOM_BATTLE:
         possibilites = RandomBattleTeamDatasets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active.name, battle.opponent.active.base_name
+            battle.opponent.active
         )
         smogon_possibilities = None
         allow_emptying = False
     elif battle.battle_type == constants.BATTLE_FACTORY:
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active.name, battle.opponent.active.base_name
-        )
+        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
         smogon_possibilities = None
         allow_emptying = False
     else:
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active.name, battle.opponent.active.base_name
-        )
+        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
         smogon_possibilities = SmogonSets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active.name, battle.opponent.active.base_name
+            battle.opponent.active
         )
         allow_emptying = True
 
