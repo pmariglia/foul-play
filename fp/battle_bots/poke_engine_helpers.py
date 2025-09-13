@@ -125,12 +125,18 @@ def battler_to_poke_engine_side(
 
     future_sight_index = 0
     if battler.future_sight[0] > 0:
-        if battler.active.name == battler.future_sight[1]:
+        if (
+            battler.active.name == battler.future_sight[1]
+            or battler.active.base_name == battler.future_sight[1]
+        ):
             future_sight_index = 0
         else:
             index = 1
             for pkmn in battler.reserve:
-                if pkmn.name == battler.future_sight[1]:
+                if (
+                    pkmn.name == battler.future_sight[1]
+                    or pkmn.base_name == battler.future_sight[1]
+                ):
                     future_sight_index = index
                     break
                 index += 1
