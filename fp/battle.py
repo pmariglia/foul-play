@@ -514,10 +514,28 @@ class Battler:
         # if a team_dict exists, meaning we are playing a format where we selected our own team,
         # set the nature/evs for each pokmeon
         if self.team_dict is not None:
+            team_dict_pkmn_names = [p["species"] for p in self.team_dict]
             for pkmn in [self.active] + self.reserve:
-                team_dict_pkmn = next(
-                    p for p in self.team_dict if p["species"] == pkmn.name
-                )
+                pkmn_other_formes = [
+                    normalize_name(n) for n in pokedex[pkmn.name].get("otherFormes", [])
+                ]
+                if pkmn.name in team_dict_pkmn_names:
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == pkmn.name
+                    )
+                elif pkmn.base_name in team_dict_pkmn_names:
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == pkmn.base_name
+                    )
+                elif any(p in team_dict_pkmn_names for p in pkmn_other_formes):
+                    other_forme_in_team = next(
+                        p for p in pkmn_other_formes if p in team_dict_pkmn_names
+                    )
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == other_forme_in_team
+                    )
+                else:
+                    raise ValueError("Could not find {} in team_dict".format(pkmn.name))
                 pkmn.nature = team_dict_pkmn["nature"] or "serious"
                 pkmn.evs = (
                     int(team_dict_pkmn["evs"]["hp"] or 0),
