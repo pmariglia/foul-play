@@ -86,7 +86,7 @@ async def get_battle_tag_and_opponent(ps_websocket_client: PSWebsocketClient):
         first_msg = split_msg[0]
         if "battle" in first_msg:
             battle_tag = first_msg.replace(">", "").strip()
-            user_name = FoulPlayConfig.username
+            user_name = FoulPlayConfig.user_id
             opponent_name = (
                 split_msg[4].replace(user_name, "").replace("vs.", "").strip()
             )

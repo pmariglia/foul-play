@@ -85,44 +85,30 @@ class PSWebsocketClient:
     async def login(self):
         logger.info("Logging in...")
         client_id, challstr = await self.get_id_and_challstr()
-        if self.password:
-            response = requests.post(
-                self.login_uri,
-                data={
-                    "name": self.username,
-                    "pass": self.password,
-                    "challstr": "|".join([client_id, challstr]),
-                },
-            )
+        response = requests.post(
+            self.login_uri,
+            data={
+                "name": self.username,
+                "pass": self.password,
+                "challstr": "|".join([client_id, challstr]),
+            },
+        )
 
-        else:
-            response = requests.post(
-                self.login_uri,
-                data={
-                    "act": "getassertion",
-                    "userid": self.username,
-                    "challstr": "|".join([client_id, challstr]),
-                },
-            )
-
-        if response.status_code == 200:
-            if self.password:
-                response_json = json.loads(response.text[1:])
-                if "actionsuccess" not in response_json:
-                    logger.error("Login Unsuccessful: {}".format(response_json))
-                    raise LoginError("Could not log-in: {}".format(response_json))
-
-                assertion = response_json.get("assertion")
-            else:
-                assertion = response.text
-
-            message = ["/trn " + self.username + ",0," + assertion]
-            logger.info("Successfully logged in")
-            await self.send_message("", message)
-            await asyncio.sleep(3)
-        else:
+        if response.status_code != 200:
             logger.error("Could not log-in\nDetails:\n{}".format(response.content))
             raise LoginError("Could not log-in")
+
+        response_json = json.loads(response.text[1:])
+        if "actionsuccess" not in response_json:
+            logger.error("Login Unsuccessful: {}".format(response_json))
+            raise LoginError("Could not log-in: {}".format(response_json))
+
+        assertion = response_json.get("assertion")
+        message = ["/trn " + self.username + ",0," + assertion]
+        logger.info("Successfully logged in")
+        await self.send_message("", message)
+        await asyncio.sleep(3)
+        return response_json["curuser"]["userid"]
 
     async def update_team(self, battle_format, team):
         if "random" in battle_format or "battlefactory" in battle_format:

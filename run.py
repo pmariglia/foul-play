@@ -54,7 +54,8 @@ async def run_foul_play():
     ps_websocket_client = await PSWebsocketClient.create(
         FoulPlayConfig.username, FoulPlayConfig.password, FoulPlayConfig.websocket_uri
     )
-    await ps_websocket_client.login()
+
+    FoulPlayConfig.user_id = await ps_websocket_client.login()
 
     if FoulPlayConfig.avatar is not None:
         await ps_websocket_client.avatar(FoulPlayConfig.avatar)

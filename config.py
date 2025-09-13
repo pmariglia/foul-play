@@ -67,6 +67,7 @@ class _FoulPlayConfig:
     websocket_uri: str
     username: str
     password: str
+    user_id: str
     avatar: str
     bot_mode: str
     pokemon_mode: str = ""
