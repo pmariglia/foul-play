@@ -222,7 +222,6 @@ class PokemonSets(ABC):
             if pkmn_non_cosmetic_name in d:
                 return d[pkmn_non_cosmetic_name]
 
-        logger.warning("Could not find key in dict for {}".format(pkmn_name))
         return []
 
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
