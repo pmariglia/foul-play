@@ -104,6 +104,10 @@ class PokemonSet:
         return pkmn.speed_range.min <= speed <= pkmn.speed_range.max
 
     def item_check(self, pkmn: Pokemon) -> bool:
+        if pkmn.mega_name is None and self.item in [
+            mpi[1] for mpi in pkmn.get_mega_pkmn_info()
+        ]:
+            return False
         if pkmn.item == self.item and pkmn.removed_item is None:
             return True
         elif pkmn.removed_item == self.item:

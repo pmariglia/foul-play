@@ -2444,7 +2444,13 @@ def mega(battle, split_msg):
         side = battle.user
 
     side.active.is_mega = True
-    logger.info("Mega-Pokemon: {}".format(side.active.name))
+    forced_mega_ability = normalize_name(
+        pokedex[side.active.name][constants.ABILITIES]["0"]
+    )
+    side.active.ability = forced_mega_ability
+    logger.info(
+        "Mega-Pokemon: {} with ability {}".format(side.active.name, forced_mega_ability)
+    )
 
 
 def transform(battle, split_msg):
