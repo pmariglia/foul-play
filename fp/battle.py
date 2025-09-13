@@ -200,6 +200,8 @@ class Battler:
 
         self.account_name = None
 
+        self.team_dict = None
+
         # last_selected_move: The last move that was selected (Bot only)
         # last_used_move: The last move that was observed publicly (Bot and Opponent)
         # they may seem the same, but `last_selected_move` is important in situations where the bot selects
@@ -505,11 +507,26 @@ class Battler:
                     move_name = "behemothbash"
                 pkmn.add_move(move_name)
 
-        # if there is no active pokemon, we do not want to look through it's moves
-        if constants.ACTIVE not in request_json:
-            return
+        # if there is an active pokemon, we want to look through it's moves
+        if constants.ACTIVE in request_json:
+            self._initialize_user_active_from_request_json(request_json)
 
-        self._initialize_user_active_from_request_json(request_json)
+        # if a team_dict exists, meaning we are playing a format where we selected our own team,
+        # set the nature/evs for each pokmeon
+        if self.team_dict is not None:
+            for pkmn in [self.active] + self.reserve:
+                team_dict_pkmn = next(
+                    p for p in self.team_dict if p["species"] == pkmn.name
+                )
+                pkmn.nature = team_dict_pkmn["nature"] or "serious"
+                pkmn.evs = (
+                    int(team_dict_pkmn["evs"]["hp"] or 0),
+                    int(team_dict_pkmn["evs"]["atk"] or 0),
+                    int(team_dict_pkmn["evs"]["def"] or 0),
+                    int(team_dict_pkmn["evs"]["spa"] or 0),
+                    int(team_dict_pkmn["evs"]["spd"] or 0),
+                    int(team_dict_pkmn["evs"]["spe"] or 0),
+                )
 
 
 class Pokemon:

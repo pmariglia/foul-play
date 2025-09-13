@@ -173,9 +173,10 @@ async def start_random_battle(
 
 
 async def start_standard_battle(
-    ps_websocket_client: PSWebsocketClient, pokemon_battle_type
+    ps_websocket_client: PSWebsocketClient, pokemon_battle_type, team_dict
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
+    battle.user.team_dict = team_dict
     if "battlefactory" in pokemon_battle_type:
         battle.battle_type = constants.BATTLE_FACTORY
     else:
@@ -260,11 +261,13 @@ async def start_standard_battle(
     return battle
 
 
-async def start_battle(ps_websocket_client, pokemon_battle_type):
+async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
     if "random" in pokemon_battle_type:
         battle = await start_random_battle(ps_websocket_client, pokemon_battle_type)
     else:
-        battle = await start_standard_battle(ps_websocket_client, pokemon_battle_type)
+        battle = await start_standard_battle(
+            ps_websocket_client, pokemon_battle_type, team_dict
+        )
 
     await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
     await ps_websocket_client.send_message(battle.battle_tag, ["/timer on"])
@@ -272,8 +275,8 @@ async def start_battle(ps_websocket_client, pokemon_battle_type):
     return battle
 
 
-async def pokemon_battle(ps_websocket_client, pokemon_battle_type):
-    battle = await start_battle(ps_websocket_client, pokemon_battle_type)
+async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
+    battle = await start_battle(ps_websocket_client, pokemon_battle_type, team_dict)
     while True:
         msg = await ps_websocket_client.receive_message()
         if battle_is_finished(battle.battle_tag, msg):

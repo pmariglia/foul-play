@@ -73,10 +73,10 @@ def single_pokemon_export_to_dict(pkmn_export_string):
         name = name.replace("(F)", "")
     species, nickname = get_species_in_parentheses(name)
     if species:
-        pkmn_dict["species"] = species.strip()
+        pkmn_dict["species"] = normalize_name(species.strip())
         pkmn_dict["name"] = nickname.strip()
     else:
-        pkmn_dict["species"] = name.strip()
+        pkmn_dict["species"] = normalize_name(name.strip())
     if "@" in pkmn_info[0]:
         pkmn_dict["item"] = normalize_name(pkmn_info[0].split("@")[1])
     for line in map(str.strip, pkmn_info[1:]):

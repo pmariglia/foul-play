@@ -81,7 +81,9 @@ async def run_foul_play():
         else:
             raise ValueError("Invalid Bot Mode: {}".format(FoulPlayConfig.bot_mode))
 
-        winner = await pokemon_battle(ps_websocket_client, FoulPlayConfig.pokemon_mode)
+        winner = await pokemon_battle(
+            ps_websocket_client, FoulPlayConfig.pokemon_mode, team_dict
+        )
         if winner == FoulPlayConfig.username:
             wins += 1
             logger.info("Won with team: {}".format(file_name))
