@@ -1,8 +1,8 @@
 import logging
 
 import constants
-from fp.battle import Pokemon
 from data.pkmn_sets import PredictedPokemonSet
+from fp.battle import Pokemon
 
 logger = logging.getLogger(__name__)
 

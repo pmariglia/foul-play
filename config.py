@@ -1,16 +1,10 @@
+import argparse
 import logging
 import os
 import sys
 from enum import Enum, auto
 from logging.handlers import RotatingFileHandler
 from typing import Optional
-
-from environs import Env
-
-import constants
-
-env = Env()
-env.read_env(path="env", recurse=False)
 
 
 class CustomFormatter(logging.Formatter):
@@ -57,67 +51,137 @@ def init_logging(level, log_to_file):
 
 
 class SaveReplay(Enum):
-    Always = auto()
-    Never = auto()
-    OnLoss = auto()
+    always = auto()
+    never = auto()
+    on_loss = auto()
+
+
+class BotModes(Enum):
+    challenge_user = auto()
+    accept_challenge = auto()
+    search_ladder = auto()
 
 
 class _FoulPlayConfig:
-    battle_bot_module: str
     websocket_uri: str
     username: str
     password: str
     user_id: str
     avatar: str
-    bot_mode: str
-    pokemon_mode: str = ""
+    bot_mode: BotModes
+    pokemon_format: str = ""
     smogon_stats: str = None
     search_time_ms: int
     parallelism: int
     run_count: int
-    team: str
+    team_name: str
     user_to_challenge: str
     save_replay: SaveReplay
     room_name: str
-    damage_calc_type: str
     log_level: str
     log_to_file: bool
     stdout_log_handler: logging.StreamHandler
     file_log_handler: Optional[CustomRotatingFileHandler]
 
     def configure(self):
-        self.battle_bot_module = env("BATTLE_BOT")
-        self.websocket_uri = env("WEBSOCKET_URI")
-        self.username = env("PS_USERNAME")
-        self.password = env("PS_PASSWORD")
-        self.avatar = env("PS_AVATAR", None)
-        self.bot_mode = env("BOT_MODE")
-        self.pokemon_mode = env("POKEMON_MODE")
-        self.smogon_stats = env("SMOGON_STATS", None)
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--websocket-uri",
+            required=True,
+            help="The PokemonShowdown websocket URI, e.g. wss://sim3.psim.us/showdown/websocket",
+        )
+        parser.add_argument("--ps-username", required=True)
+        parser.add_argument("--ps-password", required=True)
+        parser.add_argument("--ps-avatar", default=None)
+        parser.add_argument(
+            "--bot-mode", required=True, choices=[e.name for e in BotModes]
+        )
+        parser.add_argument(
+            "--user-to-challenge",
+            default=None,
+            help="If bot_mode is `challenge_user`, this is required",
+        )
+        parser.add_argument(
+            "--pokemon-format", required=True, help="e.g. gen9randombattle"
+        )
+        parser.add_argument(
+            "--smogon-stats-format",
+            default=None,
+            help="Overwrite which smogon stats are used to infer unknowns. If not set, defaults to the --pokemon-format value.",
+        )
+        parser.add_argument(
+            "--search-time-ms",
+            type=int,
+            default=100,
+            help="Time to search per battle in milliseconds",
+        )
+        parser.add_argument(
+            "--search-parallelism",
+            type=int,
+            default=1,
+            help="Number of states to search in parallel",
+        )
+        parser.add_argument(
+            "--run-count",
+            type=int,
+            default=1,
+            help="Number of PokemonShowdown battles to run",
+        )
+        parser.add_argument(
+            "--team-name",
+            default=None,
+            help="Which team to use. Can be a filename or a foldername relative to ./teams/teams/. "
+            "If a foldername, a random team from that folder will be chosen each battle. "
+            "If not set, defaults to the --pokemon-format value.",
+        )
+        parser.add_argument(
+            "--save-replay",
+            default="never",
+            choices=[e.name for e in SaveReplay],
+            help="When to save replays",
+        )
+        parser.add_argument(
+            "--room-name",
+            default=None,
+            help="If bot_mode is `accept_challenge`, the room to join while waiting",
+        )
+        parser.add_argument("--log-level", default="DEBUG", help="Python logging level")
+        parser.add_argument(
+            "--log-to-file",
+            action="store_true",
+            help="When enabled, DEBUG logs will be written to a file in the logs/ directory",
+        )
 
-        self.search_time_ms = env.int("SEARCH_TIME_MS", 100)
-        self.parallelism = env.int("MCTS_PARALLELISM", 1)
-
-        self.run_count = env.int("RUN_COUNT", 1)
-        self.team = env("TEAM_NAME", None)
-        self.user_to_challenge = env("USER_TO_CHALLENGE", None)
-
-        self.save_replay = SaveReplay[env.str("SAVE_REPLAY", "Never")]
-        self.room_name = env("ROOM_NAME", None)
-        self.damage_calc_type = env("DAMAGE_CALC_TYPE", "average")
-
-        self.log_level = env("LOG_LEVEL", "DEBUG")
-        self.log_to_file = env.bool("LOG_TO_FILE", False)
+        args = parser.parse_args()
+        self.websocket_uri = args.websocket_uri
+        self.username = args.ps_username
+        self.password = args.ps_password
+        self.avatar = args.ps_avatar
+        self.bot_mode = BotModes[args.bot_mode]
+        self.pokemon_format = args.pokemon_format
+        self.smogon_stats = args.smogon_stats_format
+        self.search_time_ms = args.search_time_ms
+        self.parallelism = args.search_parallelism
+        self.run_count = args.run_count
+        self.team_name = args.team_name or self.pokemon_format
+        self.user_to_challenge = args.user_to_challenge
+        self.save_replay = SaveReplay[args.save_replay]
+        self.room_name = args.room_name
+        self.log_level = args.log_level
+        self.log_to_file = args.log_to_file
 
         self.validate_config()
 
-    def validate_config(self):
-        assert self.bot_mode in constants.BOT_MODES
+    def requires_team(self) -> bool:
+        return not (
+            "random" in self.pokemon_format or "battlefactory" in self.pokemon_format
+        )
 
-        if self.bot_mode == constants.CHALLENGE_USER:
+    def validate_config(self):
+        if self.bot_mode == BotModes.challenge_user:
             assert (
                 self.user_to_challenge is not None
-            ), "If bot_mode is `CHALLENGE_USER, you must declare USER_TO_CHALLENGE"
+            ), "If bot_mode is `CHALLENGE_USER`, you must declare USER_TO_CHALLENGE"
 
 
 FoulPlayConfig = _FoulPlayConfig()

@@ -1,7 +1,5 @@
 from collections import defaultdict
 from collections import namedtuple
-from abc import ABC
-from abc import abstractmethod
 
 import constants
 import logging
@@ -61,7 +59,7 @@ boost_multiplier_lookup = {
 }
 
 
-class Battle(ABC):
+class Battle:
     def __init__(self, battle_tag):
         self.battle_tag = battle_tag
         self.user = Battler()
@@ -85,7 +83,7 @@ class Battle(ABC):
         self.wait = False
 
         self.battle_type = None
-        self.pokemon_mode = None
+        self.pokemon_format = None
         self.generation = None
         self.time_remaining = None
 
@@ -130,7 +128,7 @@ class Battle(ABC):
     def mega_evolve_possible(self):
         return (
             any(g in self.generation for g in constants.MEGA_EVOLVE_GENERATIONS)
-            or "nationaldex" in self.pokemon_mode
+            or "nationaldex" in self.pokemon_format
         )
 
     def get_effective_speed(self, battler):
@@ -180,9 +178,6 @@ class Battle(ABC):
             boosted_speed *= 1.5
 
         return int(boosted_speed)
-
-    @abstractmethod
-    def find_best_move(self): ...
 
 
 class Battler:
@@ -614,25 +609,27 @@ class Pokemon:
 
     def get_mega_pkmn_info(self) -> list[tuple[str, str]]:
         mega_names = []
+        if self.name == "rayquaza":
+            return [("rayquaza", "none")]
         if f"{self.name}mega" in pokedex:
             mega_names.append(
                 (
                     f"{self.name}mega",
-                    normalize_name(pokedex[f"{self.name}mega"].get("requiredItem")),
+                    normalize_name(pokedex[f"{self.name}mega"]["requiredItem"]),
                 )
             )
         if f"{self.name}megax" in pokedex:
             mega_names.append(
                 (
                     f"{self.name}megax",
-                    normalize_name(pokedex[f"{self.name}megax"].get("requiredItem")),
+                    normalize_name(pokedex[f"{self.name}megax"]["requiredItem"]),
                 )
             )
         if f"{self.name}megay" in pokedex:
             mega_names.append(
                 (
                     f"{self.name}megay",
-                    normalize_name(pokedex[f"{self.name}megay"].get("requiredItem")),
+                    normalize_name(pokedex[f"{self.name}megay"]["requiredItem"]),
                 )
             )
         return mega_names

@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import constants
 from data import all_move_json
-from fp.battle_bots.mcts_parallel.random_battles import (
+from fp.search.helpers import (
     populate_pkmn_from_set,
 )
 from fp.helpers import natures
