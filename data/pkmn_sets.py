@@ -587,12 +587,16 @@ class _SmogonSets(PokemonSets):
         else:
             r = requests.get(smogon_stats_url)
             if r.status_code == 404:
-                r = requests.get(
-                    self._get_smogon_stats_file_name(
-                        ntpath.basename(smogon_stats_url.replace("-0.json", "")),
-                        month_delta=2,
+                # Keep looking back in time to find file
+                for i in range(200):
+                    r = requests.get(
+                        self._get_smogon_stats_file_name(
+                            ntpath.basename(smogon_stats_url.replace("-0.json", "")),
+                            month_delta=2*i,
+                        )
                     )
-                )
+                    if r.status_code != 404:
+                        break
             infos = r.json()["data"]
             with open(cache_file, "w") as f:
                 json.dump(infos, f)
@@ -674,11 +678,15 @@ class _SmogonSets(PokemonSets):
                 if count > 0:
                     abilities.append((ability, count / total_count))
 
-            for tera_type, count in pkmn_information["Tera Types"].items():
-                if tera_type == "nothing":
-                    tera_type = "typeless"
-                if count > 0:
-                    tera_types.append((tera_type, count / total_count))
+            # Attempt to get Tera type. Try/except prevent crash when loading teams without Tera types
+            try:
+                for tera_type, count in pkmn_information["Tera Types"].items():
+                    if tera_type == "nothing":
+                        tera_type = "typeless"
+                    if count > 0:
+                        tera_types.append((tera_type, count / total_count))
+            except:
+                pass
 
             final_infos[normalized_name][SPREADS_STRING] = sorted(
                 spreads, key=lambda x: x[2], reverse=True
