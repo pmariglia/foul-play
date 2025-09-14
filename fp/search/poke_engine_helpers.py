@@ -11,9 +11,7 @@ from poke_engine import (
     VolatileStatusDurations as PokeEngineVolatileStatusDurations,
     Pokemon as PokeEnginePokemon,
     Move as PokeEngineMove,
-    monte_carlo_tree_search,
     calculate_damage,
-    iterative_deepening_expectiminimax,
 )
 
 logger = logging.getLogger(__name__)
@@ -364,44 +362,3 @@ def poke_engine_get_damage_rolls(
     )
 
     return s1_rolls, s2_rolls
-
-
-def get_payoff_matrix_from_mcts(
-    poke_engine_state: PokeEngineState, search_time_ms: int
-):
-    state_string = poke_engine_state.to_string()
-    logger.debug("Calling with state: {}".format(state_string))
-
-    mcts_result = monte_carlo_tree_search(poke_engine_state, search_time_ms)
-
-    iterations = mcts_result.total_visits
-
-    most_visits = -1
-    choice = None
-    win_percentage = 0
-    for option in mcts_result.side_one:
-        visits = option.visits
-        if visits > most_visits:
-            most_visits = visits
-            win_percentage = round(float(option.total_score) / most_visits, 2)
-            choice = option.move_choice
-
-    if choice is None:
-        raise ValueError("No move found")
-
-    return (
-        choice,
-        win_percentage,
-        iterations,
-    )
-
-
-def get_payoff_matrix_with_minimax(
-    poke_engine_state: PokeEngineState, search_time_ms: int
-):
-    state_string = poke_engine_state.to_string()
-    logger.debug("Calling with state: {}".format(state_string))
-
-    id_result = iterative_deepening_expectiminimax(poke_engine_state, search_time_ms)
-
-    return id_result.get_safest_move()

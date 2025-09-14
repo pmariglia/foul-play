@@ -110,31 +110,20 @@ class PSWebsocketClient:
         await asyncio.sleep(3)
         return response_json["curuser"]["userid"]
 
-    async def update_team(self, battle_format, team):
-        if "random" in battle_format or "battlefactory" in battle_format:
-            logger.info(
-                "Setting team to None because the pokemon mode is {}".format(
-                    battle_format
-                )
-            )
-            message = ["/utm None"]
-        else:
-            message = ["/utm {}".format(team)]
-        await self.send_message("", message)
+    async def update_team(self, team):
+        await self.send_message("", ["/utm {}".format(team)])
 
-    async def challenge_user(self, user_to_challenge, battle_format, team):
+    async def challenge_user(self, user_to_challenge, battle_format):
         logger.info("Challenging {}...".format(user_to_challenge))
-        await self.update_team(battle_format, team)
         message = ["/challenge {},{}".format(user_to_challenge, battle_format)]
         await self.send_message("", message)
         self.last_challenge_time = time.time()
 
-    async def accept_challenge(self, battle_format, team, room_name):
+    async def accept_challenge(self, battle_format, room_name):
         if room_name is not None:
             await self.join_room(room_name)
 
         logger.info("Waiting for a {} challenge".format(battle_format))
-        await self.update_team(battle_format, team)
         username = None
         while username is None:
             msg = await self.receive_message()
@@ -152,9 +141,8 @@ class PSWebsocketClient:
         message = ["/accept " + username]
         await self.send_message("", message)
 
-    async def search_for_match(self, battle_format, team):
+    async def search_for_match(self, battle_format):
         logger.info("Searching for ranked {} match".format(battle_format))
-        await self.update_team(battle_format, team)
         message = ["/search {}".format(battle_format)]
         await self.send_message("", message)
 

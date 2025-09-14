@@ -154,7 +154,7 @@ def _calculate_stats(base_stats, level, ivs=(31,) * 6, evs=(85,) * 6, nature="se
 
 
 def calculate_stats(base_stats, level, ivs=(31,) * 6, evs=(85,) * 6, nature="serious"):
-    if any(g in FoulPlayConfig.pokemon_mode for g in ["gen1", "gen2"]):
+    if any(g in FoulPlayConfig.pokemon_format for g in ["gen1", "gen2"]):
         return _calculate_stats_gen_1_2(base_stats, level)
     else:
         return _calculate_stats(base_stats, level, ivs, evs, nature)

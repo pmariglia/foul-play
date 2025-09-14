@@ -1,14 +1,9 @@
 import unittest
 
 from fp.battle import LastUsedMove
-from fp.battle import Battle
 from fp.battle import Battler
 from fp.battle import Pokemon
 from fp.battle import Move
-
-
-# so we can instantiate a Battle object for testing
-Battle.__abstractmethods__ = set()
 
 
 class TestPokemon(unittest.TestCase):

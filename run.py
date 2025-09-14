@@ -4,8 +4,7 @@ import logging
 import traceback
 from copy import deepcopy
 
-import constants
-from config import FoulPlayConfig, init_logging
+from config import FoulPlayConfig, init_logging, BotModes
 
 from teams import load_team
 from fp.run_battle import pokemon_battle
@@ -46,7 +45,7 @@ def check_dictionaries_are_unmodified(original_pokedex, original_move_json):
 async def run_foul_play():
     FoulPlayConfig.configure()
     init_logging(FoulPlayConfig.log_level, FoulPlayConfig.log_to_file)
-    apply_mods(FoulPlayConfig.pokemon_mode)
+    apply_mods(FoulPlayConfig.pokemon_format)
 
     original_pokedex = deepcopy(pokedex)
     original_move_json = deepcopy(all_move_json)
@@ -63,34 +62,38 @@ async def run_foul_play():
     battles_run = 0
     wins = 0
     losses = 0
+    team_file_name = "None"
+    team_dict = None
     while True:
-        team_export, team_dict, file_name = load_team(FoulPlayConfig.team)
-        if FoulPlayConfig.bot_mode == constants.CHALLENGE_USER:
+        if FoulPlayConfig.requires_team():
+            team_packed, team_dict, team_file_name = load_team(FoulPlayConfig.team_name)
+            await ps_websocket_client.update_team(team_packed)
+        else:
+            await ps_websocket_client.update_team("None")
+
+        if FoulPlayConfig.bot_mode == BotModes.challenge_user:
             await ps_websocket_client.challenge_user(
                 FoulPlayConfig.user_to_challenge,
-                FoulPlayConfig.pokemon_mode,
-                team_export,
+                FoulPlayConfig.pokemon_format,
             )
-        elif FoulPlayConfig.bot_mode == constants.ACCEPT_CHALLENGE:
+        elif FoulPlayConfig.bot_mode == BotModes.accept_challenge:
             await ps_websocket_client.accept_challenge(
-                FoulPlayConfig.pokemon_mode, team_export, FoulPlayConfig.room_name
+                FoulPlayConfig.pokemon_format, FoulPlayConfig.room_name
             )
-        elif FoulPlayConfig.bot_mode == constants.SEARCH_LADDER:
-            await ps_websocket_client.search_for_match(
-                FoulPlayConfig.pokemon_mode, team_export
-            )
+        elif FoulPlayConfig.bot_mode == BotModes.search_ladder:
+            await ps_websocket_client.search_for_match(FoulPlayConfig.pokemon_format)
         else:
             raise ValueError("Invalid Bot Mode: {}".format(FoulPlayConfig.bot_mode))
 
         winner = await pokemon_battle(
-            ps_websocket_client, FoulPlayConfig.pokemon_mode, team_dict
+            ps_websocket_client, FoulPlayConfig.pokemon_format, team_dict
         )
         if winner == FoulPlayConfig.username:
             wins += 1
-            logger.info("Won with team: {}".format(file_name))
+            logger.info("Won with team: {}".format(team_file_name))
         else:
             losses += 1
-            logger.info("Lost with team: {}".format(file_name))
+            logger.info("Lost with team: {}".format(team_file_name))
 
         logger.info("W: {}\tL: {}".format(wins, losses))
         check_dictionaries_are_unmodified(original_pokedex, original_move_json)

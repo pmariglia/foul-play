@@ -4,6 +4,7 @@ from copy import deepcopy, copy
 import logging
 
 import constants
+from constants import BattleType
 from data import all_move_json
 from data import pokedex
 from data.pkmn_sets import (
@@ -16,7 +17,7 @@ from fp.battle import Pokemon, Battler, Battle
 from fp.battle import LastUsedMove
 from fp.battle import DamageDealt
 from fp.battle import StatRange
-from fp.battle_bots.poke_engine_helpers import poke_engine_get_damage_rolls
+from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
 from fp.helpers import normalize_name, type_effectiveness_modifier
 from fp.helpers import get_pokemon_info_from_condition
 from fp.helpers import calculate_stats
@@ -453,7 +454,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         # we want to add the new pokemon to the datasets as they are revealed
         # because there is no teampreview
         if (
-            battle.battle_type == constants.STANDARD_BATTLE
+            battle.battle_type == BattleType.STANDARD_BATTLE
             and battle.generation in constants.NO_TEAM_PREVIEW_GENS
         ):
             SmogonSets.add_new_pokemon(pkmn.name)
@@ -747,7 +748,8 @@ def move(battle, split_msg):
         is_opponent(battle, split_msg)
         and zoroark_from_reserves is not None
         and "transform" not in pkmn.volatile_statuses
-        and battle.battle_type in [constants.BATTLE_FACTORY, constants.STANDARD_BATTLE]
+        and battle.battle_type
+        in [BattleType.BATTLE_FACTORY, BattleType.STANDARD_BATTLE]
         and move_name not in TeamDatasets.get_all_possible_moves(pkmn)
         and move_name in TeamDatasets.get_all_possible_moves(zoroark_from_reserves)
         and "from" not in split_msg[-1]
@@ -767,7 +769,7 @@ def move(battle, split_msg):
     # zoroark is in the reserves
     if (
         is_opponent(battle, split_msg)
-        and battle.battle_type == constants.RANDOM_BATTLE
+        and battle.battle_type == BattleType.RANDOM_BATTLE
         and "transform" not in pkmn.volatile_statuses
         and move_name not in RandomBattleTeamDatasets.get_all_possible_moves(pkmn)
         and "from" not in split_msg[-1]
@@ -1771,7 +1773,7 @@ def immune(battle, split_msg):
         # Battle Factory: Zoroark must be in the reserves
         # and must be immune to the last used move by the bot
         if (
-            battle.battle_type == constants.BATTLE_FACTORY
+            battle.battle_type == BattleType.BATTLE_FACTORY
             and zoroark_from_reserves is not None
             and type_effectiveness_modifier(
                 all_move_json[battle.user.last_used_move.move][constants.TYPE],
@@ -1790,7 +1792,7 @@ def immune(battle, split_msg):
 
         # Random Battle: Zoroark may be in the reserves so we need to check the move type
         # that it was immune to
-        elif battle.battle_type == constants.RANDOM_BATTLE:
+        elif battle.battle_type == BattleType.RANDOM_BATTLE:
             actual_zoroark = None
             zoroark_hisui = Pokemon("zoroarkhisui", 100)
             zoroark_regular = Pokemon("zoroark", 100)
@@ -2773,7 +2775,7 @@ def check_choicescarf(battle, msg_lines):
     ):
         return
 
-    if battle.battle_type == constants.RANDOM_BATTLE:
+    if battle.battle_type == BattleType.RANDOM_BATTLE:
         battle_copy.opponent.active.set_spread(
             "serious", "85,85,85,85,85,85"
         )  # random battles have known spreads
@@ -2982,13 +2984,13 @@ def update_dataset_possibilities(
 
     battle_copy = deepcopy(battle)
 
-    if battle.battle_type == constants.RANDOM_BATTLE:
+    if battle.battle_type == BattleType.RANDOM_BATTLE:
         possibilites = RandomBattleTeamDatasets.get_pkmn_sets_from_pkmn_name(
             battle.opponent.active
         )
         smogon_possibilities = None
         allow_emptying = False
-    elif battle.battle_type == constants.BATTLE_FACTORY:
+    elif battle.battle_type == BattleType.BATTLE_FACTORY:
         possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
         smogon_possibilities = None
         allow_emptying = False

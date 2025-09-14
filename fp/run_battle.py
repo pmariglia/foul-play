@@ -1,4 +1,3 @@
-import importlib
 import json
 import asyncio
 import concurrent.futures
@@ -8,15 +7,59 @@ import logging
 from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
 from data.pkmn_sets import SmogonSets
 import constants
+from constants import BattleType
 from config import FoulPlayConfig, SaveReplay
 from fp.battle import LastUsedMove, Pokemon, Battle
-from fp.battle_bots.helpers import format_decision
 from fp.battle_modifier import async_update_battle, process_battle_updates
 from fp.helpers import normalize_name
+from fp.search.main import find_best_move
 
 from fp.websocket_client import PSWebsocketClient
 
 logger = logging.getLogger(__name__)
+
+
+def format_decision(battle, decision):
+    # Formats a decision for communication with Pokemon-Showdown
+    # If the move can be used as a Z-Move, it will be
+
+    if decision.startswith(constants.SWITCH_STRING + " "):
+        switch_pokemon = decision.split("switch ")[-1]
+        for pkmn in battle.user.reserve:
+            if pkmn.name == switch_pokemon:
+                message = "/switch {}".format(pkmn.index)
+                break
+        else:
+            raise ValueError("Tried to switch to: {}".format(switch_pokemon))
+    else:
+        tera = False
+        mega = False
+        if decision.endswith("-tera"):
+            decision = decision.replace("-tera", "")
+            tera = True
+        elif decision.endswith("-mega"):
+            decision = decision.replace("-mega", "")
+            mega = True
+        message = "/choose move {}".format(decision)
+
+        if battle.user.active.can_mega_evo and mega:
+            message = "{} {}".format(message, constants.MEGA)
+        elif battle.user.active.can_ultra_burst:
+            message = "{} {}".format(message, constants.ULTRA_BURST)
+
+        # only dynamax on last pokemon
+        if battle.user.active.can_dynamax and all(
+            p.hp == 0 for p in battle.user.reserve
+        ):
+            message = "{} {}".format(message, constants.DYNAMAX)
+
+        if tera:
+            message = "{} {}".format(message, constants.TERASTALLIZE)
+
+        if battle.user.active.get_move(decision).can_z:
+            message = "{} {}".format(message, constants.ZMOVE)
+
+    return [message, str(battle.rqid)]
 
 
 def battle_is_finished(battle_tag, msg):
@@ -42,7 +85,7 @@ async def async_pick_move(battle):
 
     loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        best_move = await loop.run_in_executor(pool, battle_copy.find_best_move)
+        best_move = await loop.run_in_executor(pool, find_best_move, battle_copy)
     battle.user.last_selected_move = LastUsedMove(
         battle.user.active.name,
         best_move.removesuffix("-tera").removesuffix("-mega"),
@@ -103,11 +146,9 @@ async def start_battle_common(
             "{}_{}.log".format(battle_tag, opponent_name)
         )
 
-    battle = importlib.import_module(
-        "fp.battle_bots.{}.main".format(FoulPlayConfig.battle_bot_module)
-    ).BattleBot(battle_tag)
+    battle = Battle(battle_tag)
     battle.opponent.account_name = opponent_name
-    battle.pokemon_mode = pokemon_battle_type
+    battle.pokemon_format = pokemon_battle_type
     battle.generation = pokemon_battle_type[:4]
 
     # wait until the opponent's identifier is received. This will be `p1` or `p2`.
@@ -143,7 +184,7 @@ async def start_random_battle(
     ps_websocket_client: PSWebsocketClient, pokemon_battle_type
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
-    battle.battle_type = constants.RANDOM_BATTLE
+    battle.battle_type = BattleType.RANDOM_BATTLE
     RandomBattleTeamDatasets.initialize(battle.generation)
 
     while True:
@@ -178,9 +219,9 @@ async def start_standard_battle(
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
     battle.user.team_dict = team_dict
     if "battlefactory" in pokemon_battle_type:
-        battle.battle_type = constants.BATTLE_FACTORY
+        battle.battle_type = BattleType.BATTLE_FACTORY
     else:
-        battle.battle_type = constants.STANDARD_BATTLE
+        battle.battle_type = BattleType.STANDARD_BATTLE
 
     if battle.generation in constants.NO_TEAM_PREVIEW_GENS:
         while True:
@@ -240,8 +281,8 @@ async def start_standard_battle(
             p.name for p in battle.opponent.reserve + battle.user.reserve
         )
 
-        if battle.battle_type == constants.BATTLE_FACTORY:
-            battle.battle_type = constants.BATTLE_FACTORY
+        if battle.battle_type == BattleType.BATTLE_FACTORY:
+            battle.battle_type = BattleType.BATTLE_FACTORY
             tier_name = extract_battle_factory_tier_from_msg(msg)
             logger.info("Battle Factory Tier: {}".format(tier_name))
             TeamDatasets.initialize(
@@ -250,7 +291,7 @@ async def start_standard_battle(
                 battle_factory_tier_name=tier_name,
             )
         else:
-            battle.battle_type = constants.STANDARD_BATTLE
+            battle.battle_type = BattleType.STANDARD_BATTLE
             SmogonSets.initialize(
                 FoulPlayConfig.smogon_stats or pokemon_battle_type, unique_pkmn_names
             )
@@ -280,14 +321,15 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
     while True:
         msg = await ps_websocket_client.receive_message()
         if battle_is_finished(battle.battle_tag, msg):
-            if constants.WIN_STRING in msg:
-                winner = msg.split(constants.WIN_STRING)[-1].split("\n")[0].strip()
-            else:
-                winner = None
+            winner = (
+                msg.split(constants.WIN_STRING)[-1].split("\n")[0].strip()
+                if constants.WIN_STRING in msg
+                else None
+            )
             logger.info("Winner: {}".format(winner))
             await ps_websocket_client.send_message(battle.battle_tag, ["gg"])
-            if FoulPlayConfig.save_replay == SaveReplay.Always or (
-                FoulPlayConfig.save_replay == SaveReplay.OnLoss
+            if FoulPlayConfig.save_replay == SaveReplay.always or (
+                FoulPlayConfig.save_replay == SaveReplay.on_loss
                 and winner != FoulPlayConfig.username
             ):
                 await ps_websocket_client.save_replay(battle.battle_tag)
