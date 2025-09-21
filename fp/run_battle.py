@@ -204,6 +204,17 @@ async def start_random_battle(
 
     await get_first_request_json(ps_websocket_client, battle)
 
+    # Set opponent's active Pokemon
+    for m in msg.split(constants.START_STRING)[1].strip().split("\n"):
+        if m.startswith("|switch|p2a:"):
+            lvl = 100
+            # Check for non level 100
+            try:
+                if "L" in m.split("|")[3].split(",")[1]:
+                    lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
+            except:
+                pass
+
     # apply the messages that were held onto
     process_battle_updates(battle)
 
@@ -223,7 +234,13 @@ async def start_standard_battle(
     else:
         battle.battle_type = BattleType.STANDARD_BATTLE
 
-    if battle.generation in constants.NO_TEAM_PREVIEW_GENS:
+    # Some old gen formats have team preview (e.g. Gen 1 Stadium OU)
+    # Read first message then check for team preview
+    while not((constants.START_STRING in msg) or (constants.START_TEAM_PREVIEW in msg)):
+        msg = await ps_websocket_client.receive_message()
+
+
+    if constants.START_TEAM_PREVIEW not in msg:
         while True:
             if constants.START_STRING in msg:
                 battle.started = True
@@ -252,13 +269,23 @@ async def start_standard_battle(
         # apply the messages that were held onto
         process_battle_updates(battle)
 
+        # Set opponent's active Pokemon
+        for m in msg.split(constants.START_STRING)[1].strip().split("\n"):
+            if m.startswith("|switch|p2a:"):
+                lvl = 100
+                # Check for non level 100
+                try:
+                    if "L" in m.split("|")[3].split(",")[1]:
+                        lvl = int(m.split("|")[3].split(",")[1].replace(" L", ""))
+                except:
+                    pass
+                battle.opponent.active = Pokemon(m.split("|")[3].split(",")[0], lvl)
+                break
+
         best_move = await async_pick_move(battle)
         await ps_websocket_client.send_message(battle.battle_tag, best_move)
 
     else:
-        while constants.START_TEAM_PREVIEW not in msg:
-            msg = await ps_websocket_client.receive_message()
-
         preview_string_lines = msg.split(constants.START_TEAM_PREVIEW)[-1].split("\n")
 
         opponent_pokemon = []
