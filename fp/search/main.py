@@ -3,18 +3,13 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
-from poke_engine import MctsResult
-
 from constants import BattleType
 from fp.battle import Battle
 from config import FoulPlayConfig
 from .standard_battles import prepare_battles
 from .random_battles import prepare_random_battles
 
-from poke_engine import (
-    State as PokeEngineState,
-    monte_carlo_tree_search,
-)
+from poke_engine import State as PokeEngineState, monte_carlo_tree_search, MctsResult
 
 from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 
@@ -52,11 +47,9 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     return choice[0]
 
 
-def get_result_from_mcts(
-    poke_engine_state: PokeEngineState, search_time_ms: int, index: int
-) -> MctsResult:
-    state_string = poke_engine_state.to_string()
-    logger.debug("Calling with {} state: {}".format(index, state_string))
+def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsResult:
+    logger.debug("Calling with {} state: {}".format(index, state))
+    poke_engine_state = PokeEngineState.from_string(state)
 
     res = monte_carlo_tree_search(poke_engine_state, search_time_ms)
     logger.info("Iterations {}: {}".format(index, res.total_visits))
@@ -140,7 +133,7 @@ def find_best_move(battle: Battle) -> str:
         for index, (b, chance) in enumerate(battles):
             fut = executor.submit(
                 get_result_from_mcts,
-                battle_to_poke_engine_state(b),
+                battle_to_poke_engine_state(b).to_string(),
                 search_time_per_battle,
                 index,
             )

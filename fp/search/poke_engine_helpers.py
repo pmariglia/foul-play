@@ -47,6 +47,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         pkmn.item = "None"
 
     base_types = pokedex[str(pkmn.name)][constants.TYPES]
+    if len(base_types) == 1:
+        base_types = (base_types[0], "typeless")
+    if len(pkmn.types) == 1:
+        pkmn.types = (pkmn.types[0], "typeless")
     num_moves = len(pkmn.moves)
     if num_moves > 4:
         logger.warning(
@@ -56,15 +60,28 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         )
         logger.warning("Truncating moves to first 4")
         pkmn.moves = pkmn.moves[:4]
-    p = PokeEnginePokemon(
+
+    pkmn_moves = [
+        PokeEngineMove(id=str(m.name), disabled=m.disabled, pp=m.current_pp)
+        for m in pkmn.moves
+    ]
+    while num_moves < 4:
+        pkmn_moves.append(PokeEngineMove(id="none", disabled=True, pp=0))
+        num_moves += 1
+
+    base_ability = ""
+    if pkmn.original_ability:
+        base_ability = str(pkmn.original_ability)
+
+    return PokeEnginePokemon(
         id=str(pkmn.name),
         level=pkmn.level,
-        types=pkmn.types,
-        base_types=base_types,
+        types=tuple(pkmn.types),
+        base_types=tuple(base_types),
         hp=int(pkmn.hp),
         maxhp=int(pkmn.max_hp),
         ability=str(pkmn.ability),
-        base_ability=pkmn.original_ability,
+        base_ability=base_ability,
         item=str(pkmn.item),
         nature=pkmn.nature,
         evs=tuple(pkmn.evs),
@@ -77,19 +94,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         rest_turns=pkmn.rest_turns,
         sleep_turns=pkmn.sleep_turns,
         weight_kg=float(pokedex[pkmn.name][constants.WEIGHT]),
-        moves=[
-            PokeEngineMove(id=str(m.name), disabled=m.disabled, pp=m.current_pp)
-            for m in pkmn.moves
-        ],
+        moves=pkmn_moves,
         tera_type=pkmn.tera_type or "typeless",
         terastallized=pkmn.terastallized,
     )
-
-    while num_moves < 4:
-        p.moves.append(PokeEngineMove(id="none", disabled=True, pp=0))
-        num_moves += 1
-
-    return p
 
 
 def get_dummy_poke_engine_pkmn():
@@ -179,7 +187,7 @@ def battler_to_poke_engine_side(
         force_switch=force_switch,
         force_trapped=battler.trapped,
         slow_uturn_move=stayed_in_on_switchout_move,
-        volatile_statuses=battler.active.volatile_statuses,
+        volatile_statuses=set(battler.active.volatile_statuses),
         volatile_status_durations=PokeEngineVolatileStatusDurations(
             confusion=battler.active.volatile_status_durations[constants.CONFUSION],
             lockedmove=battler.active.volatile_status_durations[constants.LOCKED_MOVE],
