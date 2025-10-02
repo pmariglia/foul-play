@@ -1,5 +1,4 @@
 requests==2.32.4
-environs==11.0.0
 websockets==14.1
 python-dateutil==2.8.0
-poke-engine==0.0.44 --config-settings="build-args=--features poke-engine/terastallization --no-default-features"
+poke-engine==0.0.46 --config-settings="build-args=--features poke-engine/terastallization --no-default-features"

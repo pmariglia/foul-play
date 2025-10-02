@@ -11,9 +11,7 @@ from poke_engine import (
     VolatileStatusDurations as PokeEngineVolatileStatusDurations,
     Pokemon as PokeEnginePokemon,
     Move as PokeEngineMove,
-    monte_carlo_tree_search,
     calculate_damage,
-    iterative_deepening_expectiminimax,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +47,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         pkmn.item = "None"
 
     base_types = pokedex[str(pkmn.name)][constants.TYPES]
+    if len(base_types) == 1:
+        base_types = (base_types[0], "typeless")
+    if len(pkmn.types) == 1:
+        pkmn.types = (pkmn.types[0], "typeless")
     num_moves = len(pkmn.moves)
     if num_moves > 4:
         logger.warning(
@@ -58,15 +60,28 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         )
         logger.warning("Truncating moves to first 4")
         pkmn.moves = pkmn.moves[:4]
-    p = PokeEnginePokemon(
+
+    pkmn_moves = [
+        PokeEngineMove(id=str(m.name), disabled=m.disabled, pp=m.current_pp)
+        for m in pkmn.moves
+    ]
+    while num_moves < 4:
+        pkmn_moves.append(PokeEngineMove(id="none", disabled=True, pp=0))
+        num_moves += 1
+
+    base_ability = ""
+    if pkmn.original_ability:
+        base_ability = str(pkmn.original_ability)
+
+    return PokeEnginePokemon(
         id=str(pkmn.name),
         level=pkmn.level,
-        types=pkmn.types,
-        base_types=base_types,
+        types=tuple(pkmn.types),
+        base_types=tuple(base_types),
         hp=int(pkmn.hp),
         maxhp=int(pkmn.max_hp),
         ability=str(pkmn.ability),
-        base_ability=pkmn.original_ability,
+        base_ability=base_ability,
         item=str(pkmn.item),
         nature=pkmn.nature,
         evs=tuple(pkmn.evs),
@@ -79,19 +94,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         rest_turns=pkmn.rest_turns,
         sleep_turns=pkmn.sleep_turns,
         weight_kg=float(pokedex[pkmn.name][constants.WEIGHT]),
-        moves=[
-            PokeEngineMove(id=str(m.name), disabled=m.disabled, pp=m.current_pp)
-            for m in pkmn.moves
-        ],
+        moves=pkmn_moves,
         tera_type=pkmn.tera_type or "typeless",
         terastallized=pkmn.terastallized,
     )
-
-    while num_moves < 4:
-        p.moves.append(PokeEngineMove(id="none", disabled=True, pp=0))
-        num_moves += 1
-
-    return p
 
 
 def get_dummy_poke_engine_pkmn():
@@ -125,12 +131,18 @@ def battler_to_poke_engine_side(
 
     future_sight_index = 0
     if battler.future_sight[0] > 0:
-        if battler.active.name == battler.future_sight[1]:
+        if (
+            battler.active.name == battler.future_sight[1]
+            or battler.active.base_name == battler.future_sight[1]
+        ):
             future_sight_index = 0
         else:
             index = 1
             for pkmn in battler.reserve:
-                if pkmn.name == battler.future_sight[1]:
+                if (
+                    pkmn.name == battler.future_sight[1]
+                    or pkmn.base_name == battler.future_sight[1]
+                ):
                     future_sight_index = index
                     break
                 index += 1
@@ -175,7 +187,7 @@ def battler_to_poke_engine_side(
         force_switch=force_switch,
         force_trapped=battler.trapped,
         slow_uturn_move=stayed_in_on_switchout_move,
-        volatile_statuses=battler.active.volatile_statuses,
+        volatile_statuses=set(battler.active.volatile_statuses),
         volatile_status_durations=PokeEngineVolatileStatusDurations(
             confusion=battler.active.volatile_status_durations[constants.CONFUSION],
             lockedmove=battler.active.volatile_status_durations[constants.LOCKED_MOVE],
@@ -358,44 +370,3 @@ def poke_engine_get_damage_rolls(
     )
 
     return s1_rolls, s2_rolls
-
-
-def get_payoff_matrix_from_mcts(
-    poke_engine_state: PokeEngineState, search_time_ms: int
-):
-    state_string = poke_engine_state.to_string()
-    logger.debug("Calling with state: {}".format(state_string))
-
-    mcts_result = monte_carlo_tree_search(poke_engine_state, search_time_ms)
-
-    iterations = mcts_result.total_visits
-
-    most_visits = -1
-    choice = None
-    win_percentage = 0
-    for option in mcts_result.side_one:
-        visits = option.visits
-        if visits > most_visits:
-            most_visits = visits
-            win_percentage = round(float(option.total_score) / most_visits, 2)
-            choice = option.move_choice
-
-    if choice is None:
-        raise ValueError("No move found")
-
-    return (
-        choice,
-        win_percentage,
-        iterations,
-    )
-
-
-def get_payoff_matrix_with_minimax(
-    poke_engine_state: PokeEngineState, search_time_ms: int
-):
-    state_string = poke_engine_state.to_string()
-    logger.debug("Calling with state: {}".format(state_string))
-
-    id_result = iterative_deepening_expectiminimax(poke_engine_state, search_time_ms)
-
-    return id_result.get_safest_move()

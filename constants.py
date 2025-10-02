@@ -1,11 +1,11 @@
-CHALLENGE_USER = "CHALLENGE_USER"
-ACCEPT_CHALLENGE = "ACCEPT_CHALLENGE"
-SEARCH_LADDER = "SEARCH_LADDER"
-BOT_MODES = [CHALLENGE_USER, ACCEPT_CHALLENGE, SEARCH_LADDER]
+from enum import StrEnum
 
-STANDARD_BATTLE = "standard_battle"
-BATTLE_FACTORY = "battle_factory"
-RANDOM_BATTLE = "random_battle"
+
+class BattleType(StrEnum):
+    STANDARD_BATTLE = "standard_battle"
+    BATTLE_FACTORY = "battle_factory"
+    RANDOM_BATTLE = "random_battle"
+
 
 NO_TEAM_PREVIEW_GENS = {"gen1", "gen2", "gen3", "gen4"}
 

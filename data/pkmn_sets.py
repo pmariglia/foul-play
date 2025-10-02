@@ -104,6 +104,10 @@ class PokemonSet:
         return pkmn.speed_range.min <= speed <= pkmn.speed_range.max
 
     def item_check(self, pkmn: Pokemon) -> bool:
+        if pkmn.mega_name is None and self.item in [
+            mpi[1] for mpi in pkmn.get_mega_pkmn_info()
+        ]:
+            return False
         if pkmn.item == self.item and pkmn.removed_item is None:
             return True
         elif pkmn.removed_item == self.item:
@@ -198,8 +202,12 @@ class PokemonSets(ABC):
     def predict_set(self, pkmn: Pokemon) -> Optional[PredictedPokemonSet]: ...
 
     @staticmethod
-    def get_key_in_dict_from_pkmn_name(pkmn_name: str, pkmn_base_name: str, d: dict):
-        if pkmn_name in d:
+    def get_key_in_dict_from_pkmn_name(
+        pkmn_name: str, pkmn_base_name: str, pkmn_mega_name: str | None, d: dict
+    ):
+        if pkmn_mega_name in d:
+            return d[pkmn_mega_name]
+        elif pkmn_name in d:
             return d[pkmn_name]
         elif pkmn_base_name in d:
             return d[pkmn_base_name]
@@ -214,12 +222,11 @@ class PokemonSets(ABC):
             if pkmn_non_cosmetic_name in d:
                 return d[pkmn_non_cosmetic_name]
 
-        logger.warning("Could not find key in dict for {}".format(pkmn_name))
         return []
 
-    def get_pkmn_sets_from_pkmn_name(self, pkmn_name: str, pkmn_base_name: str):
+    def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
         return self.get_key_in_dict_from_pkmn_name(
-            pkmn_name, pkmn_base_name, self.pkmn_sets
+            pkmn.name, pkmn.base_name, pkmn.mega_name, self.pkmn_sets
         )
 
     def get_raw_pkmn_sets_from_pkmn_name(self, pkmn_name: str, pkmn_base_name: str):
@@ -300,7 +307,7 @@ class _RandomBattleSets(PokemonSets):
         if not self.pkmn_sets:
             logger.warning("Called `predict_set` when pkmn_sets was empty")
 
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
                 match_ability=match_traits,
@@ -318,7 +325,7 @@ class _RandomBattleSets(PokemonSets):
             return []
 
         remaining_sets = []
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
                 match_ability=True,
@@ -329,9 +336,7 @@ class _RandomBattleSets(PokemonSets):
                 remaining_sets.append(pkmn_set)
 
         if not remaining_sets:
-            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
-                pkmn.name, pkmn.base_name
-            ):
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
                 if pkmn_set.full_set_pkmn_can_have_set(
                     pkmn,
                     match_ability=False,
@@ -349,7 +354,7 @@ class _RandomBattleSets(PokemonSets):
             return []
 
         possible_moves = set()
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             for mv in pkmn_set.pkmn_moveset.moves:
                 possible_moves.add(mv)
 
@@ -477,7 +482,7 @@ class _TeamDatasets(PokemonSets):
             return []
 
         remaining_sets = []
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
                 match_ability=True,
@@ -489,9 +494,7 @@ class _TeamDatasets(PokemonSets):
 
         # do not do this extra check for TeamDatasets unless in battlefactory mode
         if not remaining_sets and self.pkmn_mode.endswith("battlefactory"):
-            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
-                pkmn.name, pkmn.base_name
-            ):
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
                 if pkmn_set.full_set_pkmn_can_have_set(
                     pkmn,
                     match_ability=False,
@@ -506,7 +509,7 @@ class _TeamDatasets(PokemonSets):
     def get_all_possible_move_combinations(self, pkmn: Pokemon, pkmn_set: PokemonSet):
         valid_movesets = []
         for pkmn_moveset in self.get_key_in_dict_from_pkmn_name(
-            pkmn.name, pkmn.base_name, self.raw_pkmn_moves
+            pkmn.name, pkmn.base_name, pkmn.mega_name, self.raw_pkmn_moves
         ):
             if PredictedPokemonSet(
                 pkmn_set=pkmn_set, pkmn_moveset=pkmn_moveset
@@ -521,7 +524,7 @@ class _TeamDatasets(PokemonSets):
             return []
 
         possible_moves = set()
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             for mv in pkmn_set.pkmn_moveset.moves:
                 possible_moves.add(mv)
 
@@ -530,7 +533,7 @@ class _TeamDatasets(PokemonSets):
     def predict_set(
         self, pkmn: Pokemon, match_traits=True
     ) -> Optional[PredictedPokemonSet]:
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.full_set_pkmn_can_have_set(
                 pkmn,
                 match_ability=match_traits,
@@ -793,16 +796,14 @@ class _SmogonSets(PokemonSets):
             return []
 
         remaining_sets = []
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.set_makes_sense(
                 pkmn,
             ):
                 remaining_sets.append(pkmn_set)
 
         if not remaining_sets:
-            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(
-                pkmn.name, pkmn.base_name
-            ):
+            for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
                 if pkmn_set.set_makes_sense(
                     pkmn,
                     match_ability=False,
@@ -821,7 +822,7 @@ class _SmogonSets(PokemonSets):
             logger.warning("Called `predict_set` when pkmn_sets was empty")
 
         pokemon_set = None
-        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name):
+        for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
             if pkmn_set.set_makes_sense(pkmn, match_traits):
                 pokemon_set = pkmn_set
                 break

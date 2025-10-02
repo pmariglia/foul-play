@@ -2,10 +2,10 @@ import logging
 import random
 from copy import deepcopy
 
-import constants
+from constants import BattleType
 from fp.battle import Battle, Pokemon
 from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
-from fp.battle_bots.mcts_parallel.common import populate_pkmn_from_set
+from fp.search.helpers import populate_pkmn_from_set
 from fp.helpers import (
     POKEMON_TYPE_INDICES,
     is_super_effective,
@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_all_remaining_sets_for_revealed_pkmn(battle: Battle) -> dict:
-    if battle.battle_type == constants.RANDOM_BATTLE:
+    if battle.battle_type == BattleType.RANDOM_BATTLE:
         datasets = RandomBattleTeamDatasets
-    elif battle.battle_type == constants.BATTLE_FACTORY:
+    elif battle.battle_type == BattleType.BATTLE_FACTORY:
         datasets = TeamDatasets
     else:
         raise ValueError("Only random battles are supported")

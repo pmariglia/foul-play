@@ -4,11 +4,11 @@ from copy import deepcopy
 
 import constants
 from data import all_move_json
-from fp.battle_bots.mcts_parallel.random_battles import (
+from fp.search.helpers import (
     populate_pkmn_from_set,
 )
 from fp.helpers import natures
-from fp.battle import Pokemon, Battle
+from fp.battle import Pokemon, Battle, Battler
 from data.pkmn_sets import (
     SmogonSets,
     PokemonSet,
@@ -304,6 +304,20 @@ def set_most_likely_hidden_power(pkmn: Pokemon):
 
 
 def sample_pokemon(pkmn: Pokemon):
+    if not pkmn.mega_name:
+        _sample_pokemon(pkmn)
+        return
+
+    # the ability of a mega pokemon that has not yet mega-evolved
+    # needs to be sampled from its non-mega version
+    pkmn_without_mega = deepcopy(pkmn)
+    pkmn_without_mega.mega_name = None
+    _sample_pokemon(pkmn_without_mega)
+    pkmn.ability = pkmn_without_mega.ability
+    _sample_pokemon(pkmn)
+
+
+def _sample_pokemon(pkmn: Pokemon):
     set_most_likely_hidden_power(pkmn)
 
     # 1: TeamDatasets is not emptied and `get_all_remaining_sets` returned at least one set
@@ -321,7 +335,7 @@ def sample_pokemon(pkmn: Pokemon):
     # but `get_all_remaining_sets` returned no sets because the accompanying movesets are invalid
     remaining_team_sets = [
         s
-        for s in TeamDatasets.get_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name)
+        for s in TeamDatasets.get_pkmn_sets_from_pkmn_name(pkmn)
         if s.pkmn_set.set_makes_sense(pkmn) and smogon_set_makes_sense(s)
     ]
     if remaining_team_sets:
@@ -426,11 +440,39 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
+def sample_mega_evolution(battler: Battler, index: int):
+    if battler.mega_revealed():
+        logger.info("Mega evolution already revealed for {}".format(battler.name))
+        return
+    mega_formes = battler.possible_mega_evolutions()
+    if not mega_formes:
+        logger.info("No possible mega evolutions for {}".format(battler.name))
+        return
+    selected_mega = random.choice(list(mega_formes.keys()))
+    mega_pkmn_name, mega_item = random.choice(mega_formes[selected_mega])
+
+    if battler.active.name == selected_mega:
+        pkmn = battler.active
+    else:
+        pkmn = battler.find_pokemon_in_reserves(selected_mega)
+
+    logger.info(
+        "Sampled mega evolution {}->{} with item {} for battle {}".format(
+            selected_mega, mega_pkmn_name, mega_item, index
+        )
+    )
+    pkmn.item = mega_item
+    pkmn.mega_name = mega_pkmn_name
+
+
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
+        if battle_copy.mega_evolve_possible():
+            sample_mega_evolution(battle_copy.opponent, index)
+
         sample_pokemon(battle_copy.opponent.active)
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):
             sample_pokemon(pkmn)

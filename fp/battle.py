@@ -1,11 +1,8 @@
 from collections import defaultdict
 from collections import namedtuple
-from abc import ABC
-from abc import abstractmethod
 
 import constants
 import logging
-from config import FoulPlayConfig
 
 from data import all_move_json
 from data import pokedex
@@ -33,6 +30,12 @@ smart_team_preview = {
     "gen8ou": {
         "urshifu": "urshifurapidstrike"  # urshifu banned in gen8ou
     },
+    "gen9ou": {
+        "urshifu": "urshifurapidstrike"  # urshifu banned in gen9ou
+    },
+    "gen9nationaldex": {
+        "urshifu": "urshifurapidstrike"  # urshifu banned in gen9nationaldex
+    },
     "gen9battlefactory": {
         "zacian": "zaciancrowned"  # only zaciancrowned is used in gen9battlefactory
     },
@@ -56,7 +59,7 @@ boost_multiplier_lookup = {
 }
 
 
-class Battle(ABC):
+class Battle:
     def __init__(self, battle_tag):
         self.battle_tag = battle_tag
         self.user = Battler()
@@ -80,6 +83,7 @@ class Battle(ABC):
         self.wait = False
 
         self.battle_type = None
+        self.pokemon_format = None
         self.generation = None
         self.time_remaining = None
 
@@ -124,7 +128,7 @@ class Battle(ABC):
     def mega_evolve_possible(self):
         return (
             any(g in self.generation for g in constants.MEGA_EVOLVE_GENERATIONS)
-            or "nationaldex" in FoulPlayConfig.pokemon_mode
+            or "nationaldex" in self.pokemon_format
         )
 
     def get_effective_speed(self, battler):
@@ -175,9 +179,6 @@ class Battle(ABC):
 
         return int(boosted_speed)
 
-    @abstractmethod
-    def find_best_move(self): ...
-
 
 class Battler:
     def __init__(self):
@@ -194,12 +195,25 @@ class Battler:
 
         self.account_name = None
 
+        self.team_dict = None
+
         # last_selected_move: The last move that was selected (Bot only)
         # last_used_move: The last move that was observed publicly (Bot and Opponent)
         # they may seem the same, but `last_selected_move` is important in situations where the bot selects
         #   a move but gets knocked out before it can use it
         self.last_selected_move = LastUsedMove("", "", 0)
         self.last_used_move = LastUsedMove("", "", 0)
+
+    def possible_mega_evolutions(self):
+        result = {}
+        for pkmn in self.reserve + [self.active]:
+            megas_possible = pkmn.get_mega_pkmn_info()
+            for m in megas_possible:
+                if pkmn.item == constants.UNKNOWN_ITEM or pkmn.item == m[1]:
+                    if pkmn.name not in result:
+                        result[pkmn.name] = []
+                    result[pkmn.name].append(m)
+        return result
 
     def num_fainted_pkmn(self):
         num_fainted = 0
@@ -215,6 +229,11 @@ class Battler:
     def find_pokemon_in_reserves(self, pkmn_name):
         for reserve_pkmn in self.reserve:
             if reserve_pkmn.name == pkmn_name or reserve_pkmn.base_name == pkmn_name:
+                return reserve_pkmn
+            if pkmn_name in [
+                normalize_name(n)
+                for n in pokedex[reserve_pkmn.name].get("otherFormes", [])
+            ]:
                 return reserve_pkmn
         return None
 
@@ -483,11 +502,44 @@ class Battler:
                     move_name = "behemothbash"
                 pkmn.add_move(move_name)
 
-        # if there is no active pokemon, we do not want to look through it's moves
-        if constants.ACTIVE not in request_json:
-            return
+        # if there is an active pokemon, we want to look through it's moves
+        if constants.ACTIVE in request_json:
+            self._initialize_user_active_from_request_json(request_json)
 
-        self._initialize_user_active_from_request_json(request_json)
+        # if a team_dict exists, meaning we are playing a format where we selected our own team,
+        # set the nature/evs for each pokmeon
+        if self.team_dict is not None:
+            team_dict_pkmn_names = [p["species"] for p in self.team_dict]
+            for pkmn in [self.active] + self.reserve:
+                pkmn_other_formes = [
+                    normalize_name(n) for n in pokedex[pkmn.name].get("otherFormes", [])
+                ]
+                if pkmn.name in team_dict_pkmn_names:
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == pkmn.name
+                    )
+                elif pkmn.base_name in team_dict_pkmn_names:
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == pkmn.base_name
+                    )
+                elif any(p in team_dict_pkmn_names for p in pkmn_other_formes):
+                    other_forme_in_team = next(
+                        p for p in pkmn_other_formes if p in team_dict_pkmn_names
+                    )
+                    team_dict_pkmn = next(
+                        p for p in self.team_dict if p["species"] == other_forme_in_team
+                    )
+                else:
+                    raise ValueError("Could not find {} in team_dict".format(pkmn.name))
+                pkmn.nature = team_dict_pkmn["nature"] or "serious"
+                pkmn.evs = (
+                    int(team_dict_pkmn["evs"]["hp"] or 0),
+                    int(team_dict_pkmn["evs"]["atk"] or 0),
+                    int(team_dict_pkmn["evs"]["def"] or 0),
+                    int(team_dict_pkmn["evs"]["spa"] or 0),
+                    int(team_dict_pkmn["evs"]["spd"] or 0),
+                    int(team_dict_pkmn["evs"]["spe"] or 0),
+                )
 
 
 class Pokemon:
@@ -548,11 +600,39 @@ class Pokemon:
         self.can_dynamax = False
         self.can_terastallize = False
         self.is_mega = False
+        self.mega_name = None
         self.can_have_choice_item = True
         self.item_inferred = False
         self.gen_3_consecutive_sleep_talks = 0
         self.impossible_items = set()
         self.impossible_abilities = set()
+
+    def get_mega_pkmn_info(self) -> list[tuple[str, str]]:
+        mega_names = []
+        if self.name == "rayquaza":
+            return [("rayquaza", "none")]
+        if f"{self.name}mega" in pokedex:
+            mega_names.append(
+                (
+                    f"{self.name}mega",
+                    normalize_name(pokedex[f"{self.name}mega"]["requiredItem"]),
+                )
+            )
+        if f"{self.name}megax" in pokedex:
+            mega_names.append(
+                (
+                    f"{self.name}megax",
+                    normalize_name(pokedex[f"{self.name}megax"]["requiredItem"]),
+                )
+            )
+        if f"{self.name}megay" in pokedex:
+            mega_names.append(
+                (
+                    f"{self.name}megay",
+                    normalize_name(pokedex[f"{self.name}megay"]["requiredItem"]),
+                )
+            )
+        return mega_names
 
     def has_type(self, pkmn_type: str):
         if self.terastallized:

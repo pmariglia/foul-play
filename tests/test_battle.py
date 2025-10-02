@@ -1,20 +1,30 @@
 import unittest
 
 from fp.battle import LastUsedMove
-from fp.battle import Battle
 from fp.battle import Battler
 from fp.battle import Pokemon
 from fp.battle import Move
 
 
-# so we can instantiate a Battle object for testing
-Battle.__abstractmethods__ = set()
-
-
-class TestPokemonInit(unittest.TestCase):
+class TestPokemon(unittest.TestCase):
     def test_alternate_pokemon_name_initializes(self):
         name = "florgeswhite"
         Pokemon(name, 100)
+
+    def test_get_mega_formes_one_mega(self):
+        self.assertEqual(
+            Pokemon("venusaur", 100).get_mega_pkmn_info(),
+            [("venusaurmega", "venusaurite")],
+        )
+
+    def test_get_mega_formes_two_mega(self):
+        self.assertEqual(
+            Pokemon("charizard", 100).get_mega_pkmn_info(),
+            [("charizardmegax", "charizarditex"), ("charizardmegay", "charizarditey")],
+        )
+
+    def test_get_mega_formes_none(self):
+        self.assertEqual(Pokemon("umbreon", 100).get_mega_pkmn_info(), [])
 
 
 class TestBattlerActiveLockedIntoMove(unittest.TestCase):

@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 
 import constants
+from constants import BattleType
 from data.pkmn_sets import (
     TeamDatasets,
     RandomBattleTeamDatasets,
@@ -64,10 +65,6 @@ from fp.battle_modifier import transform
 from fp.battle_modifier import process_battle_updates
 from fp.battle_modifier import upkeep
 from fp.battle_modifier import inactive
-
-
-# so we can instantiate a Battle object for testing
-Battle.__abstractmethods__ = set()
 
 
 class TestRequestMessage(unittest.TestCase):
@@ -1354,7 +1351,7 @@ class TestMove(unittest.TestCase):
         TeamDatasets.pkmn_sets = {}
 
     def test_infer_zoroark_from_move_not_possible_on_pkmn_battle_factory(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -1413,7 +1410,7 @@ class TestMove(unittest.TestCase):
     def test_infer_zoroarkhisui_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
     ):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
 
@@ -1455,7 +1452,7 @@ class TestMove(unittest.TestCase):
     def test_infer_zoroark_regular_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
     ):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
 
@@ -1493,7 +1490,7 @@ class TestMove(unittest.TestCase):
     def test_does_not_infer_zoroark_if_move_can_be_on_active_pkmn(
         self,
     ):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
 
@@ -1516,7 +1513,7 @@ class TestMove(unittest.TestCase):
     def test_does_not_infer_zoroark_when_struggle(
         self,
     ):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
 
@@ -1537,7 +1534,7 @@ class TestMove(unittest.TestCase):
         self.assertEqual([], self.battle.opponent.reserve)
 
     def test_does_not_infer_from_struggle(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -5444,7 +5441,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
         self.assertEqual("leftovers", self.battle.opponent.active.item)
 
     def test_uses_randombattle_spread_when_guessing_for_randombattle(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
 
         # opponent's speed should be 193 WITHOUT a choicescarf
         # HOWEVER, max-speed should still outspeed this value
@@ -5982,7 +5979,7 @@ class TestImmune(unittest.TestCase):
         self.battle.username = self.username
 
     def test_randbats_does_not_infer_zoroark_from_tera_immunity_on_judgment(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6006,7 +6003,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_randbats_infer_zoroark_from_immunity_when_in_reserves(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
 
@@ -6047,7 +6044,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_randbats_infer_zoroarkhisui_from_immunity_when_not_in_reserves(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6082,7 +6079,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_randbats_infer_zoroark_from_immunity_when_not_in_reserves(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6117,7 +6114,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_gen4_does_not_infer_zoroark(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen4"
         RandomBattleTeamDatasets.initialize("gen4")
         self.battle.opponent.reserve = []
@@ -6139,7 +6136,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_gen5_does_not_infer_zoroark_hisui(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen5"
         RandomBattleTeamDatasets.initialize("gen5")
         self.battle.opponent.reserve = []
@@ -6161,7 +6158,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_pkmn_terastallized_to_gain_immunity(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6182,7 +6179,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_pkmn_naturally_immune(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6201,7 +6198,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_futuresight_ending(self):
-        self.battle.battle_type = constants.RANDOM_BATTLE
+        self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9")
         self.battle.opponent.reserve = []
@@ -6221,7 +6218,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_infers_zoroark_from_immunity_that_pkmn_does_not_have(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -6262,7 +6259,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_does_not_infer_zoroark_when_tera_type_renders_it_immune(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -6287,7 +6284,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_pkmn_is_actually_immune(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "maushold"], "ru"
@@ -6309,7 +6306,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_the_zoroark_is_not_immune(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "salamence"], "ru"
@@ -6331,7 +6328,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_ability_renders_immune(self):
-        self.battle.battle_type = constants.BATTLE_FACTORY
+        self.battle.battle_type = BattleType.BATTLE_FACTORY
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "rotomheat"], "ru"
