@@ -2944,6 +2944,7 @@ def update_dataset_possibilities(
 ):
     if (
         battle.wait
+        or battle.generation in {"gen1", "gen2"}
         or battle.opponent.active is None
         or battle.opponent.active.hp <= 0
         or battle.opponent.active.name
