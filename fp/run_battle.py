@@ -85,7 +85,12 @@ async def async_pick_move(battle):
 
     loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        best_move = await loop.run_in_executor(pool, find_best_move, battle_copy)
+        if FoulPlayConfig.enable_evaluation:
+            result = await loop.run_in_executor(pool, find_best_move, battle_copy, True)
+            best_move, evaluation = result
+        else:
+            best_move = await loop.run_in_executor(pool, find_best_move, battle_copy, False)
+
     battle.user.last_selected_move = LastUsedMove(
         battle.user.active.name,
         best_move.removesuffix("-tera").removesuffix("-mega"),

@@ -12,11 +12,22 @@ from .random_battles import prepare_random_battles
 from poke_engine import State as PokeEngineState, monte_carlo_tree_search, MctsResult
 
 from fp.search.poke_engine_helpers import battle_to_poke_engine_state
+from fp.evaluate import compute_battle_evaluation, log_evaluation_summary, BattleEvaluation
 
 logger = logging.getLogger(__name__)
 
 
-def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) -> str:
+def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)], return_evaluation: bool = False):
+    """
+    Select best move from MCTS results.
+
+    Args:
+        mcts_results: List of (MctsResult, sample_chance, index) tuples
+        return_evaluation: If True, return (move, BattleEvaluation) tuple
+
+    Returns:
+        str if return_evaluation=False, else (str, BattleEvaluation)
+    """
     final_policy = {}
     for mcts_result, sample_chance, index in mcts_results:
         this_policy = max(mcts_result.side_one, key=lambda x: x.visits)
@@ -44,7 +55,13 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
         logger.info(f"\t{round(policy[1] * 100, 3)}%: {policy[0]}")
 
     choice = random.choices(final_policy, weights=[p[1] for p in final_policy])[0]
-    return choice[0]
+    selected_move = choice[0]
+
+    if return_evaluation:
+        evaluation = compute_battle_evaluation(mcts_results, selected_move)
+        return selected_move, evaluation
+
+    return selected_move
 
 
 def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsResult:
@@ -100,7 +117,17 @@ def search_time_num_battles_standard_battle(battle):
         return FoulPlayConfig.parallelism, FoulPlayConfig.search_time_ms
 
 
-def find_best_move(battle: Battle) -> str:
+def find_best_move(battle: Battle, return_evaluation: bool = False):
+    """
+    Find the best move for the current battle position.
+
+    Args:
+        battle: Current battle state
+        return_evaluation: If True, return (move, BattleEvaluation) tuple
+
+    Returns:
+        str if return_evaluation=False, else (str, BattleEvaluation)
+    """
     battle = deepcopy(battle)
     if battle.team_preview:
         battle.user.active = battle.user.reserve.pop(0)
@@ -140,6 +167,13 @@ def find_best_move(battle: Battle) -> str:
             futures.append((fut, chance, index))
 
     mcts_results = [(fut.result(), chance, index) for (fut, chance, index) in futures]
-    choice = select_move_from_mcts_results(mcts_results)
-    logger.info("Choice: {}".format(choice))
-    return choice
+
+    if return_evaluation:
+        choice, evaluation = select_move_from_mcts_results(mcts_results, return_evaluation=True)
+        logger.info("Choice: {}".format(choice))
+        log_evaluation_summary(evaluation, verbose=FoulPlayConfig.log_level == "DEBUG")
+        return choice, evaluation
+    else:
+        choice = select_move_from_mcts_results(mcts_results, return_evaluation=False)
+        logger.info("Choice: {}".format(choice))
+        return choice
