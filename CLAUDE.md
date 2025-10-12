@@ -198,6 +198,125 @@ with open("analysis.json", "w") as f:
 
 See `evaluate_position.py` for detailed examples.
 
+## MCP Interface for LLM Control
+
+Foul Play provides an MCP (Model Context Protocol) interface that enables LLMs like Claude to play Pokemon battles. This provides a clean API for:
+- Initiating battles (ladder search or user challenge)
+- Inspecting battle state (team, opponent, field conditions)
+- Executing move decisions with real-time optimality feedback
+- Getting available actions with validation
+
+### Architecture
+
+```
+LLM (Claude/GPT-4)
+    ↓ MCP Protocol
+MCP Server (manages battle sessions)
+    ↓ Modified battle loop
+Foul Play Core → Pokemon Showdown
+```
+
+### Core MCP Tools
+
+1. **`initiate_battle(format)`**: Start ladder search, returns battle_id
+2. **`challenge_user(opponent, format)`**: Challenge specific user
+3. **`get_battle_state(battle_id)`**: Full battle state as JSON (compact reserve mode)
+4. **`get_available_actions(battle_id)`**: Legal moves/switches with details
+5. **`make_move(battle_id, action, reasoning?)`**: Execute move decision with optimality feedback
+6. **`get_pokemon_details(battle_id, pokemon_name, opponent?)`**: Detailed pokemon inspection
+7. **`forfeit_battle(battle_id)`**: Forfeit current battle
+
+#### Move Evaluation in make_move
+
+The `make_move` tool includes real-time evaluation powered by MCTS:
+
+```json
+{
+  "status": "sent",
+  "action": "thunderbolt",
+  "evaluation": {
+    "optimality": 0.950,
+    "best_move": "thunderbolt",
+    "is_optimal": true,
+    "scenarios_analyzed": 4
+  }
+}
+```
+
+- **optimality**: 0-1 scale (1.0 = best move)
+- **best_move**: MCTS-recommended move
+- **is_optimal**: True if chosen move equals best_move
+- **scenarios_analyzed**: Number of game states evaluated
+
+Enable/disable with `ENABLE_EVALUATION` environment variable (default: true).
+
+### Implementation Details
+
+**Battle Session Management**:
+- Each battle gets unique ID and websocket connection
+- Battle loop runs async in background
+- Pauses at decision points to wait for LLM input
+- Validates all moves before sending to server
+
+**State Serialization**:
+- Full battle state → JSON (~5-10KB)
+- Reserve pokemon shown in compact mode to save tokens
+- Properly handles hidden opponent info
+- Use `get_pokemon_details()` for full inspection of specific pokemon
+
+**Move Evaluation**:
+- Runs MCTS evaluation after validation
+- ~100ms overhead per move (configurable)
+- Deep copies battle state to avoid mutation
+- Gracefully handles evaluation failures
+
+**Key Files**:
+- `fp_mcp/server.py`: Main MCP server with @mcp.tool() decorators (7 tools)
+- `fp_mcp/battle_session.py`: Session management with async decision queue
+- `fp_mcp/battle_loop.py`: Modified battle loop that waits for LLM
+- `fp_mcp/serialization.py`: Battle state → JSON with compact/full modes
+
+### Usage
+
+**Start MCP Server:**
+```bash
+export PS_USERNAME="your_username"
+export PS_PASSWORD="your_password"
+export ENABLE_EVALUATION="true"  # Optional, default is true
+python -m fp_mcp.server
+```
+
+**Claude Desktop Configuration:**
+Add to `~/.config/claude-code/config.json`:
+```json
+{
+  "mcpServers": {
+    "foul-play": {
+      "command": "python3",
+      "args": ["-m", "fp_mcp.server"],
+      "cwd": "/absolute/path/to/foul-play",
+      "env": {
+        "PS_USERNAME": "your_username",
+        "PS_PASSWORD": "your_password",
+        "ENABLE_EVALUATION": "true"
+      }
+    }
+  }
+}
+```
+
+**Example Prompts:**
+- "Start a gen9 random battle"
+- "What's my team? Show me the battle state"
+- "Use Thunderbolt against Gyarados"
+- "Get details about my Charizard"
+
+**Documentation:**
+- `MCP.md`: Complete setup and usage guide
+- `MCP_DESIGN.md`: Technical specification
+- `fp_mcp/README.md`: API reference
+- `EVALUATION_IMPLEMENTATION_COMPLETE.md`: Evaluation integration details
+
 ## Important Notes
 
 - Python 3.11+ required
