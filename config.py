@@ -74,6 +74,8 @@ class _FoulPlayConfig:
     search_time_ms: int
     parallelism: int
     run_count: int
+    keep_alive: bool
+    battle_delay: int
     team_name: str
     user_to_challenge: str
     save_replay: SaveReplay
@@ -125,7 +127,18 @@ class _FoulPlayConfig:
             "--run-count",
             type=int,
             default=1,
-            help="Number of PokemonShowdown battles to run",
+            help="Number of PokemonShowdown battles to run (ignored if --keep-alive is used)",
+        )
+        parser.add_argument(
+            "--keep-alive",
+            action="store_true",
+            help="Keep the bot running indefinitely without exiting after battles",
+        )
+        parser.add_argument(
+            "--battle-delay",
+            type=int,
+            default=0,
+            help="Delay in seconds between battles (useful with --keep-alive)",
         )
         parser.add_argument(
             "--team-name",
@@ -163,6 +176,8 @@ class _FoulPlayConfig:
         self.search_time_ms = args.search_time_ms
         self.parallelism = args.search_parallelism
         self.run_count = args.run_count
+        self.keep_alive = args.keep_alive
+        self.battle_delay = args.battle_delay
         self.team_name = args.team_name or self.pokemon_format
         self.user_to_challenge = args.user_to_challenge
         self.save_replay = SaveReplay[args.save_replay]
@@ -182,6 +197,12 @@ class _FoulPlayConfig:
             assert (
                 self.user_to_challenge is not None
             ), "If bot_mode is `CHALLENGE_USER`, you must declare USER_TO_CHALLENGE"
+
+        if self.battle_delay < 0:
+            raise ValueError("battle_delay must be non-negative")
+
+        if self.keep_alive and self.run_count > 1:
+            print("Warning: --run-count is ignored when --keep-alive is enabled")
 
 
 FoulPlayConfig = _FoulPlayConfig()
