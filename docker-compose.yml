@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  foul-play-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONIOENCODING=utf-8
+    volumes:
+      - ./logs:/foul-play/logs
+    restart: unless-stopped
+    container_name: foul-play-control-panel
+
+  # Alternative service to run the bot directly (without web panel)
+  foul-play-direct:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - PYTHONIOENCODING=utf-8
+    entrypoint: ["python3", "run.py"]
+    command: [
+      "--websocket-uri", "wss://sim3.psim.us/showdown/websocket",
+      "--ps-username", "YourUsername",
+      "--ps-password", "YourPassword", 
+      "--bot-mode", "search_ladder",
+      "--pokemon-format", "gen9randombattle",
+      "--keep-alive"
+    ]
+    volumes:
+      - ./logs:/foul-play/logs
+    restart: unless-stopped
+    container_name: foul-play-bot
+    profiles:
+      - direct
