@@ -25,6 +25,7 @@ class PSWebsocketClient:
     password = None
     last_message = None
     last_challenge_time = 0
+    _is_connected = False
 
     @classmethod
     async def create(cls, username, password, address):
@@ -34,7 +35,25 @@ class PSWebsocketClient:
         self.address = address
         self.websocket = await websockets.connect(self.address)
         self.login_uri = "https://play.pokemonshowdown.com/api/login"
+        self._is_connected = True
         return self
+
+    def is_connected(self):
+        """Check if the websocket is currently connected"""
+        return self._is_connected and self.websocket and not self.websocket.closed
+
+    async def reconnect(self):
+        """Reconnect to the websocket server"""
+        try:
+            if self.websocket and not self.websocket.closed:
+                await self.websocket.close()
+        except Exception as e:
+            logger.debug(f"Error closing existing websocket: {e}")
+        
+        logger.info("Attempting to reconnect to Pokemon Showdown...")
+        self.websocket = await websockets.connect(self.address)
+        self._is_connected = True
+        logger.info("Successfully reconnected to websocket")
 
     async def join_room(self, room_name):
         message = "/join {}".format(room_name)
@@ -42,15 +61,31 @@ class PSWebsocketClient:
         logger.debug("Joined room '{}'".format(room_name))
 
     async def receive_message(self):
-        message = await self.websocket.recv()
-        logger.debug("Received message from websocket: {}".format(message))
-        return message
+        try:
+            message = await self.websocket.recv()
+            logger.debug("Received message from websocket: {}".format(message))
+            return message
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
+            self._is_connected = False
+            logger.warning(f"Websocket connection closed: {e}")
+            raise ConnectionError(f"Websocket connection lost: {e}")
+        except Exception as e:
+            logger.error(f"Error receiving message: {e}")
+            raise
 
     async def send_message(self, room, message_list):
         message = room + "|" + "|".join(message_list)
         logger.debug("Sending message to websocket: {}".format(message))
-        await self.websocket.send(message)
-        self.last_message = message
+        try:
+            await self.websocket.send(message)
+            self.last_message = message
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
+            self._is_connected = False
+            logger.warning(f"Websocket connection closed while sending: {e}")
+            raise ConnectionError(f"Websocket connection lost while sending: {e}")
+        except Exception as e:
+            logger.error(f"Error sending message: {e}")
+            raise
 
     async def avatar(self, avatar):
         await self.send_message("", ["/avatar {}".format(avatar)])
@@ -73,7 +108,9 @@ class PSWebsocketClient:
                 break
 
     async def close(self):
-        await self.websocket.close()
+        self._is_connected = False
+        if self.websocket and not self.websocket.closed:
+            await self.websocket.close()
 
     async def get_id_and_challstr(self):
         while True:
