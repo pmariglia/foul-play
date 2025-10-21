@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Foul Play Control Panel</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Foul Play Control Panel</h1>
+
+    <section class="card">
+      <h2>Bot Credentials</h2>
+      <div class="grid">
+        <label>Websocket URI <input id="websocket_uri" placeholder="wss://sim3.psim.us/showdown/websocket"></label>
+        <label>Username <input id="username" placeholder="Your PS Username"></label>
+        <label>Password <input id="password" type="password" placeholder="Password"></label>
+        <label>Bot Mode
+          <select id="bot_mode">
+            <option value="search_ladder">search_ladder</option>
+            <option value="accept_challenge">accept_challenge</option>
+            <option value="challenge_user">challenge_user</option>
+          </select>
+        </label>
+        <label>Pokemon Format <input id="pokemon_format" placeholder="gen9randombattle"></label>
+      </div>
+      <button onclick="saveConfig()">Save Config</button>
+    </section>
+
+    <section class="card">
+      <h2>Controls</h2>
+      <div class="controls">
+        <button onclick="control('start')">Start</button>
+        <button onclick="control('stop')">Stop</button>
+        <button onclick="control('restart')">Restart</button>
+      </div>
+      <div id="control_message" class="message"></div>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <div class="status-grid">
+        <div class="stat"><span>Running:</span> <strong id="running">false</strong></div>
+        <div class="stat"><span>Connected:</span> <strong id="connected">false</strong></div>
+        <div class="stat"><span>Username:</span> <strong id="state_username">-</strong></div>
+        <div class="stat"><span>Websocket:</span> <strong id="state_ws">-</strong></div>
+        <div class="stat"><span>Mode:</span> <strong id="state_mode">-</strong></div>
+        <div class="stat"><span>Format:</span> <strong id="state_format">-</strong></div>
+        <div class="stat"><span>Uptime:</span> <strong id="uptime">0s</strong></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Battle Stats</h2>
+      <div class="status-grid">
+        <div class="stat"><span>Total Battles:</span> <strong id="battles">0</strong></div>
+        <div class="stat"><span>Wins:</span> <strong id="wins">0</strong></div>
+        <div class="stat"><span>Losses:</span> <strong id="losses">0</strong></div>
+        <div class="stat"><span>Current Battle:</span> <strong id="current_battle">-</strong></div>
+        <div class="stat"><span>Last Error:</span> <strong id="last_error">-</strong></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function saveConfig() {
+      const payload = {
+        websocket_uri: document.getElementById('websocket_uri').value,
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        bot_mode: document.getElementById('bot_mode').value,
+        pokemon_format: document.getElementById('pokemon_format').value,
+      };
+      fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(r => r.json()).then(_ => { document.getElementById('control_message').textContent = 'Configuration saved'; });
+    }
+
+    function control(action) {
+      fetch('/api/control/' + action, { method: 'POST' })
+        .then(r => r.json()).then(data => {
+          document.getElementById('control_message').textContent = data.message || (data.ok ? 'OK' : 'Failed');
+          setTimeout(loadState, 300);
+        });
+    }
+
+    function secondsToHMS(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return (h > 0 ? h + 'h ' : '') + (m > 0 ? m + 'm ' : '') + s + 's';
+    }
+
+    function loadState() {
+      fetch('/api/state').then(r => r.json()).then(state => {
+        document.getElementById('running').textContent = state.running;
+        document.getElementById('connected').textContent = state.connected;
+        document.getElementById('state_username').textContent = state.username || '-';
+        document.getElementById('state_ws').textContent = state.websocket_uri || '-';
+        document.getElementById('state_mode').textContent = state.bot_mode || '-';
+        document.getElementById('state_format').textContent = state.pokemon_format || '-';
+        document.getElementById('uptime').textContent = secondsToHMS(state.stats.uptime_seconds || 0);
+        document.getElementById('battles').textContent = state.stats.battles_played;
+        document.getElementById('wins').textContent = state.stats.wins;
+        document.getElementById('losses').textContent = state.stats.losses;
+        document.getElementById('current_battle').textContent = state.stats.current_battle || '-';
+        document.getElementById('last_error').textContent = state.stats.last_error || '-';
+      });
+    }
+
+    setInterval(loadState, 2000);
+    loadState();
+  </script>
+</body>
+</html>
