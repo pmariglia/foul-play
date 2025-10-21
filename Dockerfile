@@ -14,7 +14,9 @@ RUN mkdir ./packages && \
     . venv/bin/activate && \
     # pip24 is required for --config-settings
     pip install --upgrade pip==24.2 && \
-    pip install -v --target ./packages -r requirements.txt
+    pip install -v --target ./packages -r requirements.txt && \
+    # Install Flask for web control panel
+    pip install --target ./packages flask
 
 FROM python:3.13-slim
 
@@ -26,9 +28,14 @@ COPY data /foul-play/data
 COPY run.py /foul-play/run.py
 COPY fp /foul-play/fp
 COPY teams /foul-play/teams
+COPY web /foul-play/web
 
 COPY --from=build /packages/ /usr/local/lib/python3.13/site-packages/
 
 ENV PYTHONIOENCODING=utf-8
 
-ENTRYPOINT ["python3", "run.py"]
+# Expose port 5000 for web control panel
+EXPOSE 5000
+
+# Default to running web control panel instead of direct bot
+ENTRYPOINT ["python3", "web/app.py"]
