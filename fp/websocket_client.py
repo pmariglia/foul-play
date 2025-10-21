@@ -26,6 +26,7 @@ class PSWebsocketClient:
     last_message = None
     last_challenge_time = 0
     _is_connected = False
+    current_rooms = set()
 
     @classmethod
     async def create(cls, username, password, address):
@@ -36,6 +37,7 @@ class PSWebsocketClient:
         self.websocket = await websockets.connect(self.address)
         self.login_uri = "https://play.pokemonshowdown.com/api/login"
         self._is_connected = True
+        self.current_rooms = set()
         return self
 
     def is_connected(self):
@@ -55,15 +57,86 @@ class PSWebsocketClient:
         self._is_connected = True
         logger.info("Successfully reconnected to websocket")
 
+    async def get_current_rooms(self):
+        """Get list of current rooms the user is in"""
+        await self.send_message("", ["/cmd rooms"])
+        
+        # Wait for the response
+        try:
+            msg = await asyncio.wait_for(self.receive_message(), timeout=5.0)
+            
+            # Parse rooms from the response
+            rooms = set()
+            if "|queryresponse|rooms|" in msg:
+                rooms_data = msg.split("|queryresponse|rooms|")[1].split("\n")[0]
+                try:
+                    rooms_json = json.loads(rooms_data)
+                    if "rooms" in rooms_json:
+                        for room in rooms_json["rooms"]:
+                            rooms.add(room)
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.debug(f"Error parsing rooms data: {e}")
+            
+            self.current_rooms = rooms
+            return rooms
+            
+        except asyncio.TimeoutError:
+            logger.debug("Timeout waiting for rooms response")
+            return set()
+
+    async def check_for_active_battles(self):
+        """Check for any active battles after reconnection"""
+        rooms = await self.get_current_rooms()
+        
+        battle_rooms = [room for room in rooms if room.startswith("battle-")]
+        
+        if battle_rooms:
+            logger.info(f"Found active battle rooms: {battle_rooms}")
+            return battle_rooms[0]  # Return the first battle room found
+        
+        return None
+
+    async def rejoin_battle_room(self, battle_tag):
+        """Rejoin a specific battle room"""
+        try:
+            await self.send_message("", [f"/join {battle_tag}"])
+            logger.info(f"Rejoined battle room: {battle_tag}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to rejoin battle room {battle_tag}: {e}")
+            return False
+
+    async def forfeit_battle(self, battle_tag):
+        """Forfeit a battle gracefully"""
+        try:
+            await self.send_message(battle_tag, ["/forfeit"])
+            logger.info(f"Forfeited battle: {battle_tag}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to forfeit battle {battle_tag}: {e}")
+            return False
+
     async def join_room(self, room_name):
         message = "/join {}".format(room_name)
         await self.send_message("", [message])
+        self.current_rooms.add(room_name)
         logger.debug("Joined room '{}'".format(room_name))
 
     async def receive_message(self):
         try:
             message = await self.websocket.recv()
             logger.debug("Received message from websocket: {}".format(message))
+            
+            # Track room changes
+            if "|deinit|" in message:
+                # Extract room from message and remove from current_rooms
+                lines = message.split("\n")
+                for line in lines:
+                    if line.startswith(">") and "|deinit|" in line:
+                        room = line.split("\n")[0].replace(">", "").strip()
+                        self.current_rooms.discard(room)
+                        logger.debug(f"Left room: {room}")
+            
             return message
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             self._is_connected = False
@@ -186,6 +259,7 @@ class PSWebsocketClient:
     async def leave_battle(self, battle_tag):
         message = ["/leave {}".format(battle_tag)]
         await self.send_message("", message)
+        self.current_rooms.discard(battle_tag)
 
         while True:
             msg = await self.receive_message()
