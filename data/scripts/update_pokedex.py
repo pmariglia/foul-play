@@ -41,19 +41,24 @@ data = re.sub(r"'([^'\n]*)'", r'"\1"', data)
 
 # should be parseable as JSON now
 data_json = json.loads(data)
+data_keys = list(data_json.keys())
 
 # some custom changes for this project
-for k, v in data_json.items():
-    v["baseStats"] = {
-        "hp": v["baseStats"]["hp"],
-        "attack": v["baseStats"]["atk"],
-        "defense": v["baseStats"]["def"],
-        "special-attack": v["baseStats"]["spa"],
-        "special-defense": v["baseStats"]["spd"],
-        "speed": v["baseStats"]["spe"],
-    }
-    v["types"] = [i.lower() for i in v["types"]]
-    v["name"] = v["name"].lower()
+for k in data_keys:
+    v = data_json[k]
+    if v.get("isCosmeticForme"):
+        del data_json[k]
+    else:
+        v["baseStats"] = {
+            "hp": v["baseStats"]["hp"],
+            "attack": v["baseStats"]["atk"],
+            "defense": v["baseStats"]["def"],
+            "special-attack": v["baseStats"]["spa"],
+            "special-defense": v["baseStats"]["spd"],
+            "speed": v["baseStats"]["spe"],
+        }
+        v["types"] = [i.lower() for i in v["types"]]
+        v["name"] = v["name"].lower()
 
 # re-create the dictionary in order of pokedex numbers
 # put negative numbers at the end
