@@ -10115,6 +10115,23 @@
         "target": "normal",
         "type": "dark"
     },
+    "nihillight": {
+        "accuracy": 100,
+        "basePower": 100,
+        "category": "special",
+        "flags": {
+            "metronome": 1,
+            "mirror": 1,
+            "protect": 1
+        },
+        "id": "nihillight",
+        "name": "Nihil Light",
+        "pp": 10,
+        "priority": 0,
+        "secondary": null,
+        "target": "allAdjacentFoes",
+        "type": "dragon"
+    },
     "nobleroar": {
         "accuracy": 100,
         "basePower": 0,
