@@ -78,6 +78,61 @@ def extract_battle_factory_tier_from_msg(msg):
     return normalize_name(tier_name)
 
 
+def display_move_suggestion(battle, best_move_formatted):
+    """Display the suggested move to the user in manual mode."""
+    logger.info("=" * 60)
+    logger.info("SUGGESTED MOVE")
+    logger.info("=" * 60)
+
+    # Display battle state
+    logger.info("Turn: {}".format(battle.turn))
+    logger.info("Your Pokemon: {} ({}/{} HP)".format(
+        battle.user.active.name,
+        battle.user.active.hp,
+        battle.user.active.max_hp
+    ))
+    logger.info("Opponent Pokemon: {} ({:.0f}% HP)".format(
+        battle.opponent.active.name,
+        (battle.opponent.active.hp / battle.opponent.active.max_hp) * 100 if battle.opponent.active.max_hp > 0 else 0
+    ))
+
+    # Display the suggestion
+    logger.info("")
+    logger.info("RECOMMENDED ACTION: {}".format(best_move_formatted[0]))
+    logger.info("")
+
+    # Display available moves for reference
+    if battle.request_json and not battle.team_preview:
+        logger.info("Available moves:")
+        if battle.request_json.get(constants.ACTIVE):
+            moves = battle.request_json[constants.ACTIVE][0].get(constants.MOVES, [])
+            for i, move in enumerate(moves, 1):
+                disabled = " (DISABLED)" if move.get(constants.DISABLED) else ""
+                pp_info = " - PP: {}/{}".format(move.get(constants.PP, 0), move.get(constants.MAXPP, 0))
+                logger.info("  {}. {}{}{}".format(i, move[constants.ID], pp_info, disabled))
+
+        # Display available switches
+        if battle.request_json.get(constants.SIDE):
+            alive_reserves = [
+                p for p in battle.request_json[constants.SIDE][constants.POKEMON][1:]
+                if not p.get(constants.FAINTED, False)
+            ]
+            if alive_reserves:
+                logger.info("")
+                logger.info("Available switches:")
+                for i, pkmn in enumerate(alive_reserves, 1):
+                    hp_info = pkmn.get(constants.CONDITION, "").split()[0]
+                    logger.info("  {}. {} ({})".format(
+                        i,
+                        pkmn[constants.DETAILS].split(",")[0],
+                        hp_info
+                    ))
+
+    logger.info("=" * 60)
+    logger.info("Make your move in Pokemon Showdown. Waiting for your action...")
+    logger.info("=" * 60)
+
+
 async def async_pick_move(battle):
     battle_copy = deepcopy(battle)
     if not battle_copy.team_preview:
@@ -119,7 +174,25 @@ async def handle_team_preview(battle, ps_websocket_client):
         )
     ]
 
-    await ps_websocket_client.send_message(battle.battle_tag, message)
+    if FoulPlayConfig.manual_mode:
+        # In manual mode, display the suggestion but don't execute
+        logger.info("=" * 60)
+        logger.info("TEAM PREVIEW - SUGGESTED LEAD")
+        logger.info("=" * 60)
+        logger.info("Your team:")
+        for i, pkmn in enumerate(battle.user.reserve, 1):
+            logger.info("  {}. {}".format(i, pkmn.name))
+        logger.info("")
+        logger.info("RECOMMENDED LEAD: {}".format(pkmn_name))
+        logger.info("RECOMMENDED TEAM ORDER: {}{}".format(
+            choice_digit, "".join(str(x) for x in team_list_indexes)
+        ))
+        logger.info("")
+        logger.info("Make your team selection in Pokemon Showdown. Waiting...")
+        logger.info("=" * 60)
+    else:
+        # In auto mode, execute the team preview selection
+        await ps_websocket_client.send_message(battle.battle_tag, message)
 
 
 async def get_battle_tag_and_opponent(ps_websocket_client: PSWebsocketClient):
@@ -318,6 +391,14 @@ async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
 
 async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
     battle = await start_battle(ps_websocket_client, pokemon_battle_type, team_dict)
+
+    # Display mode at start of battle
+    if FoulPlayConfig.manual_mode:
+        logger.info("=" * 60)
+        logger.info("MANUAL MODE ENABLED")
+        logger.info("The bot will suggest moves, but you must execute them in Pokemon Showdown")
+        logger.info("=" * 60)
+
     while True:
         msg = await ps_websocket_client.receive_message()
         if battle_is_finished(battle.battle_tag, msg):
@@ -339,4 +420,10 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
             action_required = await async_update_battle(battle, msg)
             if action_required and not battle.wait:
                 best_move = await async_pick_move(battle)
-                await ps_websocket_client.send_message(battle.battle_tag, best_move)
+
+                if FoulPlayConfig.manual_mode:
+                    # In manual mode, display the suggestion but don't execute
+                    display_move_suggestion(battle, best_move)
+                else:
+                    # In auto mode, execute the move
+                    await ps_websocket_client.send_message(battle.battle_tag, best_move)
