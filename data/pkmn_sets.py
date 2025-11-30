@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ntpath
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import requests
@@ -23,6 +22,11 @@ from fp.helpers import normalize_name
 PWD = os.path.dirname(os.path.abspath(__file__))
 SMOGON_CACHE_DIR = os.path.join(PWD, "smogon_stats_cache")
 os.makedirs(SMOGON_CACHE_DIR, exist_ok=True)
+PKMN_SETS_CACHE_DIR = os.path.join(PWD, "pkmn_sets_cache")
+os.makedirs(PKMN_SETS_CACHE_DIR, exist_ok=True)
+
+PKMN_SETS_REMOTE_BASE_URL = "https://data.foulplay.cc/{}/{}"
+PKMN_RANDBATS_REMOTE_BASE_URL = "https://pkmn.github.io/randbats/data/full/{}.json"
 
 OTHER_STRING = "other"
 MOVES_STRING = "moves"
@@ -38,7 +42,41 @@ if typing.TYPE_CHECKING:
     from fp.battle import Pokemon
 
 logger = logging.getLogger(__name__)
-PWD = os.path.dirname(os.path.abspath(__file__))
+
+
+def get_sets_file(cache_path: str, remote_url: str) -> dict:
+    if os.path.exists(cache_path):
+        with open(cache_path, "r") as f:
+            sets = json.load(f)
+        logger.info(f"Loaded from cache: {cache_path}")
+        return sets
+
+    r = requests.get(remote_url)
+    if r.status_code == 200:
+        sets = r.json()
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, "w") as f:
+            json.dump(sets, f)
+        logger.info(f"Downloaded and cached from remote: {remote_url}")
+        return sets
+    else:
+        logger.warning(
+            f"Could not retrieve from remote: {remote_url} "
+            f"(status code {r.status_code})"
+        )
+        return {}
+
+
+def get_pkmn_sets_file(pkmn_mode: str, file_name: str) -> dict:
+    cache_path = os.path.join(PKMN_SETS_CACHE_DIR, pkmn_mode, file_name)
+    remote_url = PKMN_SETS_REMOTE_BASE_URL.format(pkmn_mode, file_name)
+    return get_sets_file(cache_path, remote_url)
+
+
+def get_randbats_sets_file(pkmn_randbats_mode: str) -> dict:
+    cache_path = os.path.join(PKMN_SETS_CACHE_DIR, f"{pkmn_randbats_mode}.json")
+    remote_url = PKMN_RANDBATS_REMOTE_BASE_URL.format(pkmn_randbats_mode)
+    return get_sets_file(cache_path, remote_url)
 
 
 def spreads_are_alike(s1, s2):
@@ -157,11 +195,24 @@ class PokemonMoveset:
     moves: Tuple[str, ...] | list[str]
     count: int = 1
 
+    def __post_init__(self):
+        new_moves = []
+        for mv in self.moves:
+            if mv.startswith(constants.HIDDEN_POWER) and not mv.endswith("0"):
+                new_moves.append(
+                    f"{mv}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                )
+            else:
+                new_moves.append(mv)
+
+        self.moves = tuple(new_moves)
+
     def full_set_pkmn_can_have_moves(self, pkmn: Pokemon) -> bool:
         for mv in pkmn.moves:
             if mv.name == constants.HIDDEN_POWER:
                 hidden_power_possibilities = [
-                    constants.HIDDEN_POWER + p for p in pkmn.hidden_power_possibilities
+                    f"{constants.HIDDEN_POWER}{p}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                    for p in pkmn.hidden_power_possibilities
                 ]
                 hidden_power_in_this_pkmn_set = [
                     m for m in self.moves if m.startswith(constants.HIDDEN_POWER)
@@ -190,15 +241,13 @@ class PokemonMoveset:
         return len(self.moves)
 
 
-class PokemonSets(ABC):
+class PokemonSets:
     raw_pkmn_sets: dict[str, list]
     pkmn_sets: dict[str, list]
     pkmn_mode: str
 
-    @abstractmethod
     def initialize(self, pkmn_mode: str, pkmn_names: set[str]): ...
 
-    @abstractmethod
     def predict_set(self, pkmn: Pokemon) -> Optional[PredictedPokemonSet]: ...
 
     @staticmethod
@@ -257,12 +306,7 @@ class _RandomBattleSets(PokemonSets):
     def _load_raw_sets(self, generation):
         if generation.endswith("blitz"):
             generation = generation[:-5]
-        randombattle_sets_path = os.path.join(
-            PWD, f"pkmn_sets/{generation}randombattle.json"
-        )
-        with open(randombattle_sets_path, "r") as f:
-            sets = json.load(f)
-        self.raw_pkmn_sets = sets
+        self.raw_pkmn_sets = get_randbats_sets_file(f"{generation}randombattle")
 
     def _initialize_pkmn_sets(self):
         for pkmn, sets in self.raw_pkmn_sets.items():
@@ -369,26 +413,13 @@ class _TeamDatasets(PokemonSets):
         self.pkmn_mode = "uninitialized"
 
     def _get_sets_dict(self):
-        if not os.path.exists(os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")):
-            return {}
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)["pokemon"]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "pokemon_full_sets.json")
 
     def _get_moves_dict(self):
-        if not os.path.exists(os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")):
-            return {}
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)["moves"]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "replay_moves.json")
 
     def _get_battle_factory_sets_dict(self, tier_name):
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)[tier_name]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "factory-sets.json")[tier_name]
 
     def _load_battle_factory_team_datasets(self, pkmn_names: set[str], tier_name: str):
         sets_dict = self._get_battle_factory_sets_dict(tier_name)
@@ -404,8 +435,7 @@ class _TeamDatasets(PokemonSets):
         iter_list = all_pkmn_moves.keys() if get_all_pkmn else pkmn_names
         for pkmn in iter_list:
             if pkmn not in sets_dict:
-                logger.warning("No pokemon sets for {}".format(pkmn))
-                continue
+                sets_dict[pkmn] = {}
             self.raw_pkmn_sets[pkmn] = sets_dict[pkmn]
             self.raw_pkmn_moves[pkmn] = []
             for moves_str, count in all_pkmn_moves.get(pkmn, {}).items():
