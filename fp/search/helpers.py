@@ -47,7 +47,11 @@ def populate_pkmn_from_set(
         set_.pkmn_set.nature,
         ",".join(str(x) for x in set_.pkmn_set.evs),
     )
-    if set_.pkmn_set.tera_type is not None and not pkmn.terastallized:
+    if (
+        set_.pkmn_set.tera_type is not None
+        and not pkmn.terastallized
+        and not pkmn.tera_type
+    ):
         pkmn.tera_type = set_.pkmn_set.tera_type
     log_pkmn_set(pkmn, source)
 
