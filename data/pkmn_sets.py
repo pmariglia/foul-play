@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ntpath
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import requests
@@ -23,6 +22,13 @@ from fp.helpers import normalize_name
 PWD = os.path.dirname(os.path.abspath(__file__))
 SMOGON_CACHE_DIR = os.path.join(PWD, "smogon_stats_cache")
 os.makedirs(SMOGON_CACHE_DIR, exist_ok=True)
+PKMN_SETS_CACHE_DIR = os.path.join(PWD, "pkmn_sets_cache")
+os.makedirs(PKMN_SETS_CACHE_DIR, exist_ok=True)
+LOCAL_DATA_DIR = os.path.join(PWD, "local_data")
+os.makedirs(LOCAL_DATA_DIR, exist_ok=True)
+
+PKMN_SETS_REMOTE_BASE_URL = "https://data.foulplay.cc/{}/{}"
+PKMN_RANDBATS_REMOTE_BASE_URL = "https://pkmn.github.io/randbats/data/full/{}.json"
 
 OTHER_STRING = "other"
 MOVES_STRING = "moves"
@@ -35,10 +41,66 @@ TEAMMATES = "teammates"
 RAW_COUNT = "raw_count"
 
 if typing.TYPE_CHECKING:
-    from fp.battle import Pokemon
+    from fp.battle import Pokemon, Battler
 
 logger = logging.getLogger(__name__)
-PWD = os.path.dirname(os.path.abspath(__file__))
+
+
+def get_pkmn_sets_file(pkmn_mode: str, file_name: str) -> dict:
+    cache_file = os.path.join(PKMN_SETS_CACHE_DIR, pkmn_mode, file_name)
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            sets = json.load(f)
+        logger.info("Loaded pkmn sets file from cache: {}".format(cache_file))
+        return sets
+    else:
+        remote_url = PKMN_SETS_REMOTE_BASE_URL.format(pkmn_mode, file_name)
+        r = requests.get(remote_url)
+        if r.status_code == 200:
+            sets = r.json()
+            cache_file = os.path.join(PKMN_SETS_CACHE_DIR, pkmn_mode, file_name)
+            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+            with open(cache_file, "w") as f:
+                json.dump(sets, f)
+            logger.info(
+                "Downloaded and cached pkmn sets file from remote: {}".format(
+                    remote_url
+                )
+            )
+            return sets
+        else:
+            logger.warning(
+                f"Could not retrieve pkmn sets file from remote: {remote_url} (status code {r.status_code})"
+            )
+            return {}
+
+
+def get_randbats_sets_file(pkmn_randbats_mode: str) -> dict:
+    cache_file = os.path.join(PKMN_SETS_CACHE_DIR, f"{pkmn_randbats_mode}.json")
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            sets = json.load(f)
+        logger.info("Loaded randbats sets file from cache: {}".format(cache_file))
+        return sets
+    else:
+        remote_url = PKMN_RANDBATS_REMOTE_BASE_URL.format(pkmn_randbats_mode)
+        r = requests.get(remote_url)
+        if r.status_code == 200:
+            sets = r.json()
+            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+            with open(cache_file, "w") as f:
+                json.dump(sets, f)
+            logger.info(
+                "Downloaded and cached randbats sets file from remote: {}".format(
+                    remote_url
+                )
+            )
+            return sets
+        else:
+            logger.warning(
+                f"Could not retrieve randbats sets file from remote: {remote_url} (status code {r.status_code})"
+            )
+            return {}
 
 
 def spreads_are_alike(s1, s2):
@@ -157,6 +219,18 @@ class PokemonMoveset:
     moves: Tuple[str, ...] | list[str]
     count: int = 1
 
+    def __post_init__(self):
+        new_moves = []
+        for mv in self.moves:
+            if mv.startswith(constants.HIDDEN_POWER) and not mv.endswith("0"):
+                new_moves.append(
+                    f"{mv}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                )
+            else:
+                new_moves.append(mv)
+
+        self.moves = tuple(new_moves)
+
     def full_set_pkmn_can_have_moves(self, pkmn: Pokemon) -> bool:
         for mv in pkmn.moves:
             if mv.name == constants.HIDDEN_POWER:
@@ -190,15 +264,177 @@ class PokemonMoveset:
         return len(self.moves)
 
 
-class PokemonSets(ABC):
+@dataclass
+class PokemonObservation:
+    name: str
+    ability: str | None
+    item: str | None
+    tera_type: str | None
+    moves: list[str]
+
+    def to_dict(self):
+        return {
+            "moves": self.moves,
+            "ability": self.ability,
+            "item": self.item,
+            "tera_type": self.tera_type,
+        }
+
+    @classmethod
+    def from_dict(cls, name: str, data: dict):
+        return cls(
+            name=name,
+            ability=data["ability"],
+            item=data["item"],
+            tera_type=data["tera_type"],
+            moves=data["moves"],
+        )
+
+    def populate_pkmn(self, pkmn: Pokemon):
+        if (
+            self.ability is not None
+            and pkmn.ability is None
+            and self.ability not in pkmn.impossible_abilities
+        ):
+            pkmn.ability = self.ability
+        if (
+            self.item is not None
+            and pkmn.item == constants.UNKNOWN_ITEM
+            and self.item not in pkmn.impossible_items
+            # don't assign choice items to pokemon that can't have them
+            and (self.item not in constants.CHOICE_ITEMS or pkmn.can_have_choice_item)
+        ):
+            pkmn.item = self.item
+        if self.tera_type is not None and not pkmn.terastallized:
+            pkmn.tera_type = self.tera_type
+
+        if not any(mv not in self.moves for mv in [mv.name for mv in pkmn.moves]):
+            for mv in self.moves:
+                if pkmn.get_move(mv) is None:
+                    pkmn.add_move(mv)
+
+    def pokemon_num_attributes_violating(self, pkmn: Pokemon):
+        violations = 0
+        if (
+            self.ability
+            and (
+                pkmn.ability
+                and pkmn.ability != self.ability
+                and pkmn.original_ability != self.ability
+            )
+            or (self.ability in pkmn.impossible_abilities)
+        ):
+            violations += 1
+        if (
+            self.item
+            and (
+                pkmn.item != constants.UNKNOWN_ITEM
+                and pkmn.item != self.item
+                and pkmn.removed_item != self.item
+            )
+            or (self.item in pkmn.impossible_items)
+            or (self.item in constants.CHOICE_ITEMS and not pkmn.can_have_choice_item)
+        ):
+            violations += 1
+        if self.tera_type and pkmn.terastallized and pkmn.tera_type != self.tera_type:
+            violations += 1
+        for mv in pkmn.moves:
+            if mv.name not in self.moves:
+                violations += 1
+        return violations
+
+
+@dataclass
+class PokemonTeamObservation:
+    pokemon_observations: dict[str, PokemonObservation]
+    num_pkmn_matches: int
+
+    def get_pokemon_observation_from_pokemon(self, pkmn: Pokemon):
+        if pkmn.mega_name in self.pokemon_observations:
+            return self.pokemon_observations[pkmn.mega_name]
+        elif pkmn.name in self.pokemon_observations:
+            return self.pokemon_observations[pkmn.name]
+        elif pkmn.base_name in self.pokemon_observations:
+            return self.pokemon_observations[pkmn.base_name]
+        elif pkmn.name in pokedex and pokedex[pkmn.name].get("baseSpecies"):
+            pkmn_base_species = normalize_name(pokedex[pkmn.name]["baseSpecies"])
+            if pkmn_base_species in self.pokemon_observations:
+                return self.pokemon_observations[pkmn_base_species]
+        return None
+
+    def to_dict(self):
+        data = {}
+        for pkmn_name, pkmn_obs in self.pokemon_observations.items():
+            data[pkmn_name] = pkmn_obs.to_dict()
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, matches: int = 0):
+        pokemon_observations = {}
+        for pkmn_name, pkmn_data in data.items():
+            pokemon_observations[pkmn_name] = PokemonObservation.from_dict(
+                pkmn_name, pkmn_data
+            )
+        return cls(
+            pokemon_observations=pokemon_observations,
+            num_pkmn_matches=matches,
+        )
+
+    def can_be_extended_by_observations(
+        self, incoming_pkmn_observations: dict[str, PokemonObservation]
+    ) -> bool:
+        for pkmn_name, incoming_pkmn_obs in incoming_pkmn_observations.items():
+            this_pkmn_obs = self.pokemon_observations.get(pkmn_name)
+            if this_pkmn_obs is None:
+                return False
+            if (
+                this_pkmn_obs.ability
+                and incoming_pkmn_obs.ability
+                and this_pkmn_obs.ability != incoming_pkmn_obs.ability
+            ):
+                return False
+            if (
+                this_pkmn_obs.item
+                and incoming_pkmn_obs.item
+                and this_pkmn_obs.item != incoming_pkmn_obs.item
+            ):
+                return False
+            if (
+                this_pkmn_obs.tera_type
+                and incoming_pkmn_obs.tera_type
+                and this_pkmn_obs.tera_type != incoming_pkmn_obs.tera_type
+            ):
+                return False
+
+            # combine moves and see if there are more than 4 total
+            unique_moves = set(this_pkmn_obs.moves)
+            unique_moves.update(incoming_pkmn_obs.moves)
+            if len(unique_moves) > 4:
+                return False
+        return True
+
+    def merge_with_observations(
+        self, incoming_pkmn_observations: dict[str, PokemonObservation]
+    ):
+        for pkmn_name, incoming_pkmn_obs in incoming_pkmn_observations.items():
+            this_pkmn_obs = self.pokemon_observations.get(pkmn_name)
+            this_pkmn_obs.ability = this_pkmn_obs.ability or incoming_pkmn_obs.ability
+            this_pkmn_obs.item = this_pkmn_obs.item or incoming_pkmn_obs.item
+            this_pkmn_obs.tera_type = (
+                this_pkmn_obs.tera_type or incoming_pkmn_obs.tera_type
+            )
+            for mv in incoming_pkmn_obs.moves:
+                if mv not in this_pkmn_obs.moves:
+                    this_pkmn_obs.moves.append(mv)
+
+
+class PokemonSets:
     raw_pkmn_sets: dict[str, list]
     pkmn_sets: dict[str, list]
     pkmn_mode: str
 
-    @abstractmethod
     def initialize(self, pkmn_mode: str, pkmn_names: set[str]): ...
 
-    @abstractmethod
     def predict_set(self, pkmn: Pokemon) -> Optional[PredictedPokemonSet]: ...
 
     @staticmethod
@@ -257,12 +493,7 @@ class _RandomBattleSets(PokemonSets):
     def _load_raw_sets(self, generation):
         if generation.endswith("blitz"):
             generation = generation[:-5]
-        randombattle_sets_path = os.path.join(
-            PWD, f"pkmn_sets/{generation}randombattle.json"
-        )
-        with open(randombattle_sets_path, "r") as f:
-            sets = json.load(f)
-        self.raw_pkmn_sets = sets
+        self.raw_pkmn_sets = get_randbats_sets_file(f"{generation}randombattle")
 
     def _initialize_pkmn_sets(self):
         for pkmn, sets in self.raw_pkmn_sets.items():
@@ -369,26 +600,13 @@ class _TeamDatasets(PokemonSets):
         self.pkmn_mode = "uninitialized"
 
     def _get_sets_dict(self):
-        if not os.path.exists(os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")):
-            return {}
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)["pokemon"]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "pokemon_full_sets.json")
 
     def _get_moves_dict(self):
-        if not os.path.exists(os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")):
-            return {}
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)["moves"]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "replay_moves.json")
 
     def _get_battle_factory_sets_dict(self, tier_name):
-        sets = os.path.join(PWD, f"pkmn_sets/{self.pkmn_mode}.json")
-        with open(sets, "r") as f:
-            sets_dict = json.load(f)[tier_name]
-        return sets_dict
+        return get_pkmn_sets_file(self.pkmn_mode, "factory-sets.json")[tier_name]
 
     def _load_battle_factory_team_datasets(self, pkmn_names: set[str], tier_name: str):
         sets_dict = self._get_battle_factory_sets_dict(tier_name)
@@ -404,8 +622,7 @@ class _TeamDatasets(PokemonSets):
         iter_list = all_pkmn_moves.keys() if get_all_pkmn else pkmn_names
         for pkmn in iter_list:
             if pkmn not in sets_dict:
-                logger.warning("No pokemon sets for {}".format(pkmn))
-                continue
+                sets_dict[pkmn] = {}
             self.raw_pkmn_sets[pkmn] = sets_dict[pkmn]
             self.raw_pkmn_moves[pkmn] = []
             for moves_str, count in all_pkmn_moves.get(pkmn, {}).items():
@@ -856,6 +1073,189 @@ class _SmogonSets(PokemonSets):
         return predicted_pokemon_set
 
 
+class _PokemonObservations(PokemonSets):
+    def __init__(self):
+        self.pkmn_mode = "uninitialized"
+        self.matching_teams: list[PokemonTeamObservation] = []
+
+    def get_local_observation_dict(self):
+        file_name = os.path.join(LOCAL_DATA_DIR, self.pkmn_mode, "local_teams.json")
+        if os.path.exists(file_name):
+            with open(file_name, "r") as f:
+                local_observation_dict = json.load(f)
+        else:
+            local_observation_dict = {}
+
+        return local_observation_dict
+
+    def write_local_observation_dict(self, observation_dict):
+        dir_name = os.path.join(LOCAL_DATA_DIR, self.pkmn_mode)
+        os.makedirs(dir_name, exist_ok=True)
+        file_name = os.path.join(dir_name, "local_teams.json")
+        with open(file_name, "w") as f:
+            json.dump(observation_dict, f, indent=2)
+
+    def get_observation_dict(self):
+        observation_dict = get_pkmn_sets_file(self.pkmn_mode, "teams.json")
+        for team_key, teams_list in self.get_local_observation_dict().items():
+            if team_key not in observation_dict:
+                observation_dict[team_key] = teams_list
+            else:
+                for local_team in teams_list:
+                    for team in observation_dict[team_key]:
+                        local_team_observation = PokemonTeamObservation.from_dict(
+                            local_team
+                        )
+                        pokemon_team_observation = PokemonTeamObservation.from_dict(
+                            team
+                        )
+                        if pokemon_team_observation.can_be_extended_by_observations(
+                            local_team_observation.pokemon_observations
+                        ):
+                            pokemon_team_observation.merge_with_observations(
+                                local_team_observation.pokemon_observations
+                            )
+                            break
+                    else:
+                        observation_dict[team_key].append(local_team)
+
+        return observation_dict
+
+    def initialize(self, pkmn_mode: str, pkmn_names: list[str], min_matches: int = 5):
+        self.pkmn_mode = pkmn_mode
+        self.matching_teams.clear()
+        all_teams = self.get_observation_dict()
+        if all_teams is None:
+            return
+
+        for team_key, teams_list in all_teams.items():
+            this_team_pkmn_names = team_key.split("|")
+            num_pkmn_matches = len(set(this_team_pkmn_names) & set(pkmn_names))
+            if num_pkmn_matches >= min_matches:
+                for team in teams_list:
+                    self.matching_teams.append(
+                        PokemonTeamObservation(
+                            pokemon_observations={
+                                name: PokemonObservation.from_dict(name, data)
+                                for name, data in team.items()
+                            },
+                            num_pkmn_matches=num_pkmn_matches,
+                        )
+                    )
+
+        logger.info(
+            "PokemonObservations loaded {} matching teams".format(
+                len(self.matching_teams)
+            )
+        )
+
+    def observations_matching_team(self, pokemon_list: list[Pokemon]):
+        matching_observations = []
+        full_matches = [
+            mt for mt in self.matching_teams if mt.num_pkmn_matches == len(pokemon_list)
+        ]
+        min_violations = float("inf")
+        for team_observation in full_matches:
+            this_team_violations = 0
+            for pkmn in pokemon_list:
+                observation = self.get_key_in_dict_from_pkmn_name(
+                    pkmn.name,
+                    pkmn.base_name,
+                    pkmn.mega_name,
+                    team_observation.pokemon_observations,
+                )
+                violations = observation.pokemon_num_attributes_violating(pkmn)
+                this_team_violations += violations
+
+            if this_team_violations < min_violations:
+                min_violations = this_team_violations
+                matching_observations.clear()
+            if this_team_violations <= min_violations:
+                matching_observations.append(team_observation)
+
+        if matching_observations:
+            return matching_observations
+
+        partial_matches = [mt for mt in self.matching_teams if mt.num_pkmn_matches >= 5]
+        min_violations = float("inf")
+        for team_observation in partial_matches:
+            this_team_violations = 0
+            for pkmn in pokemon_list:
+                if pkmn.name not in team_observation.pokemon_observations:
+                    continue
+                observation = self.get_key_in_dict_from_pkmn_name(
+                    pkmn.name,
+                    pkmn.base_name,
+                    pkmn.mega_name,
+                    team_observation.pokemon_observations,
+                )
+                violations = observation.pokemon_num_attributes_violating(pkmn)
+                this_team_violations += violations
+
+            if this_team_violations < min_violations:
+                min_violations = this_team_violations
+                matching_observations.clear()
+            if this_team_violations <= min_violations:
+                matching_observations.append(team_observation)
+
+        return matching_observations
+
+    @staticmethod
+    def pokemon_to_observation_dict(pkmn: Pokemon):
+        # can't rely on ability if pkmn has forme changed
+        ability = (
+            None if pkmn.forme_changed else (pkmn.original_ability or pkmn.ability)
+        )
+        item = pkmn.removed_item or (
+            pkmn.item if pkmn.item and pkmn.item != constants.UNKNOWN_ITEM else None
+        )
+        tera_type = pkmn.tera_type if pkmn.terastallized else None
+        return {
+            "ability": ability,
+            "item": item,
+            "tera_type": tera_type,
+            "moves": [mv.name for mv in pkmn.moves],
+        }
+
+    def insert_new_observation(self, battler: Battler):
+        pkmn_obs = {}
+        for pkmn in battler.reserve:
+            pkmn_obs[pkmn.base_name] = PokemonObservation.from_dict(
+                pkmn.name, self.pokemon_to_observation_dict(pkmn)
+            )
+        if battler.active is not None:
+            pkmn_obs[battler.active.base_name] = PokemonObservation.from_dict(
+                battler.active.name,
+                self.pokemon_to_observation_dict(battler.active),
+            )
+
+        this_team_key = "|".join(sorted(pkmn_obs.keys()))
+        logger.info(f"Updating observation with key {this_team_key}")
+        all_observations = self.get_local_observation_dict()
+        matching_teams = all_observations.get(this_team_key, [])
+        matching_observations = []
+        matched = False
+        for team in matching_teams:
+            pokemon_team_observation = PokemonTeamObservation.from_dict(team)
+            if pokemon_team_observation.can_be_extended_by_observations(pkmn_obs):
+                matched = True
+                pokemon_team_observation.merge_with_observations(pkmn_obs)
+            matching_observations.append(pokemon_team_observation)
+
+        # if no matching observations, create a new one
+        if not matched:
+            matching_observations.append(
+                PokemonTeamObservation(
+                    pokemon_observations=pkmn_obs, num_pkmn_matches=0
+                )
+            )
+
+        new_obs_list = [pto.to_dict() for pto in matching_observations]
+        all_observations[this_team_key] = new_obs_list
+        self.write_local_observation_dict(all_observations)
+
+
 TeamDatasets = _TeamDatasets()
 RandomBattleTeamDatasets = _RandomBattleSets()
 SmogonSets = _SmogonSets()
+PokemonObservations = _PokemonObservations()

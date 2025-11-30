@@ -6,6 +6,7 @@ import logging
 
 from data import all_move_json
 from data import pokedex
+from data.pkmn_sets import SmogonSets
 
 from fp.helpers import get_pokemon_info_from_condition
 from fp.helpers import normalize_name
@@ -541,6 +542,14 @@ class Battler:
                     int(team_dict_pkmn["evs"]["spe"] or 0),
                 )
 
+    def update_pokemon_attributes_from_smogonsets(self):
+        if SmogonSets.pkmn_mode == "uninitialized":
+            return
+        for pkmn in self.reserve:
+            pkmn.update_attributes_from_smogonsets()
+        if self.active:
+            self.active.update_attributes_from_smogonsets()
+
 
 class Pokemon:
     def __init__(self, name: str, level: int, nature="serious", evs=(85,) * 6):
@@ -584,6 +593,7 @@ class Pokemon:
         self.status_at_switch_in = None
         self.terastallized = False
         self.tera_type = None
+        self.forme_changed = False
         self.original_ability = None
         self.fainted = False
         self.reviving = False
@@ -650,6 +660,7 @@ class Pokemon:
         self.stats = calculate_stats(self.base_stats, self.level)
         self.ability = new_pokemon.ability
         self.types = new_pokemon.types
+        self.forme_changed = True
 
     def is_alive(self):
         return self.hp > 0
@@ -730,6 +741,17 @@ class Pokemon:
             elif m.name.startswith("return") and move_name.startswith("return"):
                 return m
         return None
+
+    def update_attributes_from_smogonsets(self):
+        remaining_smogon_sets = SmogonSets.get_all_remaining_sets(self)
+        remaining_items = set(rss.item for rss in remaining_smogon_sets)
+        remaining_abilities = set(rss.ability for rss in remaining_smogon_sets)
+        if self.item == constants.UNKNOWN_ITEM and len(remaining_items) == 1:
+            self.item = remaining_items.pop()
+            logger.info("Inferred item for {}: {}".format(self.name, self.item))
+        if self.ability is None and len(remaining_abilities) == 1:
+            self.ability = remaining_abilities.pop()
+            logger.info("Inferred ability for {}: {}".format(self.name, self.ability))
 
     @classmethod
     def get_dummy(cls):

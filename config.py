@@ -80,6 +80,7 @@ class _FoulPlayConfig:
     room_name: str
     log_level: str
     log_to_file: bool
+    full_team_prediction: bool
     stdout_log_handler: logging.StreamHandler
     file_log_handler: Optional[CustomRotatingFileHandler]
 
@@ -151,6 +152,11 @@ class _FoulPlayConfig:
             action="store_true",
             help="When enabled, DEBUG logs will be written to a file in the logs/ directory",
         )
+        parser.add_argument(
+            "--full-team-prediction",
+            action="store_true",
+            help="When enabled, uses full-teams data to predict opponent pokemon, if available.",
+        )
 
         args = parser.parse_args()
         self.websocket_uri = args.websocket_uri
@@ -169,6 +175,7 @@ class _FoulPlayConfig:
         self.room_name = args.room_name
         self.log_level = args.log_level
         self.log_to_file = args.log_to_file
+        self.full_team_prediction = args.full_team_prediction
 
         self.validate_config()
 

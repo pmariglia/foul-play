@@ -23,19 +23,19 @@ class TestTeamDatasets(unittest.TestCase):
         self.assertEqual(6, len(TeamDatasets.pkmn_sets))
 
     def test_team_datasets_add_new_pokemon(self):
-        TeamDatasets.initialize("gen4ou", {"dragonite"})
+        TeamDatasets.initialize("gen5ou", {"dragonite"})
         self.assertNotIn("azelf", TeamDatasets.pkmn_sets)
         TeamDatasets.add_new_pokemon("azelf")
         self.assertIn("azelf", TeamDatasets.pkmn_sets)
 
     def test_pokemon_not_in_team_datasets_does_not_error(self):
-        TeamDatasets.initialize("gen4ou", {"dragonite"})
+        TeamDatasets.initialize("gen5ou", {"dragonite"})
         self.assertNotIn("azelf", TeamDatasets.pkmn_sets)
         TeamDatasets.add_new_pokemon("not_in_team_datasets")
         self.assertNotIn("not_in_team_datasets", TeamDatasets.pkmn_sets)
 
     def test_smogon_datasets_add_new_pokemon_with_cosmetic_forme(self):
-        TeamDatasets.initialize("gen4ou", {"dragonite"})
+        TeamDatasets.initialize("gen5ou", {"dragonite"})
         self.assertNotIn("gastrodon", TeamDatasets.pkmn_sets)
         self.assertNotIn("gastrodoneast", TeamDatasets.pkmn_sets)
         TeamDatasets.add_new_pokemon("gastrodoneast")

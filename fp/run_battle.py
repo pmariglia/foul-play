@@ -4,7 +4,7 @@ import concurrent.futures
 from copy import deepcopy
 import logging
 
-from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
+from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets, PokemonObservations
 from data.pkmn_sets import SmogonSets
 import constants
 from constants import BattleType
@@ -297,6 +297,11 @@ async def start_standard_battle(
             )
             TeamDatasets.initialize(pokemon_battle_type, unique_pkmn_names)
 
+            if FoulPlayConfig.full_team_prediction:
+                PokemonObservations.initialize(
+                    pokemon_battle_type, [p.name for p in battle.opponent.reserve]
+                )
+
         await handle_team_preview(battle, ps_websocket_client)
 
     return battle
@@ -334,9 +339,12 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
             ):
                 await ps_websocket_client.save_replay(battle.battle_tag)
             await ps_websocket_client.leave_battle(battle.battle_tag)
+            if PokemonObservations.pkmn_mode != "uninitialized":
+                PokemonObservations.insert_new_observation(battle.opponent)
             return winner
         else:
             action_required = await async_update_battle(battle, msg)
             if action_required and not battle.wait:
+                battle.opponent.update_pokemon_attributes_from_smogonsets()
                 best_move = await async_pick_move(battle)
                 await ps_websocket_client.send_message(battle.battle_tag, best_move)

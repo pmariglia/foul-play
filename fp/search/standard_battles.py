@@ -18,6 +18,8 @@ from data.pkmn_sets import (
     TeamDatasets,
     RAW_COUNT,
     TEAMMATES,
+    PokemonObservations,
+    PokemonTeamObservation,
 )
 
 logger = logging.getLogger(__name__)
@@ -465,11 +467,42 @@ def sample_mega_evolution(battler: Battler, index: int):
     pkmn.mega_name = mega_pkmn_name
 
 
+def pre_sample_battle_from_team_observation(
+    battle: Battle, team_observations: list[PokemonTeamObservation]
+):
+    chosen_observation = random.choice(team_observations)
+    if battle.opponent.active is not None:
+        pkmn_to_populate = [battle.opponent.active] + battle.opponent.reserve
+    else:
+        pkmn_to_populate = battle.opponent.reserve
+
+    for pkmn in pkmn_to_populate:
+        observation = chosen_observation.get_pokemon_observation_from_pokemon(pkmn)
+        if observation is not None:
+            observation.populate_pkmn(pkmn)
+
+
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
+    pkmn_list = [battle.opponent.active] + battle.opponent.reserve
+    observations_matching_team = PokemonObservations.observations_matching_team(
+        pkmn_list
+    )
+    logger.info(
+        "Found {} matching observations".format(len(observations_matching_team))
+    )
+    for obs in observations_matching_team:
+        logger.info("Matching observation:")
+        for pkmn in obs.pokemon_observations.values():
+            logger.info(f"  {pkmn}")
+
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
+        if observations_matching_team:
+            pre_sample_battle_from_team_observation(
+                battle_copy, observations_matching_team
+            )
         if battle_copy.mega_evolve_possible():
             sample_mega_evolution(battle_copy.opponent, index)
 

@@ -4,6 +4,13 @@ docker:
 clean_logs:
 	rm logs/*
 
+clean_data_cache:
+	rm -rf data/pkmn_sets_cache/*
+	rm -rf data/smogon_stats_cache/*
+
+clean_local_data:
+	rm -rf data/local_data/*
+
 test:
 	ruff check
 	pytest tests
