@@ -54,6 +54,7 @@ class SaveReplay(Enum):
     always = auto()
     never = auto()
     on_loss = auto()
+    on_win = auto()
 
 
 class BotModes(Enum):
