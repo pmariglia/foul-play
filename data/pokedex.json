@@ -33398,7 +33398,7 @@
         "num": 678,
         "name": "meowstic-m-mega",
         "baseSpecies": "Meowstic",
-        "forme": "Mega",
+        "forme": "M-Mega",
         "types": [
             "psychic"
         ],
@@ -33423,6 +33423,7 @@
             "Field"
         ],
         "requiredItem": "Meowsticite",
+        "battleOnly": "Meowstic",
         "gen": 9
     },
     "meowsticfmega": {
