@@ -328,9 +328,16 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
             )
             logger.info("Winner: {}".format(winner))
             await ps_websocket_client.send_message(battle.battle_tag, ["gg"])
-            if FoulPlayConfig.save_replay == SaveReplay.always or (
-                FoulPlayConfig.save_replay == SaveReplay.on_loss
-                and winner != FoulPlayConfig.username
+            if (
+                FoulPlayConfig.save_replay == SaveReplay.always
+                or (
+                    FoulPlayConfig.save_replay == SaveReplay.on_loss
+                    and winner != FoulPlayConfig.username
+                )
+                or (
+                    FoulPlayConfig.save_replay == SaveReplay.on_win
+                    and winner == FoulPlayConfig.username
+                )
             ):
                 await ps_websocket_client.save_replay(battle.battle_tag)
             await ps_websocket_client.leave_battle(battle.battle_tag)
