@@ -26,6 +26,7 @@ PKMN_SETS_CACHE_DIR = os.path.join(PWD, "pkmn_sets_cache")
 os.makedirs(PKMN_SETS_CACHE_DIR, exist_ok=True)
 
 PKMN_SETS_REMOTE_BASE_URL = "https://data.foulplay.cc/{}/{}"
+PS_SETS_REMOTE_BASE_URL = "https://play.pokemonshowdown.com/data/sets/{}"
 PKMN_RANDBATS_REMOTE_BASE_URL = "https://pkmn.github.io/randbats/data/full/{}.json"
 
 OTHER_STRING = "other"
@@ -54,17 +55,72 @@ def get_sets_file(cache_path: str, remote_url: str) -> dict:
     r = requests.get(remote_url)
     if r.status_code == 200:
         sets = r.json()
-        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-        with open(cache_path, "w") as f:
-            json.dump(sets, f)
-        logger.info(f"Downloaded and cached from remote: {remote_url}")
-        return sets
     else:
         logger.warning(
             f"Could not retrieve from remote: {remote_url} "
             f"(status code {r.status_code})"
         )
-        return {}
+        sets = {}
+
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump(sets, f)
+    logger.info(f"Downloaded and cached from remote: {remote_url}")
+    return sets
+
+
+def get_ps_sets_file(pkmn_mode: str) -> dict:
+    def add_new_set(d: dict, p: str, s: str):
+        if p not in d:
+            d[p] = {}
+        if s not in d[p]:
+            d[p][s] = 0
+        d[p][s] += 1
+
+    def get_pkmn_data(n: dict, s: dict):
+        for pkmn_name, pkmn_sets in s.items():
+            pkmn_name = normalize_name(pkmn_name)
+            for pkmn_set in pkmn_sets.values():
+                moves = "|".join(sorted([normalize_name(m) for m in pkmn_set["moves"]]))
+                ability = normalize_name(pkmn_set.get("ability", "noability"))
+                item = normalize_name(pkmn_set.get("item", "none"))
+                nature = normalize_name(pkmn_set.get("nature", "serious"))
+                tera_type = normalize_name(pkmn_set.get("teraType", ""))
+
+                # this EV handling looks stupid, but it is to deal with all generations
+                # if evs dict isn't present we are in gen1 or gen2: set all to 252
+                evs = pkmn_set.get(
+                    "evs",
+                    {
+                        "hp": 252,
+                        "atk": 252,
+                        "def": 252,
+                        "spa": 252,
+                        "spd": 252,
+                        "spe": 252,
+                    },
+                )
+                # missing individual ev keys means we didn't trigger the default in the above line (we are in gen3+)
+                # missing ev keys means it is 0
+                evs = (
+                    evs.get("hp", 0),
+                    evs.get("atk", 0),
+                    evs.get("def", 0),
+                    evs.get("spa", 0),
+                    evs.get("spd", 0),
+                    evs.get("spe", 0),
+                )
+                evs = ",".join(str(v) for v in evs)
+                set_string = f"{tera_type}|{ability}|{item}|{nature}|{evs}|{moves}"
+                add_new_set(n, pkmn_name, set_string)
+
+    cache_path = os.path.join(PKMN_SETS_CACHE_DIR, pkmn_mode, "showdown_sets.json")
+    remote_url = PS_SETS_REMOTE_BASE_URL.format(f"{pkmn_mode}.json")
+    sets_dict = get_sets_file(cache_path, remote_url)
+    new_sets = {}
+    get_pkmn_data(new_sets, sets_dict.get("dex", {}))
+    get_pkmn_data(new_sets, sets_dict.get("stats", {}))
+    return new_sets
 
 
 def get_pkmn_sets_file(pkmn_mode: str, file_name: str) -> dict:
@@ -413,7 +469,18 @@ class _TeamDatasets(PokemonSets):
         self.pkmn_mode = "uninitialized"
 
     def _get_sets_dict(self):
-        return get_pkmn_sets_file(self.pkmn_mode, "pokemon_full_sets.json")
+        ps_sets = get_ps_sets_file(self.pkmn_mode)
+        full_sets = get_pkmn_sets_file(self.pkmn_mode, "pokemon_full_sets.json")
+        for pkmn, sets in ps_sets.items():
+            if pkmn not in full_sets:
+                full_sets[pkmn] = sets
+            else:
+                for set_, count in sets.items():
+                    if set_ not in full_sets[pkmn]:
+                        full_sets[pkmn][set_] = count
+                    else:
+                        full_sets[pkmn][set_] += count
+        return full_sets
 
     def _get_moves_dict(self):
         return get_pkmn_sets_file(self.pkmn_mode, "replay_moves.json")
