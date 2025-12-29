@@ -26,6 +26,9 @@ class TestPokemon(unittest.TestCase):
     def test_get_mega_formes_none(self):
         self.assertEqual(Pokemon("umbreon", 100).get_mega_pkmn_info(), [])
 
+    def test_does_not_get_legends_za_mega_forme(self):
+        self.assertEqual(Pokemon("emboar", 100).get_mega_pkmn_info(), [])
+
 
 class TestBattlerActiveLockedIntoMove(unittest.TestCase):
     def setUp(self):

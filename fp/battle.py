@@ -611,30 +611,26 @@ class Pokemon:
         self.impossible_abilities = set()
 
     def get_mega_pkmn_info(self) -> list[tuple[str, str]]:
+        # For avoiding Legends ZA megas: omit mega pokemon in the pokedex that have "gen": 9
+        # Come back and undo this when Legends ZA megas are available in standard formats
         mega_names = []
         if self.name == "rayquaza":
             return [("rayquaza", "none")]
-        if f"{self.name}mega" in pokedex:
-            mega_names.append(
-                (
-                    f"{self.name}mega",
-                    normalize_name(pokedex[f"{self.name}mega"]["requiredItem"]),
+
+        potential_megas = [
+            f"{self.name}mega",
+            f"{self.name}megax",
+            f"{self.name}megay",
+        ]
+        for mega_forme in potential_megas:
+            if mega_forme in pokedex and pokedex[mega_forme].get("gen") != 9:
+                mega_names.append(
+                    (
+                        mega_forme,
+                        normalize_name(pokedex[mega_forme]["requiredItem"]),
+                    )
                 )
-            )
-        if f"{self.name}megax" in pokedex:
-            mega_names.append(
-                (
-                    f"{self.name}megax",
-                    normalize_name(pokedex[f"{self.name}megax"]["requiredItem"]),
-                )
-            )
-        if f"{self.name}megay" in pokedex:
-            mega_names.append(
-                (
-                    f"{self.name}megay",
-                    normalize_name(pokedex[f"{self.name}megay"]["requiredItem"]),
-                )
-            )
+
         return mega_names
 
     def has_type(self, pkmn_type: str):
