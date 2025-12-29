@@ -584,6 +584,7 @@ class Pokemon:
         self.status_at_switch_in = None
         self.terastallized = False
         self.tera_type = None
+        self.forme_changed = False
         self.original_ability = None
         self.fainted = False
         self.reviving = False
@@ -650,6 +651,7 @@ class Pokemon:
         self.stats = calculate_stats(self.base_stats, self.level)
         self.ability = new_pokemon.ability
         self.types = new_pokemon.types
+        self.forme_changed = True
 
     def is_alive(self):
         return self.hp > 0

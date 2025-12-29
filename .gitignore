@@ -10,3 +10,5 @@ creds
 suspect_decisions.py
 teams/teams
 data/smogon_stats_cache
+data/pkmn_sets_cache
+data/local_data
