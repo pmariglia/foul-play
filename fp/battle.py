@@ -209,7 +209,9 @@ class Battler:
         for pkmn in self.reserve + [self.active]:
             megas_possible = pkmn.get_mega_pkmn_info()
             for m in megas_possible:
-                if pkmn.item == constants.UNKNOWN_ITEM or pkmn.item == m[1]:
+                if pkmn.hp and (
+                    pkmn.item == constants.UNKNOWN_ITEM or pkmn.item == m[1]
+                ):
                     if pkmn.name not in result:
                         result[pkmn.name] = []
                     result[pkmn.name].append(m)
