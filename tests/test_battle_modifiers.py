@@ -1142,6 +1142,30 @@ class TestHealOrDamage(unittest.TestCase):
         heal_or_damage(self.battle, split_msg)
         self.assertEqual(amoongus_reserve.hp, int(amoongus_reserve.max_hp / 2))
 
+    def test_gen1_pkmn_trapping_foe_releases_target_after_hitting_self_in_confusion(
+        self,
+    ):
+        # |-damage|p1a: Rhydon|376/413|[from] confusion
+        self.battle.generation = "gen1"
+        self.battle.user.active.volatile_statuses.append(constants.CONFUSION)
+        self.battle.opponent.active.volatile_statuses.append(
+            constants.PARTIALLY_TRAPPED
+        )
+        self.battle.opponent.active.volatile_status_durations[
+            constants.PARTIALLY_TRAPPED
+        ] = 1
+        split_msg = ["", "-damage", "p1a: Rhydon", "376/413", "[from] confusion"]
+        heal_or_damage(self.battle, split_msg)
+        self.assertNotIn(
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        )
+        self.assertEqual(
+            0,
+            self.battle.opponent.active.volatile_status_durations[
+                constants.PARTIALLY_TRAPPED
+            ],
+        )
+
 
 class TestActivate(unittest.TestCase):
     def setUp(self):
@@ -1190,7 +1214,9 @@ class TestActivate(unittest.TestCase):
             "[of] p1a: Luvdisc",
         ]
         activate(self.battle, split_msg)
-        self.assertIn("partiallytrapped", self.battle.opponent.active.volatile_statuses)
+        self.assertIn(
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        )
 
     def test_activating_partially_trapped_magmastorm(self):
         split_msg = [
@@ -1201,7 +1227,9 @@ class TestActivate(unittest.TestCase):
             "[of] p1a: Luvdisc",
         ]
         activate(self.battle, split_msg)
-        self.assertIn("partiallytrapped", self.battle.opponent.active.volatile_statuses)
+        self.assertIn(
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        )
 
     def test_does_not_activate_partiallytrapped_when_not_a_partiallytrapping_move(self):
         # this isn't something that would cause an `-activate`, but just to make sure the logic is correct
@@ -1214,7 +1242,7 @@ class TestActivate(unittest.TestCase):
         ]
         activate(self.battle, split_msg)
         self.assertNotIn(
-            "partiallytrapped", self.battle.opponent.active.volatile_statuses
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
         )
 
     def test_does_not_set_consumed_item(self):
@@ -2022,6 +2050,69 @@ class TestMove(unittest.TestCase):
         expected_wish = (1, 100)
 
         self.assertEqual(expected_wish, self.battle.user.wish)
+
+    def test_activating_partially_trapped_gen1(self):
+        self.battle.generation = "gen1"
+        split_msg = [
+            "",
+            "move",
+            "p1a: Caterpie",
+            "Wrap",
+            "p2a: Weedle",
+        ]
+        move(self.battle, split_msg)
+        self.assertEqual(
+            1,
+            self.battle.opponent.active.volatile_status_durations[
+                constants.PARTIALLY_TRAPPED
+            ],
+        )
+
+    def test_does_not_activate_partiallytrapped_on_miss(self):
+        self.battle.generation = "gen1"
+        split_msg = [
+            "",
+            "move",
+            "p1a: Caterpie",
+            "Wrap",
+            "p2a: Weedle",
+            "[miss]",
+        ]
+        move(self.battle, split_msg)
+        self.assertEqual(
+            0,
+            self.battle.opponent.active.volatile_status_durations[
+                constants.PARTIALLY_TRAPPED
+            ],
+        )
+
+    def test_removes_existing_partiallytrapped_volatile_after_successfully_using_a_move(
+        self,
+    ):
+        self.battle.generation = "gen1"
+        self.battle.opponent.active.volatile_statuses = [
+            constants.PARTIALLY_TRAPPED,
+        ]
+        self.battle.opponent.active.volatile_status_durations[
+            constants.PARTIALLY_TRAPPED
+        ] = 2
+        split_msg = [
+            "",
+            "move",
+            "p2a: Caterpie",
+            "Tackle",
+            "p1a: Weedle",
+        ]
+        move(self.battle, split_msg)
+        self.assertNotIn(
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        )
+        self.assertEqual(
+            0,
+            self.battle.opponent.active.volatile_status_durations[
+                constants.PARTIALLY_TRAPPED
+            ],
+        )
 
 
 class TestTrickRoom(unittest.TestCase):
@@ -2935,14 +3026,14 @@ class TestEndVolatileStatus(unittest.TestCase):
         self.battle.user.active = self.user_active
 
     def test_removes_partiallytrapped(self):
-        self.battle.opponent.active.volatile_statuses = ["partiallytrapped"]
+        self.battle.opponent.active.volatile_statuses = [constants.PARTIALLY_TRAPPED]
         split_msg = ["", "-end", "p2a: Caterpie", "whirlpool", "[partiallytrapped]"]
         end_volatile_status(self.battle, split_msg)
 
         self.assertEqual([], self.battle.opponent.active.volatile_statuses)
 
     def test_removes_partiallytrapped_silent(self):
-        self.battle.opponent.active.volatile_statuses = ["partiallytrapped"]
+        self.battle.opponent.active.volatile_statuses = [constants.PARTIALLY_TRAPPED]
         split_msg = [
             "",
             "-end",

@@ -697,6 +697,22 @@ def heal_or_damage(battle, split_msg):
         logger.info("Setting {}'s item to: {}".format(pkmn.name, item))
         pkmn.item = item
 
+    # gen 1 if you are trapping the opponent and hit yourself in confusion, the opponent is released
+    if (
+        battle.generation == "gen1"
+        and split_msg[-1] == "[from] confusion"
+        and (
+            constants.PARTIALLY_TRAPPED in other_side.active.volatile_statuses
+            or other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED]
+            > 0
+        )
+    ):
+        logger.info(
+            f"{pkmn.name} hit itself in confusion, releasing partially trapped volatile on {other_side.active.name}"
+        )
+        remove_volatile(other_side.active, constants.PARTIALLY_TRAPPED)
+        other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED] = 0
+
 
 def faint(battle, split_msg):
     if is_opponent(battle, split_msg):
@@ -831,6 +847,34 @@ def move(battle, split_msg):
         )
     elif move_name != "sleeptalk":
         pkmn.gen_3_consecutive_sleep_talks = 0
+
+    # in gen1, if you successfully hit with a partially trapping move, the volatile is applied here
+    # cannot use the 'cant' message because a slow wrap still needs the volatile/duration applied
+    # e.g. |move|p1a: Dragonite|Wrap|p2a: Tauros|
+    # does not activate on a miss: |move|p1a: Dragonite|Wrap|p2a: Tauros|[miss]
+    if (
+        battle.generation == "gen1"
+        and all_move_json.get(move_name, {}).get(constants.VOLATILE_STATUS)
+        == constants.PARTIALLY_TRAPPED
+        and not any(msg == "[miss]" for msg in split_msg)
+    ):
+        opposing_pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED] += 1
+        if constants.PARTIALLY_TRAPPED not in opposing_pkmn.volatile_statuses:
+            opposing_pkmn.volatile_statuses.append(constants.PARTIALLY_TRAPPED)
+
+        logger.info(
+            f"{pkmn.name} successfully used Wrap, incrementing partially trapped volatile on "
+            f"{opposing_pkmn.name} to {opposing_pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED]}"
+        )
+
+    # in gen1 if you just moved, you are released from partially trapped
+    if battle.generation == "gen1" and (
+        pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED] > 0
+        or constants.PARTIALLY_TRAPPED in pkmn.volatile_statuses
+    ):
+        logger.info(f"{pkmn.name} used a move, removing partially trapped volatile")
+        remove_volatile(pkmn, constants.PARTIALLY_TRAPPED)
+        pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED] = 0
 
     # gen1 stat modification glitches.
     # swordsdance and agility nullify the effects of burn and paralysis respectively
@@ -1186,10 +1230,11 @@ def activate(battle, split_msg):
         move_name = normalize_name(split_msg[3].split(":")[-1].strip())
         if (
             move_name in all_move_json
-            and all_move_json[move_name].get("volatileStatus") == "partiallytrapped"
+            and all_move_json[move_name].get("volatileStatus")
+            == constants.PARTIALLY_TRAPPED
         ):
             logger.info("{} was partially trapped by {}".format(pkmn.name, move_name))
-            pkmn.volatile_statuses.append("partiallytrapped")
+            pkmn.volatile_statuses.append(constants.PARTIALLY_TRAPPED)
 
 
 def anim(battle, split_msg):
@@ -1350,8 +1395,8 @@ def end_volatile_status(battle, split_msg):
             if vs.startswith(volatile_status):
                 logger.info("Removing {} from {}".format(vs, pkmn.name))
                 pkmn.volatile_statuses.remove(vs)
-    elif len(split_msg) >= 5 and "partiallytrapped" in split_msg[4]:
-        remove_volatile(pkmn, "partiallytrapped")
+    elif len(split_msg) >= 5 and constants.PARTIALLY_TRAPPED in split_msg[4]:
+        remove_volatile(pkmn, constants.PARTIALLY_TRAPPED)
     elif volatile_status not in pkmn.volatile_statuses:
         logger.warning(
             "{} does not have the volatile status '{}'. Volatiles: {}".format(
