@@ -2179,9 +2179,11 @@ def mustrecharge(battle, split_msg):
 def cant(battle, split_msg):
     if is_opponent(battle, split_msg):
         side = battle.opponent
+        other_side = battle.user
         opponent = True
     else:
         side = battle.user
+        other_side = battle.opponent
         opponent = False
 
     side.last_used_move = LastUsedMove(
@@ -2248,6 +2250,24 @@ def cant(battle, split_msg):
                     side.active.name, side.active.sleep_turns
                 )
             )
+
+    # gen1 if you get `cant` from full paralysis while the opponent is partiallytrapped, they are freed
+    if (
+        battle.generation == "gen1"
+        and len(split_msg) == 4
+        and split_msg[3] == constants.PARALYZED
+        and (
+            constants.PARTIALLY_TRAPPED in other_side.active.volatile_statuses
+            or other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED]
+            > 0
+        )
+    ):
+        logger.info(
+            f"{side.active.name} got 'cant' while target {other_side.active.name} was partially trapped, "
+            f"removing partiallytrapped volatile from {other_side.active.name}"
+        )
+        remove_volatile(other_side.active, constants.PARTIALLY_TRAPPED)
+        other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED] = 0
 
 
 def upkeep(battle, _):

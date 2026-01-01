@@ -4212,6 +4212,28 @@ class TestCant(unittest.TestCase):
         self.assertEqual(0, self.battle.user.active.sleep_turns)
         self.assertEqual(2, self.battle.user.active.rest_turns)
 
+    def test_gen1_pkmn_trapping_foe_releases_target_after_fully_paralyzed(
+        self,
+    ):
+        self.battle.generation = "gen1"
+        self.battle.opponent.active.volatile_statuses.append(
+            constants.PARTIALLY_TRAPPED
+        )
+        self.battle.opponent.active.volatile_status_durations[
+            constants.PARTIALLY_TRAPPED
+        ] = 1
+        split_msg = ["", "-cant", "p1a: Rhydon", "par"]
+        cant(self.battle, split_msg)
+        self.assertNotIn(
+            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        )
+        self.assertEqual(
+            0,
+            self.battle.opponent.active.volatile_status_durations[
+                constants.PARTIALLY_TRAPPED
+            ],
+        )
+
 
 class TestUpkeep(unittest.TestCase):
     def setUp(self):
