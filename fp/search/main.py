@@ -9,7 +9,12 @@ from config import FoulPlayConfig
 from .standard_battles import prepare_battles
 from .random_battles import prepare_random_battles
 
-from poke_engine import State as PokeEngineState, monte_carlo_tree_search, MctsResult
+from poke_engine import (
+    State as PokeEngineState,
+    monte_carlo_tree_search,
+    MctsResult,
+    parallel_monte_carlo_tree_search,
+)
 
 from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 
@@ -47,6 +52,21 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     return choice[0]
 
 
+def select_move_from_parallel_mcts_results(mcts_results: list[MctsResult]) -> str:
+    total_visits = sum([m.total_visits for m in mcts_results])
+    highest_val = -1
+    choice = ""
+    logger.info(f"Total visits: {total_visits}")
+    for mv in mcts_results[0].side_one:
+        logger.info(
+            f"{mv.move_choice}: visited {mv.visits} times ({round(100 * mv.visits / total_visits, 2)}%), avg_score={round(mv.total_score / mv.visits, 3)}"
+        )
+        if mv.visits > highest_val:
+            highest_val = mv.visits
+            choice = mv.move_choice
+    return choice
+
+
 def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsResult:
     logger.debug("Calling with {} state: {}".format(index, state))
     poke_engine_state = PokeEngineState.from_string(state)
@@ -56,7 +76,17 @@ def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsRes
     return res
 
 
+def get_result_from_parallel_mcts(
+    states: list[PokeEngineState], search_time_ms: int
+) -> list[MctsResult]:
+    return parallel_monte_carlo_tree_search(states, duration_ms=search_time_ms)
+
+
 def search_time_num_battles_randombattles(battle):
+    # timer is very short in blitz battles, so just use defaults
+    if battle.pokemon_format.endswith("blitz"):
+        return FoulPlayConfig.parallelism, FoulPlayConfig.search_time_ms
+
     revealed_pkmn = len(battle.opponent.reserve)
     if battle.opponent.active is not None:
         revealed_pkmn += 1
@@ -141,5 +171,43 @@ def find_best_move(battle: Battle) -> str:
 
     mcts_results = [(fut.result(), chance, index) for (fut, chance, index) in futures]
     choice = select_move_from_mcts_results(mcts_results)
+    logger.info("Choice: {}".format(choice))
+    return choice
+
+
+def find_best_move_mcts_parallel(battle: Battle) -> str:
+    battle = deepcopy(battle)
+    if battle.team_preview:
+        battle.user.active = battle.user.reserve.pop(0)
+        battle.opponent.active = battle.opponent.reserve.pop(0)
+
+    in_time_pressure = battle.time_remaining is not None and battle.time_remaining <= 60
+    search_time_multiplier = 1 if in_time_pressure else 2
+    num_battles, search_time_per_battle = (
+        FoulPlayConfig.parallelism,
+        FoulPlayConfig.search_time_ms * search_time_multiplier,
+    )
+    if battle.battle_type == BattleType.RANDOM_BATTLE:
+        battles = prepare_random_battles(battle, num_battles)
+    elif battle.battle_type == BattleType.BATTLE_FACTORY:
+        battles = prepare_random_battles(battle, num_battles)
+    elif battle.battle_type == BattleType.STANDARD_BATTLE:
+        battles = prepare_battles(battle, num_battles)
+    else:
+        raise ValueError("Unsupported battle type: {}".format(battle.battle_type))
+
+    logger.info("Searching for a move using MCTS...")
+    logger.info(
+        "Sampling {} battles at {}ms each".format(num_battles, search_time_per_battle)
+    )
+
+    states = []
+    for i, (b, _) in enumerate(battles):
+        state = battle_to_poke_engine_state(b)
+        logger.debug("State {}: {}".format(i, state.to_string()))
+        states.append(state)
+
+    mcts_results = get_result_from_parallel_mcts(states, search_time_per_battle)
+    choice = select_move_from_parallel_mcts_results(mcts_results)
     logger.info("Choice: {}".format(choice))
     return choice

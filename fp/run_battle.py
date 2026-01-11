@@ -12,7 +12,7 @@ from config import FoulPlayConfig, SaveReplay
 from fp.battle import LastUsedMove, Pokemon, Battle
 from fp.battle_modifier import async_update_battle, process_battle_updates
 from fp.helpers import normalize_name
-from fp.search.main import find_best_move
+from fp.search.main import find_best_move, find_best_move_mcts_parallel
 
 from fp.websocket_client import PSWebsocketClient
 
@@ -85,7 +85,9 @@ async def async_pick_move(battle):
 
     loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        best_move = await loop.run_in_executor(pool, find_best_move, battle_copy)
+        best_move = await loop.run_in_executor(
+            pool, find_best_move_mcts_parallel, battle_copy
+        )
     battle.user.last_selected_move = LastUsedMove(
         battle.user.active.name,
         best_move.removesuffix("-tera").removesuffix("-mega"),
