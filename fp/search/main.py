@@ -6,6 +6,7 @@ from copy import deepcopy
 from constants import BattleType
 from fp.battle import Battle
 from config import FoulPlayConfig
+from .bayes_nash_solver import solve
 from .standard_battles import prepare_battles
 from .random_battles import prepare_random_battles
 
@@ -45,6 +46,16 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
 
     choice = random.choices(final_policy, weights=[p[1] for p in final_policy])[0]
     return choice[0]
+
+
+def pprint_mcts_matrix_result(matrix: list[list[float]], side_one_options):
+    i = 0
+    for row in matrix:
+        print(f"{str(side_one_options[i]).rjust(25)}\t", end="")
+        for cell in row:
+            print(f"{cell:.2f}", end="\t")
+        print()
+        i += 1
 
 
 def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsResult:
@@ -140,6 +151,24 @@ def find_best_move(battle: Battle) -> str:
             futures.append((fut, chance, index))
 
     mcts_results = [(fut.result(), chance, index) for (fut, chance, index) in futures]
-    choice = select_move_from_mcts_results(mcts_results)
-    logger.info("Choice: {}".format(choice))
+    mcts_result_matrices = [i[0].matrix for i in mcts_results]
+    side_one_options = mcts_results[0][0].side_one
+    for i, matrix in enumerate(mcts_result_matrices):
+        logger.info(f"MCTS Result Matrix for battle {i}:")
+        pprint_mcts_matrix_result(matrix, side_one_options)
+
+    p1_weights, _ , exploitability, p1_reward = solve(mcts_result_matrices)
+
+    highest_weight = max(p1_weights)
+    p1_weights = [i if (i >= highest_weight * 0.75 or i > 0.25) else 0 for i in p1_weights]
+
+    logger.info(f"Final weighted policies:")
+    for i, weight in enumerate(p1_weights):
+        logger.info(
+            f"\t{round(weight * 100, 3)}%: {side_one_options[i]}"
+        )
+    choice = random.choices(
+        [side_one_options[i] for i in range(len(side_one_options))], weights=p1_weights
+    )[0]
+    logger.info(f"choice={choice}, reward={round(p1_reward, 3)}, exploitability={round(exploitability, 3)}")
     return choice
