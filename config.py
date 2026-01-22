@@ -66,7 +66,7 @@ class BotModes(Enum):
 class _FoulPlayConfig:
     websocket_uri: str
     username: str
-    password: str
+    password: str | None
     user_id: str
     avatar: str
     bot_mode: BotModes
@@ -92,7 +92,7 @@ class _FoulPlayConfig:
             help="The PokemonShowdown websocket URI, e.g. wss://sim3.psim.us/showdown/websocket",
         )
         parser.add_argument("--ps-username", required=True)
-        parser.add_argument("--ps-password", required=True)
+        parser.add_argument("--ps-password", default=None)
         parser.add_argument("--ps-avatar", default=None)
         parser.add_argument(
             "--bot-mode", required=True, choices=[e.name for e in BotModes]

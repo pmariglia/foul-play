@@ -33,7 +33,7 @@ class PSWebsocketClient:
         self.password = password
         self.address = address
         self.websocket = await websockets.connect(self.address)
-        self.login_uri = "https://play.pokemonshowdown.com/api/login"
+        self.login_uri = "https://play.pokemonshowdown.com/api/login" if password else "https://play.pokemonshowdown.com/action.php?"
         return self
 
     async def join_room(self, room_name):
@@ -85,6 +85,28 @@ class PSWebsocketClient:
     async def login(self):
         logger.info("Logging in...")
         client_id, challstr = await self.get_id_and_challstr()
+
+        if self.password is None:
+            response = requests.post(
+                self.login_uri,
+                data={
+                    "act": "getassertion",
+                    "userid": self.username,
+                    "challstr": "|".join([client_id, challstr]),
+                },
+            )
+
+            if response.status_code != 200:
+                logger.error("Could not get assertion\nDetails:\n{}".format(response.content))
+                raise LoginError("Could not get assertion")
+            
+            assertion = response.text
+            message = ["/trn " + self.username + ",0," + assertion]
+            logger.info("Successfully logged in as guest")
+            await self.send_message("", message)
+            await asyncio.sleep(3)
+            return "guest"
+
         response = requests.post(
             self.login_uri,
             data={

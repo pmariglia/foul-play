@@ -12,10 +12,16 @@ def load_team(name):
     path = os.path.join(TEAM_DIR, "{}".format(name))
     if os.path.isdir(path):
         team_file_names = list()
-        for f in os.listdir(path):
-            full_path = os.path.join(path, f)
-            if os.path.isfile(full_path) and not f.startswith("."):
-                team_file_names.append(full_path)
+        for root, dirs, files in os.walk(path):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for f in files:
+                if f.startswith("."):
+                    continue
+                full_path = os.path.join(root, f)
+                if os.path.isfile(full_path):
+                    team_file_names.append(full_path)
+        if not team_file_names:
+            raise ValueError("No team files found in dir: {}".format(name))
         file_path = random.choice(team_file_names)
 
     elif os.path.isfile(path):
@@ -29,5 +35,5 @@ def load_team(name):
     return (
         export_to_packed(team_export),
         export_to_dict(team_export),
-        os.path.basename(file_path),
+        os.path.relpath(file_path, path),
     )
