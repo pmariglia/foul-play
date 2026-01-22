@@ -86,7 +86,9 @@ class PSWebsocketClient:
         logger.info("Logging in...")
         client_id, challstr = await self.get_id_and_challstr()
 
-        if self.password is None:
+        guest_login = self.password is None
+
+        if guest_login:
             response = requests.post(
                 self.login_uri,
                 data={
@@ -95,42 +97,34 @@ class PSWebsocketClient:
                     "challstr": "|".join([client_id, challstr]),
                 },
             )
-
-            if response.status_code != 200:
-                logger.error("Could not get assertion\nDetails:\n{}".format(response.content))
-                raise LoginError("Could not get assertion")
-            
-            assertion = response.text
-            message = ["/trn " + self.username + ",0," + assertion]
-            logger.info("Successfully logged in as guest")
-            await self.send_message("", message)
-            await asyncio.sleep(3)
-            return "guest"
-
-        response = requests.post(
-            self.login_uri,
-            data={
-                "name": self.username,
-                "pass": self.password,
-                "challstr": "|".join([client_id, challstr]),
-            },
-        )
+        else:
+            response = requests.post(
+                self.login_uri,
+                data={
+                    "name": self.username,
+                    "pass": self.password,
+                    "challstr": "|".join([client_id, challstr]),
+                },
+            )
 
         if response.status_code != 200:
-            logger.error("Could not log-in\nDetails:\n{}".format(response.content))
-            raise LoginError("Could not log-in")
+            logger.error("Could not get assertion\nDetails:\n{}".format(response.content))
+            raise LoginError("Could not get assertion")
+        
+        if guest_login:
+            assertion = response.text
+        else:
+            response_json = json.loads(response.text[1:])
+            if "actionsuccess" not in response_json:
+                logger.error("Login Unsuccessful: {}".format(response_json))
+                raise LoginError("Could not log-in: {}".format(response_json))
+            assertion = response_json.get("assertion")
 
-        response_json = json.loads(response.text[1:])
-        if "actionsuccess" not in response_json:
-            logger.error("Login Unsuccessful: {}".format(response_json))
-            raise LoginError("Could not log-in: {}".format(response_json))
-
-        assertion = response_json.get("assertion")
         message = ["/trn " + self.username + ",0," + assertion]
         logger.info("Successfully logged in")
         await self.send_message("", message)
         await asyncio.sleep(3)
-        return response_json["curuser"]["userid"]
+        return self.username if guest_login else response_json["curuser"]["userid"]
 
     async def update_team(self, team):
         await self.send_message("", ["/utm {}".format(team)])
