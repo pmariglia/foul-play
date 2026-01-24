@@ -33,7 +33,11 @@ class PSWebsocketClient:
         self.password = password
         self.address = address
         self.websocket = await websockets.connect(self.address)
-        self.login_uri = "https://play.pokemonshowdown.com/api/login" if password else "https://play.pokemonshowdown.com/action.php?"
+        self.login_uri = (
+            "https://play.pokemonshowdown.com/api/login"
+            if password
+            else "https://play.pokemonshowdown.com/action.php?"
+        )
         return self
 
     async def join_room(self, room_name):
@@ -108,9 +112,11 @@ class PSWebsocketClient:
             )
 
         if response.status_code != 200:
-            logger.error("Could not get assertion\nDetails:\n{}".format(response.content))
+            logger.error(
+                "Could not get assertion\nDetails:\n{}".format(response.content)
+            )
             raise LoginError("Could not get assertion")
-        
+
         if guest_login:
             assertion = response.text
         else:
