@@ -3,11 +3,9 @@ import random
 from copy import deepcopy
 
 import constants
-from data import all_move_json
-from fp.search.helpers import (
-    populate_pkmn_from_set,
-)
-from fp.helpers import natures
+from data import all_move_json, pokedex
+from fp.search.helpers import populate_pkmn_from_set
+from fp.helpers import natures, normalize_name
 from fp.battle import Pokemon, Battle, Battler
 from data.pkmn_sets import (
     SmogonSets,
@@ -303,6 +301,16 @@ def set_most_likely_hidden_power(pkmn: Pokemon):
                 break
 
 
+def pokemon_guaranteed_move(pkmn: Pokemon):
+    if pkmn.name in pokedex and pokedex[pkmn.name].get("requiredMove"):
+        required_move = normalize_name(pokedex[pkmn.name]["requiredMove"])
+        if len(pkmn.moves) < 4 and pkmn.get_move(required_move) is None:
+            logger.info(
+                f"Adding guaranteed move {required_move} to {pkmn.name}'s moveset"
+            )
+            pkmn.add_move(required_move)
+
+
 def sample_pokemon(pkmn: Pokemon):
     if not pkmn.mega_name:
         _sample_pokemon(pkmn)
@@ -318,6 +326,7 @@ def sample_pokemon(pkmn: Pokemon):
 
 
 def _sample_pokemon(pkmn: Pokemon):
+    pokemon_guaranteed_move(pkmn)
     set_most_likely_hidden_power(pkmn)
 
     # 1: TeamDatasets is not emptied and `get_all_remaining_sets` returned at least one set
