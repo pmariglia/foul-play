@@ -184,6 +184,16 @@ POKEMON_TYPE_INDICES = {
     "???": 18,
 }
 
+
+def possible_hidden_power_types():
+    hidden_power_types = set(POKEMON_TYPE_INDICES)
+    hidden_power_types.remove("typeless")
+    hidden_power_types.remove("???")
+    hidden_power_types.remove("fairy")
+    hidden_power_types.remove("normal")
+    return hidden_power_types
+
+
 # fmt: off
 DAMAGE_MULTIPICATION_ARRAY = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0, 1, 1, 0.5, 1, 1],

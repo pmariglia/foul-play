@@ -7,11 +7,9 @@ import logging
 from data import all_move_json
 from data import pokedex
 
-from fp.helpers import get_pokemon_info_from_condition
+from fp.helpers import get_pokemon_info_from_condition, possible_hidden_power_types
 from fp.helpers import normalize_name
 from fp.helpers import calculate_stats
-
-from fp.helpers import POKEMON_TYPE_INDICES
 
 
 logger = logging.getLogger(__name__)
@@ -553,7 +551,7 @@ class Pokemon:
         self.nature = nature
         self.evs = evs
         self.speed_range = StatRange(min=0, max=float("inf"))
-        self.hidden_power_possibilities = set(POKEMON_TYPE_INDICES.keys())
+        self.hidden_power_possibilities = possible_hidden_power_types()
 
         try:
             self.base_stats = pokedex[self.name][constants.BASESTATS]
