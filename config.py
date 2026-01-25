@@ -76,6 +76,7 @@ class _FoulPlayConfig:
     parallelism: int
     run_count: int
     team_name: str
+    team_list: str = None
     user_to_challenge: str
     save_replay: SaveReplay
     room_name: str
@@ -136,6 +137,11 @@ class _FoulPlayConfig:
             "If not set, defaults to the --pokemon-format value.",
         )
         parser.add_argument(
+            "--team-list",
+            default=None,
+            help="A path to a text file containing a list of team names to choose from in order. Takes precedence over --team-name.",
+        )
+        parser.add_argument(
             "--save-replay",
             default="never",
             choices=[e.name for e in SaveReplay],
@@ -165,6 +171,7 @@ class _FoulPlayConfig:
         self.parallelism = args.search_parallelism
         self.run_count = args.run_count
         self.team_name = args.team_name or self.pokemon_format
+        self.team_list = args.team_list
         self.user_to_challenge = args.user_to_challenge
         self.save_replay = SaveReplay[args.save_replay]
         self.room_name = args.room_name
