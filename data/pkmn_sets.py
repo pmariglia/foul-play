@@ -589,8 +589,7 @@ class _TeamDatasets(PokemonSets):
             ):
                 remaining_sets.append(pkmn_set)
 
-        # do not do this extra check for TeamDatasets unless in battlefactory mode
-        if not remaining_sets and self.pkmn_mode.endswith("battlefactory"):
+        if not remaining_sets and "factory" in self.pkmn_mode:
             for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
                 if pkmn_set.full_set_pkmn_can_have_set(
                     pkmn,

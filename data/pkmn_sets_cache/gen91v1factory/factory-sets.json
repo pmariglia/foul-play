@@ -1,0 +1,376 @@
+{
+  "1v1": {
+    "hoopaunbound": {
+      "|magician|choiceband|jolly|0,252,0,0,4,252|hyperspacefury|gunkshot|zenheadbutt|drainpunch": 35,
+      "|magician|choicespecs|modest|0,0,4,252,0,252|psychic|darkpulse|thunderbolt|grassknot": 25,
+      "|magician|assaultvest|adamant|168,252,68,0,0,20|hyperspacefury|gunkshot|psychicnoise|knockoff": 20,
+      "|magician|lifeorb|lonely|240,0,76,96,0,96|gunkshot|psychic|darkpulse|calmmind": 20
+    },
+    "primarina": {
+      "|torrent|lifeorb|modest|0,0,136,120,0,252|encore|icywind|moonblast|hydrocannon": 40,
+      "|torrent|weaknesspolicy|bold|88,0,244,0,0,176|hydrocannon|drainingkiss|calmmind|charm": 30,
+      "|liquidvoice|choicespecs|modest|252,0,160,24,72,0|hydrocannon|moonblast|energyball|uproar": 30
+    },
+    "ursaluna": {
+      "|guts|choiceband|adamant|184,228,0,0,96,0|headlongrush|gigaimpact|gunkshot|avalanche": 40,
+      "|guts|flameorb|adamant|0,164,0,0,92,252|facade|headlongrush|swordsdance|protect": 40,
+      "|guts|assaultvest|adamant|184,188,0,0,136,0|gigaimpact|earthquake|avalanche|gunkshot": 20
+    },
+    "ironcrown": {
+      "|quarkdrive|weaknesspolicy|bold|240,0,232,0,0,36|tachyoncutter|irondefense|calmmind|storedpower": 25,
+      "|quarkdrive|weaknesspolicy|timid|252,0,0,0,4,252|tachyoncutter|irondefense|calmmind|storedpower": 25,
+      "|quarkdrive|boosterenergy|modest|244,0,16,196,16,36|calmmind|psychicnoise|tachyoncutter|focusblast": 50
+    },
+    "ironvaliant": {
+      "|quarkdrive|boosterenergy|timid|252,0,232,0,0,24|moonblast|protect|encore|disable": 40,
+      "|quarkdrive|boosterenergy|jolly|252,0,96,0,136,24|spiritbreak|protect|encore|disable": 10,
+      "|quarkdrive|boosterenergy|jolly|0,252,0,0,4,252|spiritbreak|reversal|disable|substitute": 20,
+      "|quarkdrive|choiceband|jolly|4,220,0,0,32,252|spiritbreak|closecombat|gigaimpact|trick": 30
+    },
+    "metagross": {
+      "|clearbody|weaknesspolicy|impish|248,100,116,0,44,0|heavyslam|bulletpunch|earthquake|psychicfangs": 40,
+      "|clearbody|assaultvest|impish|252,108,116,0,32,0|heavyslam|psychicfangs|earthquake|bulletpunch": 40,
+      "|clearbody|airballoon|impish|248,28,136,0,0,96|irondefense|bodypress|heavyslam|bulletpunch": 20
+    },
+    "pecharunt": {
+      "|poisonpuppeteer|marangaberry|calm|248,0,4,0,220,36|malignantchain|curse|recover|partingshot": 70,
+      "|poisonpuppeteer|airballoon|bold|248,0,224,0,0,36|malignantchain|curse|partingshot|recover": 30
+    },
+    "spectrier": {
+      "|grimneigh|lifeorb|timid|4,0,124,180,0,200|hex|hyperbeam|willowisp|calmmind": 50,
+      "|grimneigh|sitrusberry|modest|196,0,68,4,20,220|calmmind|willowisp|hex|drainingkiss": 30,
+      "|grimneigh|clearamulet|calm|36,0,0,0,252,220|calmmind|painsplit|shadowball|taunt": 20
+    },
+    "corviknight": {
+      "|pressure|marangaberry|careful|248,0,56,0,84,120|irondefense|bodypress|taunt|roost": 60,
+      "|pressure|leftovers|timid|200,0,0,0,56,252|protect|substitute|roost|taunt": 25,
+      "|pressure|lifeorb|adamant|24,228,44,0,0,212|bulkup|bravebird|ironhead|taunt": 15
+    },
+    "dragapult": {
+      "|clearbody|choiceband|adamant|0,252,0,0,4,252|outrage|dragondarts|phantomforce|uturn": 40,
+      "|infiltrator|choicespecs|modest|0,0,0,252,4,252|shadowball|dracometeor|fireblast|thunderbolt": 40,
+      "|clearbody|weaknesspolicy|timid|48,0,248,0,0,212|willowisp|hex|substitute|disable": 20
+    },
+    "goodrahisui": {
+      "|sapsipper|choiceband|adamant|248,236,24,0,0,0|outrage|heavyslam|earthquake|skittersmack": 35,
+      "|sapsipper|assaultvest|sassy|248,0,24,60,176,0|acidspray|dracometeor|flashcannon|knockoff": 30,
+      "|sapsipper|chopleberry|sassy|244,32,60,84,88,0|acidspray|dracometeor|heavyslam|counter": 35
+    },
+    "landorustherian": {
+      "|intimidate|lifeorb|adamant|8,136,196,0,0,168|earthquake|swordsdance|outrage|smackdown": 40,
+      "|intimidate|choiceband|adamant|232,32,36,0,120,88|earthquake|outrage|rocktomb|fly": 60
+    },
+    "ninetalesalola": {
+      "|snowwarning|leftovers|timid|216,0,40,0,0,252|protect|encore|disable|moonblast": 80,
+      "|snowwarning|lifeorb|timid|208,0,0,100,0,200|calmmind|freezedry|blizzard|moonblast": 20
+    },
+    "ogerponwellspring": {
+      "|waterabsorb|wellspringmask|jolly|248,8,0,0,0,252|spikyshield|ivycudgel|leechseed|substitute": 30,
+      "|waterabsorb|wellspringmask|jolly|0,252,4,0,0,252|powerwhip|ivycudgel|encore|trailblaze": 25,
+      "|waterabsorb|wellspringmask|adamant|200,192,0,0,0,116|powerwhip|ivycudgel|knockoff|lowkick": 25,
+      "|waterabsorb|wellspringmask|impish|252,80,144,0,0,32|trailblaze|counter|encore|ivycudgel": 20
+    },
+    "ragingbolt": {
+      "|protosynthesis|boosterenergy|modest|240,0,24,240,0,0|thunderbolt|dracometeor|thunderclap|taunt": 50,
+      "|protosynthesis|boosterenergy|modest|96,0,0,232,44,136|thunderbolt|dracometeor|thunderclap|calmmind": 50
+    },
+    "urshifu": {
+      "|unseenfist|lifeorb|jolly|0,252,0,0,4,252|bulkup|wickedblow|suckerpunch|closecombat": 65,
+      "|unseenfist|assaultvest|adamant|160,92,16,0,160,80|wickedblow|lowkick|rocktomb|ironhead": 35
+    },
+    "volcarona": {
+      "|swarm|lifeorb|modest|252,0,32,12,16,196|quiverdance|bugbuzz|overheat|substitute": 60,
+      "|swarm|passhoberry|calm|192,0,0,76,44,196|quiverdance|overheat|bugbuzz|gigadrain": 40
+    },
+    "zapdos": {
+      "|pressure|clearamulet|timid|248,0,0,0,84,176|hurricane|thunderbolt|eerieimpulse|roost": 60,
+      "|pressure|lifeorb|timid|8,0,0,200,48,252|hurricane|thunderbolt|charge|heatwave": 20,
+      "|pressure|leftovers|timid|248,0,0,8,0,252|protect|substitute|roost|thunderbolt": 20
+    },
+    "garchomp": {
+      "|roughskin|lifeorb|adamant|0,252,0,0,176,80|earthquake|scaleshot|swordsdance|outrage": 60,
+      "|roughskin|choiceband|jolly|0,252,0,0,4,252|outrage|earthquake|scaleshot|firefang": 40
+    },
+    "haxorus": {
+      "|unnerve|choiceband|adamant|0,252,4,0,0,252|outrage|scaleshot|firstimpression|closecombat": 60,
+      "|unnerve|choicescarf|adamant|0,252,4,0,0,252|outrage|closecombat|rockslide|poisonjab": 40
+    },
+    "ironhands": {
+      "|quarkdrive|boosterenergy|adamant|0,204,0,0,220,84|closecombat|supercellslam|fakeout|swordsdance": 100
+    },
+    "meowscarada": {
+      "|protean|choiceband|jolly|0,252,0,0,4,252|flowertrick|knockoff|tripleaxel|gigaimpact": 100
+    },
+    "roaringmoon": {
+      "|protosynthesis|boosterenergy|jolly|8,156,0,0,160,184|outrage|knockoff|acrobatics|substitute": 50,
+      "|protosynthesis|choiceband|jolly|0,252,0,0,4,252|outrage|knockoff|earthquake|ironhead": 50
+    },
+    "sylveon": {
+      "|pixilate|lifeorb|modest|104,0,224,180,0,0|hyperbeam|hypervoice|calmmind|faketears": 70,
+      "|pixilate|weaknesspolicy|bold|88,0,244,0,0,176|hyperbeam|drainingkiss|charm|calmmind": 30
+    },
+    "urshifurapidstrike": {
+      "|unseenfist|choiceband|adamant|252,220,32,0,4,0|surgingstrikes|closecombat|lowkick|ironhead": 65,
+      "|unseenfist|lifeorb|jolly|0,252,4,0,0,252|surgingstrikes|closecombat|bulkup|aquajet": 35
+    },
+    "volcanion": {
+      "|waterabsorb|lifeorb|rash|136,8,88,44,0,232|overheat|steameruption|sludgebomb|flamecharge": 40,
+      "|waterabsorb|assaultvest|modest|244,0,0,184,80,0|overheat|steameruption|sludgewave|earthpower": 35,
+      "|waterabsorb|airballoon|modest|136,0,88,188,0,96|substitute|steameruption|overheat|sludgewave": 25
+    },
+    "walkingwake": {
+      "|protosynthesis|boosterenergy|timid|0,0,4,252,0,252|dracometeor|hydropump|flamethrower|hurricane": 75,
+      "|protosynthesis|boosterenergy|timid|8,0,56,192,0,252|dracometeor|hydropump|hurricane|chillingwater": 25
+    },
+    "annihilape": {
+      "|defiant|choiceband|adamant|232,164,0,0,96,16|closecombat|gunkshot|outrage|phantomforce": 50,
+      "|defiant|weaknesspolicy|careful|248,0,156,0,88,16|bulkup|ragefist|encore|lowsweep": 35,
+      "|defiant|sitrusberry|impish|248,0,244,0,0,16|counter|bulkup|ragefist|closecombat": 15
+    },
+    "basculegion": {
+      "|adaptability|assaultvest|adamant|64,124,192,0,8,120|phantomforce|wavecrash|aquajet|nightshade": 100
+    },
+    "chienpao": {
+      "|swordofruin|choiceband|jolly|0,252,4,0,0,252|iciclecrash|throatchop|gigaimpact|sacredsword": 100
+    },
+    "cresselia": {
+      "|levitate|clearamulet|bold|252,0,44,0,72,140|calmmind|moonlight|storedpower|reflect": 50,
+      "|levitate|choicescarf|bold|240,0,64,56,36,112|psychic|icebeam|trick|moonlight": 50
+    },
+    "donphan": {
+      "|sturdy|choiceband|adamant|0,252,0,0,4,252|earthquake|gunkshot|headsmash|playrough": 80,
+      "|sturdy|expertbelt|jolly|0,252,0,0,4,252|earthquake|gunkshot|trailblaze|encore": 20
+    },
+    "entei": {
+      "|innerfocus|assaultvest|adamant|240,112,132,0,24,0|sacredfire|eruption|flamecharge|extremespeed": 50,
+      "|pressure|leftovers|jolly|128,0,116,0,12,252|sacredfire|substitute|protect|flamecharge": 50
+    },
+    "greattusk": {
+      "|protosynthesis|choiceband|adamant|0,252,0,0,4,252|earthquake|closecombat|supercellslam|icespinner": 40,
+      "|protosynthesis|boosterenergy|adamant|24,224,56,0,0,204|bulkup|headlongrush|closecombat|icespinner": 30,
+      "|protosynthesis|choicescarf|adamant|0,252,0,0,4,252|earthquake|closecombat|headsmash|icespinner": 30
+    },
+    "manaphy": {
+      "|hydration|lifeorb|timid|60,0,68,128,0,252|tailglow|surf|alluringvoice|energyball": 50,
+      "|hydration|clearamulet|timid|172,0,84,0,0,252|takeheart|acidarmor|rest|scald": 25,
+      "|hydration|sitrusberry|timid|252,0,4,0,0,252|scald|acidarmor|takeheart|rest": 25
+    },
+    "moltresgalar": {
+      "|berserk|lifeorb|modest|0,4,232,96,0,176|fierywrath|hurricane|taunt|nastyplot": 50,
+      "|berserk|weaknesspolicy|modest|240,0,216,36,16,0|fierywrath|hurricane|suckerpunch|airslash": 50
+    },
+    "registeel": {
+      "|clearbody|leftovers|timid|252,0,4,0,0,252|irondefense|amnesia|rest|bodypress": 100
+    },
+    "skeledirge": {
+      "|unaware|weaknesspolicy|bold|248,0,100,124,36,0|shadowball|blastburn|torchsong|encore": 50,
+      "|unaware|airballoon|bold|248,0,252,0,0,8|willowisp|torchsong|encore|slackoff": 50
+    },
+    "sneasler": {
+      "|unburden|normalgem|adamant|160,252,44,0,4,48|fakeout|gunkshot|closecombat|feint": 50,
+      "|unburden|liechiberry|adamant|0,252,0,0,4,252|endure|gunkshot|reversal|taunt": 50
+    },
+    "zarude": {
+      "|leafguard|weaknesspolicy|jolly|128,144,0,0,4,232|powerwhip|knockoff|encore|bulkup": 50,
+      "|leafguard|choiceband|adamant|120,68,0,0,76,244|knockoff|powerwhip|rockslide|bulletseed": 50
+    },
+    "azumarill": {
+      "|hugepower|lifeorb|adamant|148,232,0,0,84,44|playrough|liquidation|trailblaze|encore": 65,
+      "|sapsipper|leftovers|bold|252,0,192,0,64,0|charm|rest|amnesia|chillingwater": 35
+    },
+    "darkrai": {
+      "|baddreams|choicespecs|timid|0,0,0,252,4,252|darkpulse|icebeam|thunder|focusblast": 100
+    },
+    "diancie": {
+      "|clearbody|weaknesspolicy|relaxed|240,60,208,0,0,0|trickroom|playrough|diamondstorm|encore": 50,
+      "|clearbody|weaknesspolicy|sassy|248,76,0,0,184,0|playrough|diamondstorm|encore|trickroom": 50
+    },
+    "dondozo": {
+      "|unaware|choiceband|impish|120,188,16,0,184,0|wavecrash|earthquake|avalanche|heavyslam": 100
+    },
+    "espathra": {
+      "|speedboost|clearamulet|calm|252,0,48,0,192,16|calmmind|storedpower|featherdance|roost": 100
+    },
+    "ironmoth": {
+      "|quarkdrive|boosterenergy|timid|4,0,0,252,0,252|overheat|sludgewave|bugbuzz|dazzlinggleam": 100
+    },
+    "kyurem": {
+      "|pressure|choicespecs|timid|0,0,4,252,0,252|dracometeor|freezedry|icebeam|earthpower": 40,
+      "|pressure|weaknesspolicy|modest|12,0,64,240,0,192|reflect|outrage|freezedry|dracometeor": 40,
+      "|pressure|choicescarf|modest|0,0,0,252,4,252|dracometeor|icebeam|earthpower|freezedry": 20
+    },
+    "porygonz": {
+      "|adaptability|choicespecs|modest|132,0,16,160,12,188|hyperbeam|uproar|darkpulse|thunderbolt": 50,
+      "|adaptability|choicescarf|timid|12,0,0,208,36,252|hyperbeam|icebeam|darkpulse|trick": 50
+    },
+    "rillaboom": {
+      "|grassysurge|grassyseed|impish|248,32,112,0,116,0|swordsdance|woodhammer|grassyglide|lowkick": 40,
+      "|grassysurge|grassyseed|impish|248,0,52,0,60,148|drumbeating|substitute|protect|leechseed": 30,
+      "|grassysurge|lifeorb|adamant|0,248,200,0,0,60|woodhammer|fakeout|grassyglide|lowkick": 30
+    },
+    "scizor": {
+      "|technician|choiceband|adamant|228,252,0,0,28,0|bulletpunch|bugbite|closecombat|knockoff": 50,
+      "|technician|lifeorb|adamant|228,60,136,0,84,0|bulletpunch|swordsdance|dualwingbeat|closecombat": 50
+    },
+    "serperior": {
+      "|contrary|leftovers|timid|252,0,0,4,0,252|protect|substitute|leechseed|leafstorm": 100
+    },
+    "arcaninehisui": {
+      "|rockhead|choiceband|adamant|0,252,0,0,4,252|headsmash|flareblitz|closecombat|outrage": 50,
+      "|rockhead|choicescarf|adamant|0,252,0,0,4,252|headsmash|flareblitz|closecombat|outrage": 50
+    },
+    "bellibolt": {
+      "|electromorphosis|lifeorb|quiet|240,0,80,136,52,0|thunder|paraboliccharge|suckerpunch|soak": 100
+    },
+    "florges": {
+      "|flowerveil|clearamulet|bold|108,0,252,0,0,148|calmmind|synthesis|moonblast|charm": 50,
+      "|flowerveil|choicescarf|timid|88,0,232,0,0,188|moonblast|trick|synthesis|calmmind": 50
+    },
+    "landorus": {
+      "|sheerforce|lifeorb|timid|0,0,0,252,4,252|earthpower|sludgewave|focusblast|smackdown": 100
+    },
+    "rhyperior": {
+      "|solidrock|choiceband|adamant|248,252,8,0,0,0|earthquake|rockwrecker|rockblast|avalanche": 100
+    },
+    "ursalunabloodmoon": {
+      "|mindseye|chopleberry|modest|252,0,156,100,0,0|bloodmoon|earthpower|counter|vacuumwave": 50,
+      "|mindseye|choicespecs|modest|252,0,52,112,92,0|hyperbeam|snarl|earthpower|uproar": 50
+    },
+    "whimsicott": {
+      "|prankster|babiriberry|bold|248,0,232,0,28,0|leechseed|substitute|protect|taunt": 100
+    },
+    "baxcalibur": {
+      "|thermalexchange|choiceband|adamant|0,252,0,0,4,252|outrage|iciclecrash|earthquake|iceshard": 100
+    },
+    "fezandipiti": {
+      "|technician|lifeorb|adamant|88,220,0,0,136,64|gunkshot|playrough|dualwingbeat|swordsdance": 60,
+      "|toxicchain|airballoon|calm|252,0,124,0,80,52|charm|moonblast|icywind|roost": 40
+    },
+    "greninja": {
+      "|protean|choicespecs|timid|0,0,0,252,4,252|icebeam|hydrocannon|sludgewave|darkpulse": 60,
+      "|protean|lifeorb|hasty|0,252,0,8,64,184|gunkshot|hydrocannon|uturn|shadowsneak": 40
+    },
+    "irontreads": {
+      "|quarkdrive|choiceband|jolly|0,252,0,0,4,252|heavyslam|earthquake|megahorn|icespinner": 70,
+      "|quarkdrive|boosterenergy|jolly|252,116,60,0,0,80|irondefense|bodypress|earthquake|heavyslam": 30
+    },
+    "tinglu": {
+      "|vesselofruin|weaknesspolicy|impish|80,176,4,0,204,44|taunt|heavyslam|earthquake|payback": 100
+    },
+    "avalugghisui": {
+      "|sturdy|choiceband|adamant|0,252,4,0,0,252|avalanche|heavyslam|rockblast|earthquake": 100
+    },
+    "zapdosgalar": {
+      "|defiant|assaultvest|adamant|144,68,4,0,56,236|thunderouskick|closecombat|bravebird|knockoff": 100
+    },
+    "tinkaton": {
+      "|moldbreaker|lifeorb|adamant|112,232,16,0,4,144|playrough|gigatonhammer|encore|swordsdance": 50,
+      "|moldbreaker|airballoon|adamant|156,220,0,0,68,64|playrough|gigatonhammer|encore|swordsdance": 50
+    },
+    "heatran": {
+      "|flashfire|airballoon|modest|0,0,0,252,4,252|overheat|flashcannon|substitute|metalsound": 100
+    },
+    "ironbundle": {
+      "|quarkdrive|boosterenergy|modest|28,0,0,116,216,148|thief|hydropump|freezedry|encore": 50,
+      "|quarkdrive|choicespecs|timid|44,0,152,144,0,168|icebeam|freezedry|hydropump|chillingwater": 50
+    },
+    "sandyshocks": {
+      "|protosynthesis|boosterenergy|timid|0,0,0,252,4,252|earthpower|thunderbolt|powergem|metalsound": 50,
+      "|protosynthesis|choicespecs|timid|0,0,0,252,4,252|earthpower|thunderbolt|powergem|hyperbeam": 50
+    },
+    "ceruledge": {
+      "|weakarmor|weaknesspolicy|adamant|0,252,0,0,4,252|endure|flareblitz|closecombat|poltergeist": 100
+    },
+    "klefki": {
+      "|prankster|leftovers|bold|200,0,128,24,156,0|drainingkiss|irondefense|calmmind|storedpower": 100
+    },
+    "blastoise": {
+      "|torrent|lifeorb|bold|132,0,136,128,0,112|shellsmash|hydrocannon|icebeam|substitute": 100
+    },
+    "maushold": {
+      "|technician|widelens|jolly|0,252,4,0,0,252|populationbomb|encore|tidyup|tickle": 100
+    },
+    "blaziken": {
+      "|speedboost|liechiberry|adamant|0,252,4,0,0,252|endure|flareblitz|reversal|swordsdance": 100
+    },
+    "taurospaldeablaze": {
+      "|intimidate|weaknesspolicy|adamant|168,76,32,0,0,232|closecombat|flareblitz|bulkup|willowisp": 100
+    },
+    "salamence": {
+      "|intimidate|weaknesspolicy|adamant|136,204,168,0,0,0|dragondance|dualwingbeat|outrage|breakingswipe": 50,
+      "|intimidate|choicespecs|timid|0,0,0,252,4,252|hurricane|dracometeor|fireblast|hydropump": 50
+    },
+    "torterra": {
+      "|overgrow|lifeorb|adamant|152,16,0,0,132,208|shellsmash|woodhammer|substitute|headlongrush": 100
+    },
+    "torkoal": {
+      "|drought|lifeorb|modest|240,0,20,84,0,164|shellsmash|overheat|solarbeam|flareblitz": 100
+    },
+    "suicune": {
+      "|pressure|leftovers|timid|240,0,8,0,8,252|calmmind|chillingwater|substitute|protect": 100
+    },
+    "ironboulder": {
+      "|quarkdrive|choiceband|jolly|0,252,0,0,4,252|mightycleave|zenheadbutt|sacredsword|megahorn": 100
+    },
+    "talonflame": {
+      "|galewings|choiceband|adamant|0,252,4,0,0,252|bravebird|flareblitz|uturn|fly": 100
+    },
+    "okidogi": {
+      "|toxicchain|choiceband|adamant|216,164,0,0,28,100|gunkshot|lowkick|knockoff|outrage": 50,
+      "|toxicchain|assaultvest|adamant|104,92,0,0,96,216|gunkshot|closecombat|poisonjab|counter": 50
+    },
+    "slaking": {
+      "|truant|choiceband|jolly|0,252,0,0,4,252|gigaimpact|earthquake|icepunch|lowkick": 100
+    },
+    "clodsire": {
+      "|unaware|keeberry|relaxed|252,0,252,0,4,0|counter|amnesia|toxic|recover": 100
+    },
+    "salazzle": {
+      "|oblivious|leftovers|timid|136,0,0,0,120,252|protect|encore|disable|flamethrower": 100
+    },
+    "sableye": {
+      "|prankster|choicescarf|impish|252,0,252,0,4,0|trick|disable|recover|fling": 50,
+      "|prankster|leftovers|bold|252,0,252,0,4,0|protect|encore|disable|nightshade": 50
+    },
+    "grafaiai": {
+      "|prankster|laggingtail|sassy|248,0,96,0,164,0|dig|copycat|encore|poisonjab": 100
+    },
+    "latias": {
+      "|levitate|weaknesspolicy|timid|252,0,0,0,4,252|reflect|calmmind|storedpower|dracometeor": 100
+    },
+    "glastrier": {
+      "|chillingneigh|choiceband|adamant|252,252,0,0,4,0|avalanche|closecombat|heavyslam|highhorsepower": 100
+    },
+    "tyranitar": {
+      "|sandstream|choiceband|adamant|0,252,0,0,84,172|stoneedge|knockoff|avalanche|heavyslam": 100
+    },
+    "carbink": {
+      "|sturdy|shellbell|quirky|0,0,0,0,0,0|endeavor|sandtomb|sandstorm|trickroom": 100
+    },
+    "chansey": {
+      "|naturalcure|eviolite|bold|252,0,252,0,4,0|seismictoss|charm|softboiled|thunderwave": 100
+    },
+    "forretress": {
+      "|sturdy|leftovers|impish|248,0,252,0,8,0|irondefense|bodypress|rest|counter": 100
+    },
+    "arcanine": {
+      "|intimidate|assaultvest|naughty|224,192,0,0,36,56|flareblitz|playrough|extremespeed|overheat": 100
+    },
+    "porygon2": {
+      "|analytic|eviolite|bold|136,0,244,128,0,0|hyperbeam|icebeam|eerieimpulse|recover": 100
+    },
+    "avalugg": {
+      "|sturdy|choiceband|adamant|4,252,252,0,0,0|avalanche|bodypress|heavyslam|mirrorcoat": 50,
+      "|sturdy|sitrusberry|impish|252,4,252,0,0,0|bodypress|irondefense|recover|iciclespear": 50
+    },
+    "magnezone": {
+      "|sturdy|choicespecs|modest|0,0,0,252,4,252|hyperbeam|thunderbolt|flashcannon|mirrorcoat": 100
+    },
+    "gallade": {
+      "|sharpness|choiceband|jolly|0,252,0,0,4,252|sacredsword|psychocut|leafblade|tripleaxel": 100
+    },
+    "sinistcha": {
+      "|heatproof|clearamulet|timid|252,0,80,0,0,176|irondefense|calmmind|strengthsap|shadowball": 100
+    }
+  }
+}
