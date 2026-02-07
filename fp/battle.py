@@ -608,6 +608,10 @@ class Pokemon:
         self.impossible_items = set()
         self.impossible_abilities = set()
 
+    def get_species(self):
+        pokedex_data = pokedex[self.name]
+        return normalize_name(pokedex_data.get("baseSpecies", self.name))
+
     def get_mega_pkmn_info(self) -> list[tuple[str, str]]:
         # For avoiding Legends ZA megas: omit mega pokemon in the pokedex that have "gen": 9
         # Come back and undo this when Legends ZA megas are available in standard formats
