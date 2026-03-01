@@ -29872,8 +29872,7 @@
             "speed": 44
         },
         "abilities": {
-            "0": "Overgrow",
-            "H": "Bulletproof"
+            "0": "Bulletproof"
         },
         "heightm": 1.6,
         "weightkg": 90,
@@ -30011,8 +30010,7 @@
             "speed": 134
         },
         "abilities": {
-            "0": "Blaze",
-            "H": "Magician"
+            "0": "Levitate"
         },
         "heightm": 1.5,
         "weightkg": 39,
@@ -30215,8 +30213,7 @@
             "speed": 142
         },
         "abilities": {
-            "0": "Torrent",
-            "H": "Protean"
+            "0": "Protean"
         },
         "heightm": 1.5,
         "weightkg": 40,
