@@ -89,6 +89,8 @@ def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
             existing_pokemon + [pkmn]
         ):
             ok = False
+        if sample_count < 10 and _more_than_1_species(existing_pokemon + [pkmn]):
+            ok = False
         if sample_count < 10 and _more_than_2_pokemon_of_any_type(
             existing_pokemon + [pkmn]
         ):
@@ -106,9 +108,15 @@ def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
 # From P.S. documentation:
 #
 # Team generation currently uses this feature to prevent teams from having:
+#   more than 1 species
 #   more than 3 Pokemon weak to any given typing,
 #   more than 2 Pokemon of any given type,
 #   or more than 1 Pokemon that shares a 4x weakness
+def _more_than_1_species(team: list[Pokemon]) -> bool:
+    pkmn_species = set([pkmn.get_species() for pkmn in team])
+    return len(pkmn_species) < len(team)
+
+
 def _more_than_3_pokemon_weak_to_a_given_typing(team: list[Pokemon]) -> bool:
     num_pkmn_weak_to_typing = {}
     for pkmn in team:
