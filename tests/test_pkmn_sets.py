@@ -1,5 +1,6 @@
 import unittest
 
+import constants
 from data.pkmn_sets import (
     TeamDatasets,
     SmogonSets,
@@ -123,6 +124,57 @@ class TestPredictSet(unittest.TestCase):
             set_.pkmn_set.ability == "intimidate" for set_ in all_sets
         )
         self.assertFalse(any_set_has_intimidate)
+
+    def test_gen91v1factory_initialization(self):
+        TeamDatasets.initialize(
+            "gen91v1factory", {"hoopaunbound"}, battle_factory_tier_name="1v1"
+        )
+        self.assertEqual("gen91v1factory", TeamDatasets.pkmn_mode)
+        self.assertIn("hoopaunbound", TeamDatasets.pkmn_sets)
+        self.assertGreater(len(TeamDatasets.pkmn_sets["hoopaunbound"]), 0)
+
+    def test_gen91v1factory_predicts_set(self):
+        TeamDatasets.initialize(
+            "gen91v1factory", {"primarina"}, battle_factory_tier_name="1v1"
+        )
+
+        pkmn = Pokemon("primarina", 100)
+        pkmn.ability = None
+        pkmn.item = constants.UNKNOWN_ITEM
+
+        all_sets = TeamDatasets.get_all_remaining_sets(pkmn)
+        self.assertGreater(len(all_sets), 0)
+
+    def test_gen91v1factory_omits_impossible_ability(self):
+        TeamDatasets.initialize(
+            "gen91v1factory", {"primarina"}, battle_factory_tier_name="1v1"
+        )
+
+        pkmn = Pokemon("primarina", 100)
+        pkmn.ability = "torrent"
+        pkmn.item = constants.UNKNOWN_ITEM
+
+        all_sets = TeamDatasets.get_all_remaining_sets(pkmn)
+        any_set_has_torrent = any(
+            set_.pkmn_set.ability == "torrent" for set_ in all_sets
+        )
+        any_set_has_liquidvoice = any(
+            set_.pkmn_set.ability == "liquidvoice" for set_ in all_sets
+        )
+        self.assertTrue(any_set_has_torrent)
+        self.assertFalse(any_set_has_liquidvoice)
+
+        pkmn.ability = "liquidvoice"
+
+        all_sets = TeamDatasets.get_all_remaining_sets(pkmn)
+        any_set_has_torrent = any(
+            set_.pkmn_set.ability == "torrent" for set_ in all_sets
+        )
+        any_set_has_liquidvoice = any(
+            set_.pkmn_set.ability == "liquidvoice" for set_ in all_sets
+        )
+        self.assertFalse(any_set_has_torrent)
+        self.assertTrue(any_set_has_liquidvoice)
 
     def test_allows_impossible_ability_when_predicting_set_if_ability_is_explicitly_set(
         self,

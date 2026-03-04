@@ -218,7 +218,7 @@ async def start_standard_battle(
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
     battle.user.team_dict = team_dict
-    if "battlefactory" in pokemon_battle_type:
+    if "factory" in pokemon_battle_type:
         battle.battle_type = BattleType.BATTLE_FACTORY
     else:
         battle.battle_type = BattleType.STANDARD_BATTLE
@@ -283,7 +283,10 @@ async def start_standard_battle(
 
         if battle.battle_type == BattleType.BATTLE_FACTORY:
             battle.battle_type = BattleType.BATTLE_FACTORY
-            tier_name = extract_battle_factory_tier_from_msg(msg)
+            if "1v1" in pokemon_battle_type:
+                tier_name = "1v1"
+            else:
+                tier_name = extract_battle_factory_tier_from_msg(msg)
             logger.info("Battle Factory Tier: {}".format(tier_name))
             TeamDatasets.initialize(
                 pokemon_battle_type,

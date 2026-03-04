@@ -182,7 +182,7 @@ class _FoulPlayConfig:
 
     def requires_team(self) -> bool:
         return not (
-            "random" in self.pokemon_format or "battlefactory" in self.pokemon_format
+            "random" in self.pokemon_format or "factory" in self.pokemon_format
         )
 
     def validate_config(self):
