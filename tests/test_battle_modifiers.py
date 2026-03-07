@@ -3210,6 +3210,24 @@ class TestUpdateAbility(unittest.TestCase):
         update_ability(self.battle, split_msg)
         self.assertEqual("asonespectrier", self.battle.opponent.active.ability)
 
+    def test_alternate_set_trace_ability(self):
+        # |-ability|p2a: Porygon2|Levitate|Trace|[from] ability: Trace|[of] p1a: Claydol
+        self.battle.generation = "gen3"
+        self.battle.user.active.ability = "levitate"
+        self.battle.opponent.active.ability = None
+        split_msg = [
+            "",
+            "-ability",
+            "p2a: Caterpie",
+            "Levitate",
+            "Trace",
+            "[from] ability: Trace",
+            "[of] p1a: Caterpie",
+        ]
+        update_ability(self.battle, split_msg)
+        self.assertEqual("levitate", self.battle.opponent.active.ability)
+        self.assertEqual("trace", self.battle.opponent.active.original_ability)
+
     def test_sets_original_ability_from_trace(self):
         self.battle.user.active.ability = "intimidate"
         self.battle.opponent.active.ability = None

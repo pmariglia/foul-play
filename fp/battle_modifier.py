@@ -1956,7 +1956,10 @@ def update_ability(battle, split_msg):
         other_side = battle.opponent
 
     ability = normalize_name(split_msg[3])
-    if len(split_msg) >= 6 and "ability:" in split_msg[4]:
+
+    if len(split_msg) >= 6 and (
+        "ability:" in split_msg[4] or "ability:" in split_msg[5]
+    ):
         original_ability = normalize_name(split_msg[4].split(":")[-1])
         logger.info(
             "Setting {}'s original ability to {}".format(
