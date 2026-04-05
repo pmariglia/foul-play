@@ -743,7 +743,7 @@ class _SmogonSets(PokemonSets):
                 counter_name = normalize_name(counter_name)
                 if counter_name in pkmn_names:
                     matchup_effectiveness[counter_name] = round(
-                        1 - counter_information[1], 2
+                        1 - counter_information["p"], 2
                     )
 
             for spread, count in sorted(
