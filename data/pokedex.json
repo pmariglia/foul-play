@@ -7829,8 +7829,7 @@
             "speed": 80
         },
         "abilities": {
-            "0": "Overgrow",
-            "H": "Leaf Guard"
+            "0": "Mega Sol"
         },
         "heightm": 2.4,
         "weightkg": 201,
@@ -8110,8 +8109,7 @@
             "speed": 78
         },
         "abilities": {
-            "0": "Torrent",
-            "H": "Sheer Force"
+            "0": "Dragonize"
         },
         "heightm": 2.3,
         "weightkg": 108.8,
@@ -23874,8 +23872,7 @@
             "speed": 75
         },
         "abilities": {
-            "0": "Blaze",
-            "H": "Reckless"
+            "0": "Mold Breaker"
         },
         "heightm": 1.8,
         "weightkg": 180.3,
