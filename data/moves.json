@@ -1381,6 +1381,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "nonsky": 1,
             "protect": 1
@@ -3650,6 +3651,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "protect": 1
         },
@@ -5241,6 +5243,7 @@
             "distance": 1,
             "gravity": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "nonsky": 1,
             "protect": 1
@@ -6553,6 +6556,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "nonsky": 1,
             "protect": 1
@@ -6593,6 +6597,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "nonsky": 1,
             "protect": 1
@@ -14548,6 +14553,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "protect": 1
         },
@@ -14662,6 +14668,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "nonsky": 1,
             "protect": 1
@@ -15028,6 +15035,7 @@
         "flags": {
             "contact": 1,
             "metronome": 1,
+            "minimize": 1,
             "mirror": 1,
             "protect": 1
         },
