@@ -3,6 +3,7 @@ import requests
 import json
 import copy
 import subprocess
+import os
 
 
 """
@@ -34,7 +35,8 @@ with open("/tmp/moves.ts", "w") as f:
 
 # compile the .ts file into .js. Requires `tsc` on your system
 p = subprocess.Popen(
-    ["tsc", "/tmp/moves.ts"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ["tsc", "--module", "commonjs", "/tmp/moves.ts"],
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE
 )
 stdout = p.stdout.read()
 stderr = p.stderr.read()
@@ -43,21 +45,26 @@ stderr = p.stderr.read()
 if stderr:
     print("Something went wrong? stderr: {}".format(stderr))
 
-# add a console log to the .js file. This will error if the file doesn't exist
-with open("/tmp/moves.js", "a") as f:
+p.wait()
+os.rename("/tmp/moves.js", "/tmp/moves.cjs")
+
+# add a console log to the .cjs file. This will error if the file doesn't exist
+with open("/tmp/moves.cjs", "a") as f:
     f.write("console.log(JSON.stringify(exports.Moves));")
 
-# run node on the .js file to get the console log we added
+# run node on the .cjs file to get the console log we added
 # Requires `node` on your system
 p = subprocess.Popen(
-    ["node", "/tmp/moves.js"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ["node", "/tmp/moves.cjs"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
 )
 stdout = p.stdout.read()
 stderr = p.stderr.read()
 
+if stderr:
+    print("Something went wrong? stderr: {}".format(stderr))
+
 # stdout should now be parse-able as JSON
 moves_dict = json.loads(stdout)
-
 
 # make modifications to some values for the bot
 # shallow copy the dictionary because we might delete things from it
