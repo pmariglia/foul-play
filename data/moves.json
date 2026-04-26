@@ -4094,7 +4094,7 @@
             "mirror": 1,
             "protect": 1
         },
-        "hasSheerForce": true,
+        "hasSheerForceBoost": true,
         "id": "electroshot",
         "name": "Electro Shot",
         "pp": 10,
@@ -10383,7 +10383,7 @@
         "flags": {
             "protect": 1
         },
-        "hasSheerForce": true,
+        "hasSheerForceBoost": true,
         "id": "orderup",
         "name": "Order Up",
         "pp": 10,
@@ -16386,7 +16386,6 @@
         },
         "id": "trumpcard",
         "name": "Trump Card",
-        "noPPBoosts": true,
         "pp": 5,
         "priority": 0,
         "secondary": null,
