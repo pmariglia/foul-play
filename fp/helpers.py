@@ -32,6 +32,12 @@ natures = {
 
 
 def get_pokemon_info_from_condition(condition_string: str):
+    def remove_maxhp_chars(val: str):
+        chars = {"g", "y", "r"}
+        while val and val[-1] in chars:
+            val = val[:-1]
+        return val
+
     if constants.FNT in condition_string:
         return 0, 0, None
 
@@ -39,10 +45,10 @@ def get_pokemon_info_from_condition(condition_string: str):
     hp = int(split_string[0])
     if any(s in condition_string for s in constants.NON_VOLATILE_STATUSES):
         maxhp, status = split_string[1].split(" ")
-        maxhp = int(maxhp)
+        maxhp = int(remove_maxhp_chars(maxhp))
         return hp, maxhp, status
     else:
-        maxhp = int(split_string[1])
+        maxhp = int(remove_maxhp_chars(split_string[1]))
         return hp, maxhp, None
 
 

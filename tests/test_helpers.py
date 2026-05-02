@@ -69,3 +69,39 @@ class TestGetPokemonInfoFromCondition(unittest.TestCase):
         condition_string = "0/100 fnt"
 
         self.assertEqual(0, get_pokemon_info_from_condition(condition_string)[0])
+
+    def test_g_on_50(self):
+        condition_string = "50/100g"
+        self.assertEqual(
+            (50, 100, None), get_pokemon_info_from_condition(condition_string)
+        )
+
+    def test_y_on_50(self):
+        condition_string = "50/100y"
+        self.assertEqual(
+            (50, 100, None), get_pokemon_info_from_condition(condition_string)
+        )
+
+    def test_r_on_20(self):
+        condition_string = "20/100r"
+        self.assertEqual(
+            (20, 100, None), get_pokemon_info_from_condition(condition_string)
+        )
+
+    def test_g_on_50_brn(self):
+        condition_string = "50/100g brn"
+        self.assertEqual(
+            (50, 100, "brn"), get_pokemon_info_from_condition(condition_string)
+        )
+
+    def test_y_on_50_brn(self):
+        condition_string = "50/100y brn"
+        self.assertEqual(
+            (50, 100, "brn"), get_pokemon_info_from_condition(condition_string)
+        )
+
+    def test_r_on_20_brn(self):
+        condition_string = "20/100r brn"
+        self.assertEqual(
+            (20, 100, "brn"), get_pokemon_info_from_condition(condition_string)
+        )
