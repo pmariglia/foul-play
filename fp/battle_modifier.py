@@ -2676,7 +2676,7 @@ def check_speed_ranges(battle, msg_lines):
 
     battle_copy = deepcopy(battle)
     battle_copy_for_stats = deepcopy(battle_copy)
-    battle_copy.user.active.status = battle_copy_for_stats.user.active.stats
+    battle_copy.user.active.status = battle_copy_for_stats.user.active.status
 
     speed_threshold = int(
         boost_multiplier_lookup[battle_copy.user.active.boosts[constants.SPEED]]
