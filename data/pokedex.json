@@ -1822,7 +1822,7 @@
             "speed": 110
         },
         "abilities": {
-            "0": "Surge Surfer"
+            "0": "Electric Surge"
         },
         "heightm": 1.2,
         "weightkg": 38,
@@ -1851,7 +1851,7 @@
             "speed": 130
         },
         "abilities": {
-            "0": "Surge Surfer"
+            "0": "No Guard"
         },
         "heightm": 1,
         "weightkg": 26,
