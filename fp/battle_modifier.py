@@ -2674,14 +2674,10 @@ def check_speed_ranges(battle, msg_lines):
     ):
         return
 
-    battle_copy = deepcopy(battle)
-    battle_copy_for_stats = deepcopy(battle_copy)
-    battle_copy.user.active.status = battle_copy_for_stats.user.active.status
-
     speed_threshold = int(
-        boost_multiplier_lookup[battle_copy.user.active.boosts[constants.SPEED]]
-        * battle_copy.user.active.stats[constants.SPEED]
-        / boost_multiplier_lookup[battle_copy.opponent.active.boosts[constants.SPEED]]
+        boost_multiplier_lookup[battle.user.active.boosts[constants.SPEED]]
+        * battle.user.active.stats[constants.SPEED]
+        / boost_multiplier_lookup[battle.opponent.active.boosts[constants.SPEED]]
     )
 
     if "protosynthesisspe" in battle.opponent.active.volatile_statuses:
