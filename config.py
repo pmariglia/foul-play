@@ -73,6 +73,7 @@ class _FoulPlayConfig:
     pokemon_format: str = ""
     smogon_stats: str = None
     search_time_ms: int
+    search_threads: int
     parallelism: int
     run_count: int
     team_name: str
@@ -124,6 +125,12 @@ class _FoulPlayConfig:
             help="Number of states to search in parallel",
         )
         parser.add_argument(
+            "--search-threads",
+            type=int,
+            default=1,
+            help="Number of threads to use per state",
+        )
+        parser.add_argument(
             "--run-count",
             type=int,
             default=1,
@@ -169,6 +176,7 @@ class _FoulPlayConfig:
         self.smogon_stats = args.smogon_stats_format
         self.search_time_ms = args.search_time_ms
         self.parallelism = args.search_parallelism
+        self.search_threads = args.search_threads
         self.run_count = args.run_count
         self.team_name = args.team_name or self.pokemon_format
         self.team_list = args.team_list
