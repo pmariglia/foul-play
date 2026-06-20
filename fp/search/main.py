@@ -47,13 +47,13 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     return choice[0]
 
 
-def get_result_from_mcts(state: str, search_time_ms: int, index: int) -> MctsResult:
+def get_result_from_mcts(
+    state: str, search_time_ms: int, index: int, threads: int
+) -> MctsResult:
     logger.debug("Calling with {} state: {}".format(index, state))
     poke_engine_state = PokeEngineState.from_string(state)
 
-    res = monte_carlo_tree_search(
-        poke_engine_state, search_time_ms, threads=FoulPlayConfig.search_threads
-    )
+    res = monte_carlo_tree_search(poke_engine_state, search_time_ms, threads=threads)
     logger.info("Iterations {}: {}".format(index, res.total_visits))
     return res
 
@@ -138,6 +138,7 @@ def find_best_move(battle: Battle) -> str:
                 battle_to_poke_engine_state(b).to_string(),
                 search_time_per_battle,
                 index,
+                FoulPlayConfig.search_threads,
             )
             futures.append((fut, chance, index))
 
