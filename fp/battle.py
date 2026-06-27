@@ -128,6 +128,7 @@ class Battle:
         return (
             any(g in self.generation for g in constants.MEGA_EVOLVE_GENERATIONS)
             or "nationaldex" in self.pokemon_format
+            or "champions" in self.pokemon_format
         )
 
     def get_effective_speed(self, battler):
@@ -619,6 +620,8 @@ class Pokemon:
         mega_names = []
         if self.name == "rayquaza":
             return [("rayquaza", "none")]
+        elif self.name == "floetteeternal":
+            return [("floettemega", "floettite")]
 
         potential_megas = [
             f"{self.name}mega",
@@ -626,7 +629,7 @@ class Pokemon:
             f"{self.name}megay",
         ]
         for mega_forme in potential_megas:
-            if mega_forme in pokedex and pokedex[mega_forme].get("gen") != 9:
+            if mega_forme in pokedex:
                 mega_names.append(
                     (
                         mega_forme,

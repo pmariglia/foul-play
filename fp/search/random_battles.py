@@ -3,6 +3,7 @@ import random
 from copy import deepcopy
 
 from constants import BattleType
+from data import pokedex
 from fp.battle import Battle, Pokemon
 from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
 from fp.search.helpers import populate_pkmn_from_set
@@ -10,6 +11,7 @@ from fp.helpers import (
     POKEMON_TYPE_INDICES,
     is_super_effective,
     type_effectiveness_modifier,
+    normalize_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,8 +73,20 @@ def prepare_random_battles(battle: Battle, num_battles: int) -> list[(Battle, fl
 
 
 def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
+    def is_mega(pkmn: Pokemon):
+        if normalize_name(pokedex.get(pkmn.name, {}).get("forme", "")).startswith(
+            "mega"
+        ):
+            return True
+        for mega_name, mega_item in pkmn.get_mega_pkmn_info():
+            if pkmn.item == mega_item:
+                return True
+
+        return False
+
     ok = False
     existing_pokemon_names = {pkmn.name for pkmn in existing_pokemon}
+    has_mega = any(is_mega(p) for p in existing_pokemon)
 
     sample_count = 0
     while not ok:
@@ -84,6 +98,8 @@ def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
         pkmn_full_set = random.choice(pkmn_sets)
         pkmn = Pokemon(pkmn_name, pkmn_full_set.pkmn_set.level)
         if pkmn_name in existing_pokemon_names:
+            ok = False
+        if sample_count < 10 and is_mega(pkmn) and has_mega:
             ok = False
         if sample_count < 10 and _more_than_3_pokemon_weak_to_a_given_typing(
             existing_pokemon + [pkmn]
