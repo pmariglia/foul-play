@@ -1461,7 +1461,7 @@ class TestMove(unittest.TestCase):
     ):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
 
         self.battle.opponent.active = Pokemon("gyarados", 79)
         self.battle.opponent.active.add_move("terablast")
@@ -1503,7 +1503,7 @@ class TestMove(unittest.TestCase):
     ):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
 
         self.battle.opponent.active = Pokemon("gyarados", 79)
         self.battle.opponent.active.add_move("terablast")
@@ -1541,7 +1541,7 @@ class TestMove(unittest.TestCase):
     ):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
 
         self.battle.opponent.active = Pokemon("tornadustherian", 79)
         self.battle.opponent.active.add_move("terablast")
@@ -1564,7 +1564,7 @@ class TestMove(unittest.TestCase):
     ):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
 
         self.battle.opponent.active = Pokemon("tornadustherian", 79)
         self.battle.opponent.active.add_move("terablast")
@@ -6133,7 +6133,7 @@ class TestImmune(unittest.TestCase):
     def test_randbats_does_not_infer_zoroark_from_tera_immunity_on_judgment(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("enamorustherian", 83)
@@ -6157,7 +6157,7 @@ class TestImmune(unittest.TestCase):
     def test_randbats_infer_zoroark_from_immunity_when_in_reserves(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
 
         self.battle.opponent.reserve = [Pokemon("zoroarkhisui", 80)]
         self.battle.opponent.reserve[0].add_move("nastyplot")
@@ -6198,7 +6198,7 @@ class TestImmune(unittest.TestCase):
     def test_randbats_infer_zoroarkhisui_from_immunity_when_not_in_reserves(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("gyarados", 100)
@@ -6233,7 +6233,7 @@ class TestImmune(unittest.TestCase):
     def test_randbats_infer_zoroark_from_immunity_when_not_in_reserves(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("gyarados", 100)
@@ -6312,7 +6312,7 @@ class TestImmune(unittest.TestCase):
     def test_does_not_infer_zoroark_if_pkmn_terastallized_to_gain_immunity(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("gyarados", 100)
@@ -6333,7 +6333,7 @@ class TestImmune(unittest.TestCase):
     def test_does_not_infer_zoroark_if_pkmn_naturally_immune(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("urshifu", 100)
@@ -6352,7 +6352,7 @@ class TestImmune(unittest.TestCase):
     def test_does_not_infer_zoroark_if_futuresight_ending(self):
         self.battle.battle_type = BattleType.RANDOM_BATTLE
         self.battle.generation = "gen9"
-        RandomBattleTeamDatasets.initialize("gen9")
+        RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
 
         self.battle.opponent.active = Pokemon("Urshifu", 100)
