@@ -132,6 +132,17 @@ def apply_gen_8_mods():
     apply_pokedex_mods(8)
 
 
+def apply_gen9_champions_mods():
+    with open("{}/gen9champions_move_mods.json".format(PWD), "r") as f:
+        move_mods = json.load(f)
+    for move, modifications in move_mods.items():
+        all_move_json[move].update(modifications)
+
+    for mv in all_move_json.values():
+        if mv[constants.PP] > 20:
+            mv[constants.PP] = 20
+
+
 def undo_physical_special_split():
     for move_name, move_data in all_move_json.items():
         if move_data[constants.CATEGORY] in constants.DAMAGING_CATEGORIES:
@@ -162,3 +173,5 @@ def apply_mods(game_mode):
         apply_gen_7_mods()
     elif "gen8" in game_mode:
         apply_gen_8_mods()
+    elif "gen9champions" in game_mode:
+        apply_gen9_champions_mods()

@@ -359,10 +359,10 @@ class _RandomBattleSets(PokemonSets):
         self.pkmn_sets = {}
         self.pkmn_mode = "uninitialized"
 
-    def _load_raw_sets(self, generation):
-        if generation.endswith("blitz"):
-            generation = generation[:-5]
-        self.raw_pkmn_sets = get_randbats_sets_file(f"{generation}randombattle")
+    def _load_raw_sets(self, pokemon_battle_mode):
+        if pokemon_battle_mode.endswith("blitz"):
+            pokemon_battle_mode = pokemon_battle_mode[:-5]
+        self.raw_pkmn_sets = get_randbats_sets_file(pokemon_battle_mode)
 
     def _initialize_pkmn_sets(self):
         for pkmn, sets in self.raw_pkmn_sets.items():

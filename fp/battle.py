@@ -4,6 +4,7 @@ from collections import namedtuple
 import constants
 import logging
 
+from config import FoulPlayConfig
 from data import all_move_json
 from data import pokedex
 
@@ -762,7 +763,13 @@ class Move:
             )
         move_json = all_move_json[name]
         self.name = name
-        self.max_pp = int(move_json.get(constants.PP) * 1.6)
+
+        if move_json[constants.PP] == 1:
+            self.max_pp = 1
+        elif "champions" in FoulPlayConfig.pokemon_format:
+            self.max_pp = int(int(move_json[constants.PP] / 5 + 1) * 4)
+        else:
+            self.max_pp = int(move_json.get(constants.PP) * 1.6)
 
         self.disabled = False
         self.can_z = False
