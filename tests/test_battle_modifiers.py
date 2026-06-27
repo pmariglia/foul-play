@@ -270,6 +270,15 @@ class TestSwitchOrDrag(unittest.TestCase):
         self.battle.opponent.active = self.opponent_active
         self.battle.opponent.reserve = []
 
+    def test_50_100_g_message(self):
+        split_msg = ["", "switch", "p1a: pikachu", "Pikachu, L100, M", "50/100g"]
+        switch_or_drag(self.battle, split_msg)
+
+        self.assertEqual("pikachu", self.battle.user.active.name)
+        self.assertEqual(
+            0.5, self.battle.user.active.hp / self.battle.user.active.max_hp
+        )
+
     def test_adds_intimidate_to_impossible_abilities_when_switching_in(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
@@ -938,6 +947,18 @@ class TestHealOrDamage(unittest.TestCase):
 
         self.battle.opponent.active = self.opponent_active
         self.battle.user.active = self.user_active
+
+    def test_50_100_g_message(self):
+        split_msg = [
+            "",
+            "-heal",
+            "p1a: Pikachu",
+            "50/100g",
+        ]
+        heal_or_damage(self.battle, split_msg)
+        self.assertEqual(
+            0.5, self.battle.user.active.hp / self.battle.user.active.max_hp
+        )
 
     def test_heal_from_healing_wish_clears_side_condition(self):
         # |-heal|p1a: Caterpie|100/100|[from] move: Healing Wish

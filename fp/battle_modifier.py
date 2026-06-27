@@ -483,7 +483,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         side.reserve.remove(pkmn)
 
     split_hp_msg = split_msg[4].split("/")
-    if is_opponent(battle, split_msg) and "champions" not in battle.pokemon_format:
+    if is_opponent(battle, split_msg):
         new_hp_percentage = float(split_hp_msg[0]) / 100
         if (
             pkmn.hp != new_hp_percentage * pkmn.max_hp
@@ -493,6 +493,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 for a in pokedex[pkmn.name][constants.ABILITIES].values()
             ]
             and pkmn.ability is None
+            and "champions" not in battle.pokemon_format
         ):
             logger.info(
                 "{} switched out with {}% HP but now has {}% HP, setting its ability to regenerator".format(
@@ -504,8 +505,9 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             pkmn.ability = "regenerator"
         pkmn.hp = pkmn.max_hp * new_hp_percentage
     else:
-        pkmn.hp = float(split_hp_msg[0])
-        pkmn.max_hp = float(split_hp_msg[1].split()[0])
+        hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[4])
+        pkmn.hp = hp
+        pkmn.max_hp = maxhp
 
     side.last_used_move = LastUsedMove(
         pokemon_name=None, move="switch {}".format(pkmn.name), turn=battle.turn
@@ -636,8 +638,9 @@ def heal_or_damage(battle, split_msg):
         if constants.FNT in split_msg[3]:
             pkmn.hp = 0
         else:
-            pkmn.hp = float(split_msg[3].split("/")[0])
-            pkmn.max_hp = float(split_msg[3].split("/")[1].split()[0])
+            hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[3])
+            pkmn.hp = hp
+            pkmn.max_hp = maxhp
 
     # increase the amount of turns toxic has been active
     if (
