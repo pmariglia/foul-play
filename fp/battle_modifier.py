@@ -407,7 +407,8 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
         # if the side is alive and has regenerator, give it back 1/3 of it's maxhp
         if (
-            side.active.hp > 0
+            "champions" not in battle.pokemon_format
+            and side.active.hp > 0
             and not side.active.fainted
             and side.active.ability == "regenerator"
         ):
@@ -482,7 +483,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         side.reserve.remove(pkmn)
 
     split_hp_msg = split_msg[4].split("/")
-    if is_opponent(battle, split_msg):
+    if is_opponent(battle, split_msg) and "champions" not in battle.pokemon_format:
         new_hp_percentage = float(split_hp_msg[0]) / 100
         if (
             pkmn.hp != new_hp_percentage * pkmn.max_hp

@@ -310,7 +310,7 @@ async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
             ps_websocket_client, pokemon_battle_type, team_dict
         )
 
-    await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
+    # await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
     await ps_websocket_client.send_message(battle.battle_tag, ["/timer on"])
 
     return battle
@@ -327,7 +327,7 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
                 else None
             )
             logger.info("Winner: {}".format(winner))
-            await ps_websocket_client.send_message(battle.battle_tag, ["gg"])
+            # await ps_websocket_client.send_message(battle.battle_tag, ["gg"])
             if (
                 FoulPlayConfig.save_replay == SaveReplay.always
                 or (
