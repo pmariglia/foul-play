@@ -423,7 +423,7 @@ class _RandomBattleSets(PokemonSets):
                 pkmn,
                 match_ability=match_traits,
                 match_item=match_traits,
-                speed_check=False,  # speed check never makes sense for randombattles because we know the nature/evs
+                speed_check=False,
                 level_check=False,
                 tera_check=match_traits,
             ):
@@ -442,7 +442,7 @@ class _RandomBattleSets(PokemonSets):
                 pkmn,
                 match_ability=True,
                 match_item=True,
-                speed_check=False,  # speed check never makes sense for randombattles because we know the nature/evs
+                speed_check=True,
                 level_check=True,
                 tera_check=True,
             ):
