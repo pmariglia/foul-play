@@ -18,7 +18,12 @@ from fp.battle import LastUsedMove
 from fp.battle import DamageDealt
 from fp.battle import StatRange
 from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
-from fp.helpers import normalize_name, type_effectiveness_modifier
+from fp.helpers import (
+    normalize_name,
+    type_effectiveness_modifier,
+    random_battles_evs,
+    maximum_ev,
+)
 from fp.helpers import get_pokemon_info_from_condition
 from fp.helpers import calculate_stats
 from fp.helpers import (
@@ -2844,8 +2849,9 @@ def check_choicescarf(battle, msg_lines):
         return
 
     if battle.battle_type == BattleType.RANDOM_BATTLE:
+        evs = ",".join(str(ev) for ev in random_battles_evs())
         battle_copy.opponent.active.set_spread(
-            "serious", "85,85,85,85,85,85"
+            "serious", evs
         )  # random battles have known spreads
     else:
         if battle.trick_room:
@@ -2854,7 +2860,7 @@ def check_choicescarf(battle, msg_lines):
             )  # assume as slow as possible in trickroom
         else:
             battle_copy.opponent.active.set_spread(
-                "jolly", "0,0,0,0,0,252"
+                "jolly", f"0,0,0,0,0,{maximum_ev()}"
             )  # assume as fast as possible
     opponent_effective_speed = battle_copy.get_effective_speed(battle_copy.opponent)
     bot_effective_speed = battle_copy.get_effective_speed(battle_copy.user)

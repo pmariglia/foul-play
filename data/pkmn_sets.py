@@ -16,7 +16,7 @@ from typing import Optional
 
 import constants
 from data import all_move_json, pokedex
-from fp.helpers import calculate_stats
+from fp.helpers import calculate_stats, random_battles_evs
 from fp.helpers import normalize_name
 
 PWD = os.path.dirname(os.path.abspath(__file__))
@@ -393,7 +393,7 @@ class _RandomBattleSets(PokemonSets):
                             ability=ability,
                             item=item,
                             nature="serious",
-                            evs=(85, 85, 85, 85, 85, 85),
+                            evs=random_battles_evs(),
                             count=count,
                             tera_type=tera_type,
                             level=level,

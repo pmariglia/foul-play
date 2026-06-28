@@ -8,7 +8,11 @@ from config import FoulPlayConfig
 from data import all_move_json
 from data import pokedex
 
-from fp.helpers import get_pokemon_info_from_condition, possible_hidden_power_types
+from fp.helpers import (
+    get_pokemon_info_from_condition,
+    possible_hidden_power_types,
+    random_battles_evs,
+)
 from fp.helpers import normalize_name
 from fp.helpers import calculate_stats
 
@@ -545,7 +549,10 @@ class Battler:
 
 
 class Pokemon:
-    def __init__(self, name: str, level: int, nature="serious", evs=(85,) * 6):
+    def __init__(self, name: str, level: int, nature="serious", evs=None):
+        if evs is None:
+            evs = random_battles_evs()
+
         self.name = normalize_name(name)
         self.nickname = None
         self.base_name = self.name
