@@ -91,6 +91,7 @@ class Battle:
         self.wait = False
 
         self.battle_type = None
+        self.mode = None
         self.pokemon_format = ""
         self.generation = None
         self.time_remaining = None

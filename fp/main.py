@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from fp.config import FoulPlayConfig, init_logging, BotModes
 
+from fp.modes import battle_mode
 from fp.teams import load_team, TeamListIterator
 from fp.run_battle import pokemon_battle
 from fp.websocket_client import PSWebsocketClient
@@ -66,8 +67,9 @@ async def run_foul_play():
     losses = 0
     team_file_name = "None"
     team_dict = None
+    mode = battle_mode(FoulPlayConfig.format_spec.battle_type)
     while True:
-        if FoulPlayConfig.requires_team():
+        if mode.requires_team:
             team_name = (
                 team_iterator.get_next_team()
                 if team_iterator is not None

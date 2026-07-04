@@ -60,7 +60,7 @@ class GenerationMechanics:
     regenerator_heals_on_switch_out: bool = True
 
     # champions uses different EV budgets than other randombattle formats
-    randombattle_evs: tuple = (85,) * 6
+    randombattle_evs: tuple[int, int, int, int, int, int] = (85,) * 6
     max_ev: int = 252
 
     stat_calculation: StatCalculation = StatCalculation.MODERN

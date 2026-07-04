@@ -2,13 +2,9 @@ from copy import deepcopy
 import logging
 
 from fp import constants
-from fp.constants import BattleType
 from fp.data import all_move_json
 from fp.data import pokedex
 from fp.data.pkmn_sets import (
-    SmogonSets,
-    RandomBattleTeamDatasets,
-    TeamDatasets,
     PredictedPokemonSet,
 )
 from fp.battle.state import DamageDealt
@@ -16,8 +12,6 @@ from fp.battle.state import StatRange
 from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
 from fp.battle.helpers import (
     normalize_name,
-    random_battles_evs,
-    maximum_ev,
 )
 from fp.battle.helpers import get_pokemon_info_from_condition
 from fp.battle.helpers import (
@@ -397,20 +391,7 @@ def check_choicescarf(battle, msg_lines):
     ):
         return
 
-    if battle.battle_type == BattleType.RANDOM_BATTLE:
-        evs = ",".join(str(ev) for ev in random_battles_evs())
-        battle_copy.opponent.active.set_spread(
-            "serious", evs
-        )  # random battles have known spreads
-    else:
-        if battle.trick_room:
-            battle_copy.opponent.active.set_spread(
-                "quiet", "0,0,0,0,0,0"
-            )  # assume as slow as possible in trickroom
-        else:
-            battle_copy.opponent.active.set_spread(
-                "jolly", f"0,0,0,0,0,{maximum_ev()}"
-            )  # assume as fast as possible
+    battle.mode.assume_spread_for_speed_check(battle, battle_copy)
     opponent_effective_speed = battle_copy.get_effective_speed(battle_copy.opponent)
     bot_effective_speed = battle_copy.get_effective_speed(battle_copy.user)
 
@@ -608,22 +589,9 @@ def update_dataset_possibilities(
 
     battle_copy = deepcopy(battle)
 
-    if battle.battle_type == BattleType.RANDOM_BATTLE:
-        possibilites = RandomBattleTeamDatasets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active
-        )
-        smogon_possibilities = None
-        allow_emptying = False
-    elif battle.battle_type == BattleType.BATTLE_FACTORY:
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
-        smogon_possibilities = None
-        allow_emptying = False
-    else:
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
-        smogon_possibilities = SmogonSets.get_pkmn_sets_from_pkmn_name(
-            battle.opponent.active
-        )
-        allow_emptying = True
+    possibilites, smogon_possibilities, allow_emptying = (
+        battle.mode.dataset_possibilities(battle)
+    )
 
     check_lower_bound = True
     if check_type == "damage_dealt":

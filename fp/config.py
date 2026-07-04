@@ -6,7 +6,6 @@ from enum import Enum, auto
 from logging.handlers import RotatingFileHandler
 from typing import Optional
 
-from fp.constants import BattleType
 from fp.format_spec import FormatSpec
 
 
@@ -194,9 +193,6 @@ class _FoulPlayConfig:
     @property
     def format_spec(self) -> FormatSpec:
         return FormatSpec.from_format_string(self.pokemon_format)
-
-    def requires_team(self) -> bool:
-        return self.format_spec.battle_type == BattleType.STANDARD_BATTLE
 
     def validate_config(self):
         if self.bot_mode == BotModes.challenge_user:

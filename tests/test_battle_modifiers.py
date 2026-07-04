@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from fp import constants
 from fp.constants import BattleType
+from fp.modes import battle_mode
 from fp.data.pkmn_sets import (
     TeamDatasets,
     RandomBattleTeamDatasets,
@@ -71,6 +72,7 @@ class TestRequestMessage(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.active = Pokemon("pikachu", 100)
         self.request_json = {
             "active": [
@@ -264,6 +266,7 @@ class TestSwitchOrDrag(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
         self.battle.user.active = Pokemon("pikachu", 100)
@@ -308,6 +311,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
     def test_does_not_add_pressure_to_impossible_abilities_gen3(self):
         self.battle.generation = "gen3"
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -499,6 +503,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
     def test_increments_rest_turns_by_consequtive_sleeptalks(self):
         self.battle.generation = "gen3"
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         active = self.battle.opponent.active
         active.gen_3_consecutive_sleep_talks = 1
         active.rest_turns = 1
@@ -511,6 +516,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
     def test_decrements_sleep_turns_by_consequtive_sleeptalks(self):
         self.battle.generation = "gen3"
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         active = self.battle.opponent.active
         active.gen_3_consecutive_sleep_talks = 1
         active.sleep_turns = 1
@@ -545,6 +551,7 @@ class TestSwitchOrDrag(unittest.TestCase):
     def test_switch_does_not_reset_sleep_turns_to_0_in_gen4(self):
         self.battle.opponent.active.volatile_statuses.append(constants.TYPECHANGE)
         self.battle.generation = "gen4"
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         active = self.battle.opponent.active
         active.sleep_turns = 1
         active.status = constants.SLEEP
@@ -938,6 +945,7 @@ class TestHealOrDamage(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1195,6 +1203,7 @@ class TestActivate(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1330,6 +1339,7 @@ class TestPrepare(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1354,6 +1364,7 @@ class TestClearAllBoosts(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1396,6 +1407,7 @@ class TestMove(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1407,7 +1419,7 @@ class TestMove(unittest.TestCase):
         TeamDatasets.pkmn_sets = {}
 
     def test_infer_zoroark_from_move_not_possible_on_pkmn_battle_factory(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -1466,7 +1478,7 @@ class TestMove(unittest.TestCase):
     def test_infer_zoroarkhisui_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
     ):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
 
@@ -1508,7 +1520,7 @@ class TestMove(unittest.TestCase):
     def test_infer_zoroark_regular_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
     ):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
 
@@ -1546,7 +1558,7 @@ class TestMove(unittest.TestCase):
     def test_does_not_infer_zoroark_if_move_can_be_on_active_pkmn(
         self,
     ):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
 
@@ -1569,7 +1581,7 @@ class TestMove(unittest.TestCase):
     def test_does_not_infer_zoroark_when_struggle(
         self,
     ):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
 
@@ -1590,7 +1602,7 @@ class TestMove(unittest.TestCase):
         self.assertEqual([], self.battle.opponent.reserve)
 
     def test_does_not_infer_from_struggle(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -2147,6 +2159,7 @@ class TestTrickRoom(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2183,6 +2196,7 @@ class TestWeather(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2440,6 +2454,7 @@ class TestSetBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2485,6 +2500,7 @@ class TestBoostAndUnboost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2576,6 +2592,7 @@ class TestStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2650,6 +2667,7 @@ class TestCureStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2706,6 +2724,7 @@ class TestStartFutureSight(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2733,6 +2752,7 @@ class TestSetItem(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2815,6 +2835,7 @@ class TestStartVolatileStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3054,6 +3075,7 @@ class TestEndVolatileStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3211,6 +3233,7 @@ class TestUpdateAbility(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3346,6 +3369,7 @@ class TestSwapSideConditions(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3442,6 +3466,7 @@ class TestIllusionEnd(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3618,6 +3643,7 @@ class TestFail(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3645,6 +3671,7 @@ class TestFormChange(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3776,6 +3803,7 @@ class TestClearNegativeBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3833,6 +3861,7 @@ class TestClearBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3869,6 +3898,7 @@ class TestZPower(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3902,6 +3932,7 @@ class TestSideStart(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3965,6 +3996,7 @@ class TestSingleTurn(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4014,6 +4046,7 @@ class TestTransform(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4245,6 +4278,7 @@ class TestCant(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4307,6 +4341,7 @@ class TestUpkeep(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4542,6 +4577,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -5163,6 +5199,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -5625,7 +5662,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
         self.assertEqual("leftovers", self.battle.opponent.active.item)
 
     def test_uses_randombattle_spread_when_guessing_for_randombattle(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
 
         # opponent's speed should be 193 WITHOUT a choicescarf
         # HOWEVER, max-speed should still outspeed this value
@@ -5666,6 +5703,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6110,6 +6148,7 @@ class TestRemoveItem(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6151,6 +6190,7 @@ class TestImmune(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6166,7 +6206,7 @@ class TestImmune(unittest.TestCase):
         self.battle.username = self.username
 
     def test_randbats_does_not_infer_zoroark_from_tera_immunity_on_judgment(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6190,7 +6230,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_randbats_infer_zoroark_from_immunity_when_in_reserves(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
 
@@ -6231,7 +6271,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_randbats_infer_zoroarkhisui_from_immunity_when_not_in_reserves(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6266,7 +6306,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_randbats_infer_zoroark_from_immunity_when_not_in_reserves(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6301,7 +6341,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_gen4_does_not_infer_zoroark(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen4"
         RandomBattleTeamDatasets.initialize("gen4")
         self.battle.opponent.reserve = []
@@ -6323,7 +6363,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_gen5_does_not_infer_zoroark_hisui(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen5"
         RandomBattleTeamDatasets.initialize("gen5")
         self.battle.opponent.reserve = []
@@ -6345,7 +6385,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_pkmn_terastallized_to_gain_immunity(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6366,7 +6406,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_pkmn_naturally_immune(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6385,7 +6425,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_does_not_infer_zoroark_if_futuresight_ending(self):
-        self.battle.battle_type = BattleType.RANDOM_BATTLE
+        self.battle.mode = battle_mode(BattleType.RANDOM_BATTLE)
         self.battle.generation = "gen9"
         RandomBattleTeamDatasets.initialize("gen9randombattle")
         self.battle.opponent.reserve = []
@@ -6405,7 +6445,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual(0, len(self.battle.opponent.reserve))
 
     def test_infers_zoroark_from_immunity_that_pkmn_does_not_have(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -6446,7 +6486,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
 
     def test_does_not_infer_zoroark_when_tera_type_renders_it_immune(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "gyarados"], "ru"
@@ -6471,7 +6511,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_pkmn_is_actually_immune(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "maushold"], "ru"
@@ -6493,7 +6533,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_the_zoroark_is_not_immune(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "salamence"], "ru"
@@ -6515,7 +6555,7 @@ class TestImmune(unittest.TestCase):
         self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
 
     def test_does_not_infer_zoroark_when_ability_renders_immune(self):
-        self.battle.battle_type = BattleType.BATTLE_FACTORY
+        self.battle.mode = battle_mode(BattleType.BATTLE_FACTORY)
         self.battle.generation = "gen9"
         TeamDatasets.initialize(
             "gen9battlefactory", ["zoroarkhisui", "rotomheat"], "ru"
@@ -6558,6 +6598,7 @@ class TestInactive(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6610,6 +6651,7 @@ class TestInactiveOff(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6656,6 +6698,7 @@ class TestGetDamageDealt(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
 
         self.battle.user.name = "p1"
         self.battle.user.active = Pokemon("Caterpie", 100)
@@ -7017,6 +7060,7 @@ class TestNoInit(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.mode = battle_mode(BattleType.STANDARD_BATTLE)
 
         self.battle.user.name = "p1"
         self.battle.user.active = Pokemon("Caterpie", 100)
