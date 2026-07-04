@@ -9,8 +9,8 @@ creds
 *.xlsx
 *.txt
 suspect_decisions.py
-teams/teams
-data/smogon_stats_cache
-data/pkmn_sets_cache
-data/local_data
+fp/teams/teams
+fp/data/smogon_stats_cache
+fp/data/pkmn_sets_cache
+fp/data/local_data
 run_forever.sh

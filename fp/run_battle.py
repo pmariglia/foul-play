@@ -4,14 +4,14 @@ import concurrent.futures
 from copy import deepcopy
 import logging
 
-from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
-from data.pkmn_sets import SmogonSets
-import constants
-from constants import BattleType
-from config import FoulPlayConfig, SaveReplay
-from fp.battle import LastUsedMove, Pokemon, Battle
-from fp.battle_modifier import async_update_battle, process_battle_updates
-from fp.helpers import normalize_name
+from fp.data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
+from fp.data.pkmn_sets import SmogonSets
+from fp import constants
+from fp.constants import BattleType
+from fp.config import FoulPlayConfig, SaveReplay
+from fp.battle.state import LastUsedMove, Pokemon, Battle
+from fp.battle.protocol import async_update_battle, process_battle_updates
+from fp.battle.helpers import normalize_name
 from fp.search.main import find_best_move
 
 from fp.websocket_client import PSWebsocketClient

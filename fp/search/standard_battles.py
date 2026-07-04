@@ -2,12 +2,12 @@ import logging
 import random
 from copy import deepcopy
 
-import constants
-from data import all_move_json, pokedex
+from fp import constants
+from fp.data import all_move_json, pokedex
 from fp.search.helpers import populate_pkmn_from_set
-from fp.helpers import natures, normalize_name
-from fp.battle import Pokemon, Battle, Battler
-from data.pkmn_sets import (
+from fp.battle.helpers import natures, normalize_name
+from fp.battle.state import Pokemon, Battle, Battler
+from fp.data.pkmn_sets import (
     SmogonSets,
     PokemonSet,
     PredictedPokemonSet,

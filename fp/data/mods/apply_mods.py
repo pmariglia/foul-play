@@ -1,10 +1,10 @@
 import os
 import json
 import logging
-import constants
-from data import all_move_json
-from data import pokedex
-from fp.helpers import (
+from fp import constants
+from fp.data import all_move_json
+from fp.data import pokedex
+from fp.battle.helpers import (
     DAMAGE_MULTIPICATION_ARRAY,
     POKEMON_TYPE_INDICES,
 )

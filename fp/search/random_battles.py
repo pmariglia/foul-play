@@ -2,12 +2,12 @@ import logging
 import random
 from copy import deepcopy
 
-from constants import BattleType
-from data import pokedex
-from fp.battle import Battle, Pokemon
-from data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
+from fp.constants import BattleType
+from fp.data import pokedex
+from fp.battle.state import Battle, Pokemon
+from fp.data.pkmn_sets import RandomBattleTeamDatasets, TeamDatasets
 from fp.search.helpers import populate_pkmn_from_set
-from fp.helpers import (
+from fp.battle.helpers import (
     POKEMON_TYPE_INDICES,
     is_super_effective,
     type_effectiveness_modifier,

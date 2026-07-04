@@ -1,9 +1,9 @@
 import unittest
 
-from fp.battle import LastUsedMove
-from fp.battle import Battler
-from fp.battle import Pokemon
-from fp.battle import Move
+from fp.battle.state import LastUsedMove
+from fp.battle.state import Battler
+from fp.battle.state import Pokemon
+from fp.battle.state import Move
 
 
 class TestPokemon(unittest.TestCase):

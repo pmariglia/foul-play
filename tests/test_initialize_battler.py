@@ -1,8 +1,8 @@
 import unittest
 
-import constants
-from fp.battle import Battler, Move, LastUsedMove
-from fp.battle import Pokemon
+from fp import constants
+from fp.battle.state import Battler, Move, LastUsedMove
+from fp.battle.state import Pokemon
 
 
 class TestUpdateFromRequestJson(unittest.TestCase):

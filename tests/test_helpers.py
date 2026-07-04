@@ -1,8 +1,8 @@
 import unittest
 
-from data.pkmn_sets import spreads_are_alike
-from fp.helpers import get_pokemon_info_from_condition
-from fp.helpers import normalize_name
+from fp.data.pkmn_sets import spreads_are_alike
+from fp.battle.helpers import get_pokemon_info_from_condition
+from fp.battle.helpers import normalize_name
 
 
 class TestSpreadsAreAlike(unittest.TestCase):

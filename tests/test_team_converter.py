@@ -1,6 +1,6 @@
 import unittest
 
-from teams.team_converter import single_pokemon_export_to_dict
+from fp.teams.team_converter import single_pokemon_export_to_dict
 
 
 class TestSinglePokemonExportToDict(unittest.TestCase):

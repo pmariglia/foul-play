@@ -14,10 +14,10 @@ from typing import Tuple
 from typing import Optional
 
 
-import constants
-from data import all_move_json, pokedex
-from fp.helpers import calculate_stats, random_battles_evs
-from fp.helpers import normalize_name
+from fp import constants
+from fp.data import all_move_json, pokedex
+from fp.battle.helpers import calculate_stats, random_battles_evs
+from fp.battle.helpers import normalize_name
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 SMOGON_CACHE_DIR = os.path.join(PWD, "smogon_stats_cache")
@@ -40,7 +40,7 @@ TEAMMATES = "teammates"
 RAW_COUNT = "raw_count"
 
 if typing.TYPE_CHECKING:
-    from fp.battle import Pokemon
+    from fp.battle.state import Pokemon
 
 logger = logging.getLogger(__name__)
 

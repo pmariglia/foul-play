@@ -1,13 +1,13 @@
 import unittest
 
-from data.pkmn_sets import (
+from fp.data.pkmn_sets import (
     TeamDatasets,
     SmogonSets,
     PredictedPokemonSet,
     PokemonSet,
     PokemonMoveset,
 )
-from fp.battle import Pokemon, Move
+from fp.battle.state import Pokemon, Move
 
 
 class TestTeamDatasets(unittest.TestCase):

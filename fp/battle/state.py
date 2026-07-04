@@ -1,20 +1,20 @@
 from collections import defaultdict
 from collections import namedtuple
 
-import constants
+from fp import constants
 import logging
 
-from config import FoulPlayConfig
-from data import all_move_json
-from data import pokedex
+from fp.config import FoulPlayConfig
+from fp.data import all_move_json
+from fp.data import pokedex
 
-from fp.helpers import (
+from fp.battle.helpers import (
     get_pokemon_info_from_condition,
     possible_hidden_power_types,
     random_battles_evs,
 )
-from fp.helpers import normalize_name
-from fp.helpers import calculate_stats
+from fp.battle.helpers import normalize_name
+from fp.battle.helpers import calculate_stats
 
 
 logger = logging.getLogger(__name__)

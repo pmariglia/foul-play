@@ -1,8 +1,8 @@
 import logging
 
-import constants
-from data import pokedex
-from fp.battle import Battle, Pokemon, Battler, LastUsedMove
+from fp import constants
+from fp.data import pokedex
+from fp.battle.state import Battle, Pokemon, Battler, LastUsedMove
 
 from poke_engine import (
     State as PokeEngineState,

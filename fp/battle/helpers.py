@@ -1,6 +1,6 @@
 import math
-import constants
-from config import FoulPlayConfig
+from fp import constants
+from fp.config import FoulPlayConfig
 
 natures = {
     "lonely": {"plus": constants.ATTACK, "minus": constants.DEFENSE},

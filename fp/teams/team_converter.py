@@ -1,4 +1,4 @@
-from fp.helpers import normalize_name
+from fp.battle.helpers import normalize_name
 
 
 def json_to_packed(json_team):

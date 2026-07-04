@@ -3,9 +3,9 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
-from constants import BattleType
-from fp.battle import Battle
-from config import FoulPlayConfig
+from fp.constants import BattleType
+from fp.battle.state import Battle
+from fp.config import FoulPlayConfig
 from .standard_battles import prepare_battles
 from .random_battles import prepare_random_battles
 

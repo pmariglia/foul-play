@@ -2,25 +2,25 @@ import unittest
 import json
 from collections import defaultdict
 
-import constants
-from constants import BattleType
-from data.pkmn_sets import (
+from fp import constants
+from fp.constants import BattleType
+from fp.data.pkmn_sets import (
     TeamDatasets,
     RandomBattleTeamDatasets,
     PredictedPokemonSet,
     PokemonSet,
     PokemonMoveset,
 )
-from fp.helpers import calculate_stats
+from fp.battle.helpers import calculate_stats
 
-from fp.battle import Battle
-from fp.battle import Pokemon
-from fp.battle import Move
-from fp.battle import LastUsedMove
-from fp.battle import DamageDealt
-from fp.battle import boost_multiplier_lookup
+from fp.battle.state import Battle
+from fp.battle.state import Pokemon
+from fp.battle.state import Move
+from fp.battle.state import LastUsedMove
+from fp.battle.state import DamageDealt
+from fp.battle.state import boost_multiplier_lookup
 
-from fp.battle_modifier import (
+from fp.battle.protocol import (
     request,
     fieldstart,
     fieldend,
@@ -33,38 +33,38 @@ from fp.battle_modifier import (
     ITEMS_REVEALED_ON_SWITCH_IN,
     sidestart,
 )
-from fp.battle_modifier import fail
-from fp.battle_modifier import terastallize
-from fp.battle_modifier import activate
-from fp.battle_modifier import prepare
-from fp.battle_modifier import switch_or_drag
-from fp.battle_modifier import clearallboost
-from fp.battle_modifier import heal_or_damage
-from fp.battle_modifier import swapsideconditions
-from fp.battle_modifier import move
-from fp.battle_modifier import cant
-from fp.battle_modifier import boost
-from fp.battle_modifier import setboost
-from fp.battle_modifier import unboost
-from fp.battle_modifier import status
-from fp.battle_modifier import weather
-from fp.battle_modifier import curestatus
-from fp.battle_modifier import start_volatile_status
-from fp.battle_modifier import end_volatile_status
-from fp.battle_modifier import immune
-from fp.battle_modifier import update_ability
-from fp.battle_modifier import form_change
-from fp.battle_modifier import zpower
-from fp.battle_modifier import clearnegativeboost
-from fp.battle_modifier import check_speed_ranges
-from fp.battle_modifier import check_choicescarf
-from fp.battle_modifier import check_heavydutyboots
-from fp.battle_modifier import get_damage_dealt
-from fp.battle_modifier import singleturn
-from fp.battle_modifier import transform
-from fp.battle_modifier import process_battle_updates
-from fp.battle_modifier import upkeep
-from fp.battle_modifier import inactive
+from fp.battle.protocol import fail
+from fp.battle.protocol import terastallize
+from fp.battle.protocol import activate
+from fp.battle.protocol import prepare
+from fp.battle.protocol import switch_or_drag
+from fp.battle.protocol import clearallboost
+from fp.battle.protocol import heal_or_damage
+from fp.battle.protocol import swapsideconditions
+from fp.battle.protocol import move
+from fp.battle.protocol import cant
+from fp.battle.protocol import boost
+from fp.battle.protocol import setboost
+from fp.battle.protocol import unboost
+from fp.battle.protocol import status
+from fp.battle.protocol import weather
+from fp.battle.protocol import curestatus
+from fp.battle.protocol import start_volatile_status
+from fp.battle.protocol import end_volatile_status
+from fp.battle.protocol import immune
+from fp.battle.protocol import update_ability
+from fp.battle.protocol import form_change
+from fp.battle.protocol import zpower
+from fp.battle.protocol import clearnegativeboost
+from fp.battle.inference import check_speed_ranges
+from fp.battle.inference import check_choicescarf
+from fp.battle.inference import check_heavydutyboots
+from fp.battle.inference import get_damage_dealt
+from fp.battle.protocol import singleturn
+from fp.battle.protocol import transform
+from fp.battle.protocol import process_battle_updates
+from fp.battle.protocol import upkeep
+from fp.battle.protocol import inactive
 
 
 class TestRequestMessage(unittest.TestCase):
