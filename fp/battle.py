@@ -92,6 +92,7 @@ class Battle:
 
         self.request_json = None
         self.msg_list = []
+        self.opponent_team_preview_affinities = None
 
     def initialize_team_preview(self, opponent_pokemon, battle_type):
         self.user.reserve.insert(0, self.user.active)
@@ -208,9 +209,12 @@ class Battler:
         self.last_selected_move = LastUsedMove("", "", 0)
         self.last_used_move = LastUsedMove("", "", 0)
 
-    def possible_mega_evolutions(self):
+    def possible_mega_evolutions(self, must_be_revealed=False):
         result = {}
         for pkmn in self.reserve + [self.active]:
+            # hardcoded omit garchomp for now - come back to this and make the logic more generic
+            if pkmn.name == "garchomp" or (must_be_revealed and not pkmn.revealed):
+                continue
             megas_possible = pkmn.get_mega_pkmn_info()
             for m in megas_possible:
                 if pkmn.hp and (
@@ -238,7 +242,7 @@ class Battler:
                 return reserve_pkmn
             if pkmn_name in [
                 normalize_name(n)
-                for n in pokedex[reserve_pkmn.name].get("otherFormes", [])
+                for n in pokedex.get(reserve_pkmn.name, {}).get("otherFormes", [])
             ]:
                 return reserve_pkmn
         return None
@@ -561,6 +565,8 @@ class Pokemon:
         self.evs = evs
         self.speed_range = StatRange(min=0, max=float("inf"))
         self.hidden_power_possibilities = possible_hidden_power_types()
+        self.index = None
+        self.revealed = False
 
         try:
             self.base_stats = pokedex[self.name][constants.BASESTATS]

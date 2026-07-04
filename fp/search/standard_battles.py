@@ -318,10 +318,10 @@ def sample_pokemon(pkmn: Pokemon):
 
     # the ability of a mega pokemon that has not yet mega-evolved
     # needs to be sampled from its non-mega version
-    pkmn_without_mega = deepcopy(pkmn)
-    pkmn_without_mega.mega_name = None
-    _sample_pokemon(pkmn_without_mega)
-    pkmn.ability = pkmn_without_mega.ability
+    # just choose randomly because this mostly doesn't matter
+    pokedex_info = pokedex[pkmn.name]
+    ability = random.choice(list(pokedex_info[constants.ABILITIES].values()))
+    pkmn.ability = normalize_name(ability)
     _sample_pokemon(pkmn)
 
 
@@ -449,16 +449,38 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
-def sample_mega_evolution(battler: Battler, index: int):
+def sample_mega_evolution(
+    battler: Battler,
+    index: int,
+):
+    def mega_lower_usage_than_non_mega(pkmn_name: str, pkmn_mega_name: str) -> bool:
+        non_mega_raw_count = SmogonSets.get_raw_count(pkmn_name)
+        mega_raw_count = SmogonSets.get_raw_count(pkmn_mega_name)
+        if non_mega_raw_count is not None and mega_raw_count is not None:
+            return mega_raw_count < non_mega_raw_count
+        return False
+
     if battler.mega_revealed():
         logger.info("Mega evolution already revealed for {}".format(battler.name))
         return
-    mega_formes = battler.possible_mega_evolutions()
+
+    mega_formes = (
+        battler.possible_mega_evolutions(must_be_revealed=True)
+        or battler.possible_mega_evolutions()
+    )
     if not mega_formes:
         logger.info("No possible mega evolutions for {}".format(battler.name))
         return
-    selected_mega = random.choice(list(mega_formes.keys()))
-    mega_pkmn_name, mega_item = random.choice(mega_formes[selected_mega])
+
+    mega_formes_to_select_from = []
+    for pkmn, possible_mega_evos in mega_formes.items():
+        for mega_info in possible_mega_evos:
+            if not mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
+                mega_formes_to_select_from.append((pkmn, mega_info))
+
+    selected_mega, (mega_pkmn_name, mega_item) = random.choice(
+        list(mega_formes_to_select_from)
+    )
 
     if battler.active.name == selected_mega:
         pkmn = battler.active
@@ -472,6 +494,7 @@ def sample_mega_evolution(battler: Battler, index: int):
     )
     pkmn.item = mega_item
     pkmn.mega_name = mega_pkmn_name
+    pkmn.revealed = True
 
 
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:

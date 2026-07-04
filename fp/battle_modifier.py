@@ -488,6 +488,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         side.reserve.remove(pkmn)
 
     split_hp_msg = split_msg[4].split("/")
+    pkmn.revealed = True
     if is_opponent(battle, split_msg):
         new_hp_percentage = float(split_hp_msg[0]) / 100
         if (

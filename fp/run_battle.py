@@ -12,6 +12,7 @@ from config import FoulPlayConfig, SaveReplay
 from fp.battle import LastUsedMove, Pokemon, Battle
 from fp.battle_modifier import async_update_battle, process_battle_updates
 from fp.helpers import normalize_name
+from fp.search.bss import bss_team_preview
 from fp.search.main import find_best_move
 
 from fp.websocket_client import PSWebsocketClient
@@ -119,6 +120,55 @@ async def handle_team_preview(battle, ps_websocket_client):
         )
     ]
 
+    await ps_websocket_client.send_message(battle.battle_tag, message)
+
+
+async def handle_bss_team_preview(battle, ps_websocket_client):
+    battle_copy = deepcopy(battle)
+    battle_copy.user.active = Pokemon.get_dummy()
+    battle_copy.opponent.active = Pokemon.get_dummy()
+    battle_copy.team_preview = True
+
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        (best_move, opponent_affinities) = await loop.run_in_executor(
+            pool, bss_team_preview, battle_copy
+        )
+
+    battle.opponent_team_preview_affinities = opponent_affinities
+
+    lead, reserve_1, reserve_2 = best_move.split(",")
+
+    team_index_string = ""
+    team_dont_bring_string = ""
+    lead_pkmn = battle.user.find_pokemon_in_reserves(lead)
+    bring_names = [
+        battle.user.find_pokemon_in_reserves(reserve_1).name,
+        battle.user.find_pokemon_in_reserves(reserve_2).name,
+    ]
+
+    for pkmn in battle.user.reserve:
+        if pkmn.name in bring_names:
+            team_index_string = f"{pkmn.index}{team_index_string}"
+            logger.debug(f"Bringing {pkmn.name}")
+        elif pkmn.name == lead_pkmn.name:
+            logger.debug(f"Leading with {pkmn.name}")
+        else:
+            team_dont_bring_string = f"{team_dont_bring_string}{pkmn.index}"
+            logger.debug(f"Leaving behind {pkmn.name}")
+            pkmn.hp = 0
+            pkmn.name = "none"
+
+    message = [
+        "/team {}{}{}|{}".format(
+            lead_pkmn.index, team_index_string, team_dont_bring_string, battle.rqid
+        )
+    ]
+    battle.user.last_selected_move = LastUsedMove(
+        "teampreview", f"switch {lead_pkmn.name}", battle.turn
+    )
+
+    logger.info(f"Team: {lead}, [{reserve_1}, {reserve_2}]")
     await ps_websocket_client.send_message(battle.battle_tag, message)
 
 
@@ -297,7 +347,10 @@ async def start_standard_battle(
             )
             TeamDatasets.initialize(pokemon_battle_type, unique_pkmn_names)
 
-        await handle_team_preview(battle, ps_websocket_client)
+        if "bss" in battle.pokemon_format:
+            await handle_bss_team_preview(battle, ps_websocket_client)
+        else:
+            await handle_team_preview(battle, ps_websocket_client)
 
     return battle
 
@@ -311,7 +364,7 @@ async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
         )
 
     await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
-    await ps_websocket_client.send_message(battle.battle_tag, ["/timer on"])
+    # await ps_websocket_client.send_message(battle.battle_tag, ["/timer on"])
 
     return battle
 
