@@ -4,9 +4,6 @@ import logging
 from fp import constants
 from fp.data import all_move_json
 from fp.data import pokedex
-from fp.data.sets import (
-    PredictedPokemonSet,
-)
 from fp.battle.state import DamageDealt
 from fp.battle.state import StatRange
 from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
@@ -472,6 +469,7 @@ def _do_check(
     damage_dealt,
     bot_went_first,
     check_lower_bound,
+    get_pkmn_set,
     allow_emptying=False,
 ):
     actual_damage_dealt = damage_dealt.percent_damage * battle_copy.user.active.max_hp
@@ -479,9 +477,7 @@ def _do_check(
     indicies_to_remove = []
     num_starting_possibilites = len(possibilites)
     for i in range(num_starting_possibilites):
-        p = possibilites[i]
-        if isinstance(p, PredictedPokemonSet):
-            p = p.pkmn_set
+        p = get_pkmn_set(possibilites[i])
 
         if not battle.opponent.active.ability:
             battle_copy.opponent.active.ability = p.ability
@@ -625,6 +621,7 @@ def update_dataset_possibilities(
         damage_dealt,
         bot_went_first,
         check_lower_bound,
+        get_pkmn_set=lambda p: p.pkmn_set,  # full sets: PredictedPokemonSet
         allow_emptying=allow_emptying,
     )
 
@@ -637,6 +634,7 @@ def update_dataset_possibilities(
             damage_dealt,
             bot_went_first,
             check_lower_bound,
+            get_pkmn_set=lambda p: p,  # smogon: bare PokemonSet trait combinations
             allow_emptying=False,  # never completely empty smogon stats
         )
 

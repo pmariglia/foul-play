@@ -9,7 +9,7 @@ from fp.data.sets.base import (
     PKMN_SETS_CACHE_DIR,
     PokemonMoveset,
     PokemonSet,
-    PokemonSets,
+    FullSetDatasets,
     PredictedPokemonSet,
     get_sets_file,
 )
@@ -29,7 +29,7 @@ def get_randbats_sets_file(pkmn_randbats_mode: str) -> dict:
     return get_sets_file(cache_path, remote_url)
 
 
-class RandomBattleTeamDatasets(PokemonSets):
+class RandomBattleTeamDatasets(FullSetDatasets):
     def __init__(self):
         self.raw_pkmn_sets = {}
         self.pkmn_sets = {}

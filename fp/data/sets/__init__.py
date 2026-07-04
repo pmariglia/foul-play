@@ -1,4 +1,5 @@
 from fp.data.sets.base import (
+    FullSetDatasets,
     PokemonMoveset,
     PokemonSet,
     PokemonSets,
@@ -16,6 +17,7 @@ from fp.data.sets.team_datasets import BattleFactoryTeamDatasets, TeamDatasets
 
 __all__ = [
     "BattleFactoryTeamDatasets",
+    "FullSetDatasets",
     "MOVES_STRING",
     "PokemonMoveset",
     "PokemonSet",

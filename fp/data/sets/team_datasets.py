@@ -9,7 +9,7 @@ from fp.data.sets.base import (
     PKMN_SETS_CACHE_DIR,
     PokemonMoveset,
     PokemonSet,
-    PokemonSets,
+    FullSetDatasets,
     PredictedPokemonSet,
     get_sets_file,
 )
@@ -84,7 +84,7 @@ def get_pkmn_sets_file(pkmn_mode: str, file_name: str) -> dict:
     return get_sets_file(cache_path, remote_url)
 
 
-class TeamDatasets(PokemonSets):
+class TeamDatasets(FullSetDatasets):
     def __init__(self):
         self.raw_pkmn_sets = {}
         self.raw_pkmn_moves = {}

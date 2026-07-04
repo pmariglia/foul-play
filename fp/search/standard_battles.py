@@ -8,7 +8,6 @@ from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import natures, normalize_name
 from fp.battle.state import Pokemon, Battle, Battler
 from fp.data.sets import (
-    MOVES_STRING,
     PokemonMoveset,
     PokemonSet,
     PredictedPokemonSet,
@@ -255,9 +254,7 @@ def sample_pokemon_moveset_with_known_pkmn_set(
     # 2: Use SmogonSets to sample a moveset
     smogon_moves = [
         m
-        for m in mode.smogon_sets.get_raw_pkmn_sets_from_pkmn_name(
-            pkmn.name, pkmn.base_name
-        ).get(constants.MOVES, [])
+        for m in mode.smogon_sets.move_usage_rates(pkmn)
         if m[0] not in pkmn_known_moves
     ]
     moves_adjusted_probabilities = adjust_probabilities_for_sampling(
@@ -294,9 +291,7 @@ def set_most_likely_hidden_power(pkmn: Pokemon, mode):
             f"{constants.HIDDEN_POWER}{p}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
             for p in pkmn.hidden_power_possibilities
         ]
-        for mv, _count in mode.smogon_sets.get_raw_pkmn_sets_from_pkmn_name(
-            pkmn.name, pkmn.base_name
-        )[MOVES_STRING]:
+        for mv, _count in mode.smogon_sets.move_usage_rates(pkmn):
             if mv in hidden_power_possibilities:
                 pkmn.remove_move("hiddenpower")
                 pkmn.add_move(mv)
@@ -361,7 +356,7 @@ def _sample_pokemon(pkmn: Pokemon, mode):
 
     # 3: Try to sample from SmogonSets including moves
     # Sample a SmogonSet and then repeat the same process as in 2 to get a moveset
-    remaining_smogon_sets = mode.smogon_sets.get_all_remaining_sets(pkmn)
+    remaining_smogon_sets = mode.smogon_sets.get_all_remaining_trait_combinations(pkmn)
     remaining_smogon_sets = get_filtered_sets(pkmn, remaining_smogon_sets)
     if remaining_smogon_sets:
         sampled_smogon_set = deepcopy(

@@ -16,7 +16,6 @@ from fp.data.sets.base import (
     DATA_DIR,
     PokemonSet,
     PokemonSets,
-    PredictedPokemonSet,
     spreads_are_alike,
 )
 from fp.format_spec import FormatSpec
@@ -251,9 +250,11 @@ class SmogonSets(PokemonSets):
         self.raw_pkmn_sets.update(pkmn_information)
         self._initialize(pkmn_information)
 
-    def get_all_remaining_sets(self, pkmn: Pokemon) -> list[PredictedPokemonSet]:
+    def get_all_remaining_trait_combinations(self, pkmn: Pokemon) -> list[PokemonSet]:
         if not self.pkmn_sets:
-            logger.warning("Called `get_all_remaining_sets` when pkmn_sets was empty")
+            logger.warning(
+                "Called `get_all_remaining_trait_combinations` when pkmn_sets was empty"
+            )
             return []
 
         remaining_sets = []
@@ -275,3 +276,10 @@ class SmogonSets(PokemonSets):
                     remaining_sets.append(pkmn_set)
 
         return remaining_sets
+
+    def move_usage_rates(self, pkmn: Pokemon) -> list[tuple[str, float]]:
+        # (move, usage_rate) pairs sorted by usage; smogon stats carry no
+        # move associations so this is the only moveset information available
+        return self.get_raw_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name).get(
+            MOVES_STRING, []
+        )

@@ -223,16 +223,10 @@ class PokemonSets(ABC):
     @abstractmethod
     def initialize(self, format_spec: FormatSpec, pkmn_names: Optional[set[str]]): ...
 
-    @abstractmethod
-    def get_all_remaining_sets(self, pkmn: Pokemon) -> list: ...
-
     def add_new_pokemon(self, pkmn_name: str):
         # by default there is nothing to learn mid-battle;
         # datasets that can incrementally learn new pokemon override this
         pass
-
-    def get_all_possible_moves(self, pkmn: Pokemon) -> list:
-        raise NotImplementedError
 
     @staticmethod
     def get_key_in_dict_from_pkmn_name(
@@ -288,3 +282,15 @@ class PokemonSets(ABC):
                 return self.raw_pkmn_sets[pkmn_non_cosmetic_name]
 
         return {}
+
+
+class FullSetDatasets(PokemonSets):
+    # datasets whose entries are complete sets: a trait combination
+    # (ability/item/nature/evs/tera) joined with a full moveset.
+    # SmogonSets is NOT one of these - smogon usage stats are marginal
+    # distributions with no move associations
+    @abstractmethod
+    def get_all_remaining_sets(self, pkmn: Pokemon) -> list[PredictedPokemonSet]: ...
+
+    @abstractmethod
+    def get_all_possible_moves(self, pkmn: Pokemon) -> list: ...
