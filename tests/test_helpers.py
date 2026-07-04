@@ -1,6 +1,6 @@
 import unittest
 
-from fp.data.pkmn_sets import spreads_are_alike
+from fp.data.sets import spreads_are_alike
 from fp.battle.helpers import get_pokemon_info_from_condition
 from fp.battle.helpers import normalize_name
 

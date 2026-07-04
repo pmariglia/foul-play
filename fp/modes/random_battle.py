@@ -7,7 +7,7 @@ from fp.battle.helpers import random_battles_evs, type_effectiveness_modifier
 from fp.battle.state import Pokemon
 from fp.config import FoulPlayConfig
 from fp.data import all_move_json
-from fp.data.pkmn_sets import RandomBattleTeamDatasets
+from fp.data.sets import RandomBattleTeamDatasets
 from fp.modes.base import (
     BattleMode,
     _switch_active_with_zoroark_from_reserves,
@@ -23,13 +23,16 @@ logger = logging.getLogger(__name__)
 class RandomBattleMode(BattleMode):
     requires_team = False
 
+    def __init__(self):
+        self.datasets = RandomBattleTeamDatasets()
+
     async def start_battle(
         self, ps_websocket_client: PSWebsocketClient, pokemon_battle_type, team_dict
     ):
         battle, msg = await self.start_battle_common(
             ps_websocket_client, pokemon_battle_type
         )
-        RandomBattleTeamDatasets.initialize(pokemon_battle_type)
+        self.datasets.initialize(battle.format_spec)
 
         while True:
             if constants.START_STRING in msg:
@@ -88,7 +91,7 @@ class RandomBattleMode(BattleMode):
         return prepare_random_battles(battle, num_battles)
 
     def get_all_remaining_sets(self, pkmn):
-        return RandomBattleTeamDatasets.get_all_remaining_sets(pkmn)
+        return self.datasets.get_all_remaining_sets(pkmn)
 
     def check_zoroark_from_move(
         self, battle, side, pkmn, move_name, split_msg, zoroark_from_reserves
@@ -99,7 +102,7 @@ class RandomBattleMode(BattleMode):
         if (
             is_opponent(battle, split_msg)
             and "transform" not in pkmn.volatile_statuses
-            and move_name not in RandomBattleTeamDatasets.get_all_possible_moves(pkmn)
+            and move_name not in self.datasets.get_all_possible_moves(pkmn)
             and "from" not in split_msg[-1]
         ):
             actual_zoroark = None
@@ -108,34 +111,26 @@ class RandomBattleMode(BattleMode):
             if (
                 zoroark_from_reserves is not None
                 and move_name
-                in RandomBattleTeamDatasets.get_all_possible_moves(
-                    zoroark_from_reserves
-                )
+                in self.datasets.get_all_possible_moves(zoroark_from_reserves)
             ):
                 actual_zoroark = zoroark_from_reserves
 
             elif (
                 battle.gen.has_team_preview
                 and zoroark_from_reserves is None
-                and move_name
-                in RandomBattleTeamDatasets.get_all_possible_moves(zoroark_hisui)
+                and move_name in self.datasets.get_all_possible_moves(zoroark_hisui)
             ):
                 actual_zoroark = zoroark_hisui
-                actual_zoroark.level = RandomBattleTeamDatasets.predict_set(
-                    actual_zoroark
-                ).pkmn_set.level
+                actual_zoroark.level = self.datasets.predicted_level(actual_zoroark)
                 side.reserve.append(actual_zoroark)
 
             elif (
                 battle.gen.has_team_preview
                 and zoroark_from_reserves is None
-                and move_name
-                in RandomBattleTeamDatasets.get_all_possible_moves(zoroark_regular)
+                and move_name in self.datasets.get_all_possible_moves(zoroark_regular)
             ):
                 actual_zoroark = zoroark_regular
-                actual_zoroark.level = RandomBattleTeamDatasets.predict_set(
-                    actual_zoroark
-                ).pkmn_set.level
+                actual_zoroark.level = self.datasets.predicted_level(actual_zoroark)
                 side.reserve.append(actual_zoroark)
 
             if actual_zoroark is not None:
@@ -177,12 +172,10 @@ class RandomBattleMode(BattleMode):
                 zoroark_hisui.types,
             )
             == 0
-            and zoroark_hisui.name in RandomBattleTeamDatasets.pkmn_sets
+            and zoroark_hisui.name in self.datasets.pkmn_sets
         ):
             actual_zoroark = zoroark_hisui
-            actual_zoroark.level = RandomBattleTeamDatasets.predict_set(
-                actual_zoroark
-            ).pkmn_set.level
+            actual_zoroark.level = self.datasets.predicted_level(actual_zoroark)
             side.reserve.append(actual_zoroark)
 
         # regular zoroark
@@ -193,12 +186,10 @@ class RandomBattleMode(BattleMode):
                 zoroark_regular.types,
             )
             == 0
-            and zoroark_regular.name in RandomBattleTeamDatasets.pkmn_sets
+            and zoroark_regular.name in self.datasets.pkmn_sets
         ):
             actual_zoroark = zoroark_regular
-            actual_zoroark.level = RandomBattleTeamDatasets.predict_set(
-                actual_zoroark
-            ).pkmn_set.level
+            actual_zoroark.level = self.datasets.predicted_level(actual_zoroark)
             side.reserve.append(actual_zoroark)
 
         # if we found a zoroark from one of those branches
@@ -219,7 +210,7 @@ class RandomBattleMode(BattleMode):
         )  # random battles have known spreads
 
     def dataset_possibilities(self, battle):
-        possibilites = RandomBattleTeamDatasets.get_pkmn_sets_from_pkmn_name(
+        possibilites = self.datasets.get_pkmn_sets_from_pkmn_name(
             battle.opponent.active
         )
         return possibilites, None, False

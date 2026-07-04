@@ -7,13 +7,11 @@ from fp.data import all_move_json, pokedex
 from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import natures, normalize_name
 from fp.battle.state import Pokemon, Battle, Battler
-from fp.data.pkmn_sets import (
-    SmogonSets,
+from fp.data.sets import (
+    MOVES_STRING,
+    PokemonMoveset,
     PokemonSet,
     PredictedPokemonSet,
-    PokemonMoveset,
-    MOVES_STRING,
-    TeamDatasets,
     RAW_COUNT,
     TEAMMATES,
 )
@@ -211,7 +209,9 @@ def get_filtered_sets(
     return filtered_sets
 
 
-def sample_pokemon_moveset_with_known_pkmn_set(pkmn: Pokemon, pkmn_set: PokemonSet):
+def sample_pokemon_moveset_with_known_pkmn_set(
+    pkmn: Pokemon, pkmn_set: PokemonSet, mode
+):
     pkmn_known_moves = [m.name for m in pkmn.moves]
     num_known_moves = len(pkmn_known_moves)
     if num_known_moves >= 4:
@@ -219,7 +219,9 @@ def sample_pokemon_moveset_with_known_pkmn_set(pkmn: Pokemon, pkmn_set: PokemonS
 
     # 1: Use TeamDatasets' movesets to sample a moveset, if possible
     remaining_team_movesets = []
-    for pkmn_moveset in TeamDatasets.get_all_possible_move_combinations(pkmn, pkmn_set):
+    for pkmn_moveset in mode.team_datasets.get_all_possible_move_combinations(
+        pkmn, pkmn_set
+    ):
         if not smogon_set_makes_sense(
             PredictedPokemonSet(
                 pkmn_set=pkmn_set,
@@ -253,7 +255,7 @@ def sample_pokemon_moveset_with_known_pkmn_set(pkmn: Pokemon, pkmn_set: PokemonS
     # 2: Use SmogonSets to sample a moveset
     smogon_moves = [
         m
-        for m in SmogonSets.get_raw_pkmn_sets_from_pkmn_name(
+        for m in mode.smogon_sets.get_raw_pkmn_sets_from_pkmn_name(
             pkmn.name, pkmn.base_name
         ).get(constants.MOVES, [])
         if m[0] not in pkmn_known_moves
@@ -284,7 +286,7 @@ def sample_pokemon_moveset_with_known_pkmn_set(pkmn: Pokemon, pkmn_set: PokemonS
     return pkmn_known_moves
 
 
-def set_most_likely_hidden_power(pkmn: Pokemon):
+def set_most_likely_hidden_power(pkmn: Pokemon, mode):
     # hidden power type isn't revealed so if the pokemon used hiddenpower it should
     # be replaced by the most likely hiddenpower that is still possible
     if pkmn.get_move(constants.HIDDEN_POWER) is not None:
@@ -292,7 +294,7 @@ def set_most_likely_hidden_power(pkmn: Pokemon):
             f"{constants.HIDDEN_POWER}{p}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
             for p in pkmn.hidden_power_possibilities
         ]
-        for mv, _count in SmogonSets.get_raw_pkmn_sets_from_pkmn_name(
+        for mv, _count in mode.smogon_sets.get_raw_pkmn_sets_from_pkmn_name(
             pkmn.name, pkmn.base_name
         )[MOVES_STRING]:
             if mv in hidden_power_possibilities:
@@ -311,30 +313,30 @@ def pokemon_guaranteed_move(pkmn: Pokemon):
             pkmn.add_move(required_move)
 
 
-def sample_pokemon(pkmn: Pokemon):
+def sample_pokemon(pkmn: Pokemon, mode):
     if not pkmn.mega_name:
-        _sample_pokemon(pkmn)
+        _sample_pokemon(pkmn, mode)
         return
 
     # the ability of a mega pokemon that has not yet mega-evolved
     # needs to be sampled from its non-mega version
     pkmn_without_mega = deepcopy(pkmn)
     pkmn_without_mega.mega_name = None
-    _sample_pokemon(pkmn_without_mega)
+    _sample_pokemon(pkmn_without_mega, mode)
     pkmn.ability = pkmn_without_mega.ability
-    _sample_pokemon(pkmn)
+    _sample_pokemon(pkmn, mode)
 
 
-def _sample_pokemon(pkmn: Pokemon):
+def _sample_pokemon(pkmn: Pokemon, mode):
     pokemon_guaranteed_move(pkmn)
-    set_most_likely_hidden_power(pkmn)
+    set_most_likely_hidden_power(pkmn, mode)
 
     # 1: TeamDatasets is not emptied and `get_all_remaining_sets` returned at least one set
     # Note: TeamDatasets are not sampled according to their counts
     # because the counts are not indicative of the actual distribution of sets
     # Skip this step an amount of the time to get some variety
     # if at least 1 move is known
-    remaining_team_sets = TeamDatasets.get_all_remaining_sets(pkmn)
+    remaining_team_sets = mode.team_datasets.get_all_remaining_sets(pkmn)
     if remaining_team_sets and (not pkmn.moves or random.random() < 0.75):
         sampled_set = deepcopy(random.choice(remaining_team_sets))
         populate_pkmn_from_set(pkmn, sampled_set, source="teamdatasets-full")
@@ -344,12 +346,12 @@ def _sample_pokemon(pkmn: Pokemon):
     # but `get_all_remaining_sets` returned no sets because the accompanying movesets are invalid
     remaining_team_sets = [
         s
-        for s in TeamDatasets.get_pkmn_sets_from_pkmn_name(pkmn)
+        for s in mode.team_datasets.get_pkmn_sets_from_pkmn_name(pkmn)
         if s.pkmn_set.set_makes_sense(pkmn) and smogon_set_makes_sense(s)
     ]
     if remaining_team_sets:
         sampled_set = deepcopy(random.choice(remaining_team_sets).pkmn_set)
-        moves = sample_pokemon_moveset_with_known_pkmn_set(pkmn, sampled_set)
+        moves = sample_pokemon_moveset_with_known_pkmn_set(pkmn, sampled_set, mode)
         sampled_set = PredictedPokemonSet(
             pkmn_set=sampled_set,
             pkmn_moveset=PokemonMoveset(moves=moves),
@@ -359,7 +361,7 @@ def _sample_pokemon(pkmn: Pokemon):
 
     # 3: Try to sample from SmogonSets including moves
     # Sample a SmogonSet and then repeat the same process as in 2 to get a moveset
-    remaining_smogon_sets = SmogonSets.get_all_remaining_sets(pkmn)
+    remaining_smogon_sets = mode.smogon_sets.get_all_remaining_sets(pkmn)
     remaining_smogon_sets = get_filtered_sets(pkmn, remaining_smogon_sets)
     if remaining_smogon_sets:
         sampled_smogon_set = deepcopy(
@@ -368,7 +370,9 @@ def _sample_pokemon(pkmn: Pokemon):
                 weights=[s.count for s in remaining_smogon_sets],
             )[0]
         )
-        moves = sample_pokemon_moveset_with_known_pkmn_set(pkmn, sampled_smogon_set)
+        moves = sample_pokemon_moveset_with_known_pkmn_set(
+            pkmn, sampled_smogon_set, mode
+        )
         sampled_set = PredictedPokemonSet(
             pkmn_set=sampled_smogon_set,
             pkmn_moveset=PokemonMoveset(moves=moves),
@@ -406,7 +410,7 @@ def predict_team_likelihood(revealed_pokemon, all_pkmn_counts):
     return sorted_likelihoods
 
 
-def sample_standardbattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
+def sample_standardbattle_pokemon(existing_pokemon: list[Pokemon], mode) -> Pokemon:
     existing_pokemon_names = {pkmn.name for pkmn in existing_pokemon}
     selected_pkmn_name = ""
     ok = False
@@ -414,7 +418,7 @@ def sample_standardbattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
         ok = True
         sample_weights = predict_team_likelihood(
             existing_pokemon_names,
-            SmogonSets.all_pkmn_counts,
+            mode.smogon_sets.all_pkmn_counts,
         )
         keys = list(sample_weights.keys())[:50]
         values = list(sample_weights.values())[:50]
@@ -423,7 +427,7 @@ def sample_standardbattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
             ok = False
 
     pkmn = Pokemon(selected_pkmn_name, 100)
-    sample_pokemon(pkmn)
+    sample_pokemon(pkmn, mode)
     return pkmn
 
 
@@ -443,7 +447,7 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
 
     logger.info("Sampling {} unrevealed pokemon".format(6 - num_revealed_pkmn))
     while num_revealed_pkmn < 6:
-        pkmn = sample_standardbattle_pokemon(existing_pkmn)
+        pkmn = sample_standardbattle_pokemon(existing_pkmn, battle.mode)
         existing_pkmn.append(pkmn)
         battle.opponent.reserve.append(pkmn)
         num_revealed_pkmn += 1
@@ -482,9 +486,9 @@ def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
         if battle_copy.mega_evolve_possible():
             sample_mega_evolution(battle_copy.opponent, index)
 
-        sample_pokemon(battle_copy.opponent.active)
+        sample_pokemon(battle_copy.opponent.active, battle.mode)
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):
-            sample_pokemon(pkmn)
+            sample_pokemon(pkmn, battle.mode)
 
         if not battle.gen.has_team_preview:
             populate_standardbattle_unrevealed_pkmn(battle_copy)

@@ -5,7 +5,8 @@ from fp.battle.inference import is_opponent
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
 from fp.config import FoulPlayConfig
-from fp.data.pkmn_sets import SmogonSets, TeamDatasets
+from fp.data.sets import SmogonSets, TeamDatasets
+from fp.format_spec import FormatSpec
 from fp.modes.base import (
     BattleMode,
     _switch_active_with_zoroark_from_reserves,
@@ -21,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 class StandardBattleMode(BattleMode):
     requires_team = True
+
+    def __init__(self):
+        self.team_datasets = TeamDatasets()
+        self.smogon_sets = SmogonSets()
 
     async def start_battle(
         self, ps_websocket_client: PSWebsocketClient, pokemon_battle_type, team_dict
@@ -53,10 +58,13 @@ class StandardBattleMode(BattleMode):
             unique_pkmn_names = set(
                 [p.name for p in battle.user.reserve] + [battle.user.active.name]
             )
-            SmogonSets.initialize(
-                FoulPlayConfig.smogon_stats or pokemon_battle_type, unique_pkmn_names
+            self.smogon_sets.initialize(
+                FormatSpec.from_format_string(
+                    FoulPlayConfig.smogon_stats or pokemon_battle_type
+                ),
+                unique_pkmn_names,
             )
-            TeamDatasets.initialize(pokemon_battle_type, unique_pkmn_names)
+            self.team_datasets.initialize(battle.format_spec, unique_pkmn_names)
 
             # apply the messages that were held onto
             process_battle_updates(battle)
@@ -103,18 +111,23 @@ class StandardBattleMode(BattleMode):
     def initialize_team_preview_datasets(
         self, pokemon_battle_type, unique_pkmn_names, msg
     ):
-        SmogonSets.initialize(
-            FoulPlayConfig.smogon_stats or pokemon_battle_type, unique_pkmn_names
+        self.smogon_sets.initialize(
+            FormatSpec.from_format_string(
+                FoulPlayConfig.smogon_stats or pokemon_battle_type
+            ),
+            unique_pkmn_names,
         )
-        TeamDatasets.initialize(pokemon_battle_type, unique_pkmn_names)
+        self.team_datasets.initialize(
+            FormatSpec.from_format_string(pokemon_battle_type), unique_pkmn_names
+        )
 
     def add_revealed_pokemon(self, battle, pkmn):
         # for standard battles gen4 and lower
         # we want to add the new pokemon to the datasets as they are revealed
         # because there is no teampreview
         if not battle.gen.has_team_preview:
-            SmogonSets.add_new_pokemon(pkmn.name)
-            TeamDatasets.add_new_pokemon(pkmn.name)
+            self.smogon_sets.add_new_pokemon(pkmn.name)
+            self.team_datasets.add_new_pokemon(pkmn.name)
             logger.info("Adding new pokemon '{}' to the datasets".format(pkmn.name))
 
     def search_params(self, battle):
@@ -147,8 +160,9 @@ class StandardBattleMode(BattleMode):
             is_opponent(battle, split_msg)
             and zoroark_from_reserves is not None
             and "transform" not in pkmn.volatile_statuses
-            and move_name not in TeamDatasets.get_all_possible_moves(pkmn)
-            and move_name in TeamDatasets.get_all_possible_moves(zoroark_from_reserves)
+            and move_name not in self.team_datasets.get_all_possible_moves(pkmn)
+            and move_name
+            in self.team_datasets.get_all_possible_moves(zoroark_from_reserves)
             and "from" not in split_msg[-1]
         ):
             logger.info(
@@ -174,8 +188,10 @@ class StandardBattleMode(BattleMode):
             )  # assume as fast as possible
 
     def dataset_possibilities(self, battle):
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
-        smogon_possibilities = SmogonSets.get_pkmn_sets_from_pkmn_name(
+        possibilites = self.team_datasets.get_pkmn_sets_from_pkmn_name(
+            battle.opponent.active
+        )
+        smogon_possibilities = self.smogon_sets.get_pkmn_sets_from_pkmn_name(
             battle.opponent.active
         )
         return possibilites, smogon_possibilities, True

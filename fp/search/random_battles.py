@@ -4,7 +4,6 @@ from copy import deepcopy
 
 from fp.data import pokedex
 from fp.battle.state import Battle, Pokemon
-from fp.data.pkmn_sets import RandomBattleTeamDatasets
 from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import (
     POKEMON_TYPE_INDICES,
@@ -64,7 +63,7 @@ def prepare_random_battles(battle: Battle, num_battles: int) -> list[(Battle, fl
     return sampled_battles
 
 
-def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
+def sample_randombattle_pokemon(existing_pokemon: list[Pokemon], datasets) -> Pokemon:
     def is_mega(pkmn: Pokemon):
         if normalize_name(pokedex.get(pkmn.name, {}).get("forme", "")).startswith(
             "mega"
@@ -84,9 +83,7 @@ def sample_randombattle_pokemon(existing_pokemon: list[Pokemon]) -> Pokemon:
     while not ok:
         sample_count += 1
         ok = True
-        pkmn_name, pkmn_sets = random.choice(
-            list(RandomBattleTeamDatasets.pkmn_sets.items())
-        )
+        pkmn_name, pkmn_sets = random.choice(list(datasets.pkmn_sets.items()))
         pkmn_full_set = random.choice(pkmn_sets)
         pkmn = Pokemon(pkmn_name, pkmn_full_set.pkmn_set.level)
         if pkmn_name in existing_pokemon_names:
@@ -180,7 +177,7 @@ def populate_randombattle_unrevealed_pkmn(battle: Battle):
 
     logger.info("Sampling {} unrevealed pokemon".format(6 - num_revealed_pkmn))
     while num_revealed_pkmn < 6:
-        pkmn = sample_randombattle_pokemon(existing_pkmn)
+        pkmn = sample_randombattle_pokemon(existing_pkmn, battle.mode.datasets)
         existing_pkmn.append(pkmn)
         battle.opponent.reserve.append(pkmn)
         num_revealed_pkmn += 1

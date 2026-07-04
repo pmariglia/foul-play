@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 class BattleMode:
     requires_team: bool
 
+    def __deepcopy__(self, memo):
+        # battle copies share the mode (and its datasets), matching the
+        # behaviour of the module-level singletons this replaced
+        return self
+
     async def start_battle(
         self, ps_websocket_client: PSWebsocketClient, pokemon_battle_type, team_dict
     ) -> Battle:

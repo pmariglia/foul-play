@@ -4,7 +4,7 @@ import logging
 from fp import constants
 from fp.data import all_move_json
 from fp.data import pokedex
-from fp.data.pkmn_sets import (
+from fp.data.sets import (
     PredictedPokemonSet,
 )
 from fp.battle.state import DamageDealt

@@ -3,7 +3,8 @@ import logging
 from fp import constants
 from fp.battle.helpers import normalize_name, type_effectiveness_modifier
 from fp.data import all_move_json
-from fp.data.pkmn_sets import TeamDatasets
+from fp.data.sets import BattleFactoryTeamDatasets
+from fp.format_spec import FormatSpec
 from fp.modes.base import _switch_active_with_zoroark_from_reserves
 from fp.modes.standard_battle import StandardBattleMode
 from fp.search.random_battles import prepare_random_battles
@@ -22,15 +23,19 @@ def extract_battle_factory_tier_from_msg(msg):
 class BattleFactoryMode(StandardBattleMode):
     requires_team = False
 
+    def __init__(self):
+        super().__init__()
+        # constructed once the tier is revealed during team preview
+        self.team_datasets = None
+
     def initialize_team_preview_datasets(
         self, pokemon_battle_type, unique_pkmn_names, msg
     ):
         tier_name = extract_battle_factory_tier_from_msg(msg)
         logger.info("Battle Factory Tier: {}".format(tier_name))
-        TeamDatasets.initialize(
-            pokemon_battle_type,
-            unique_pkmn_names,
-            battle_factory_tier_name=tier_name,
+        self.team_datasets = BattleFactoryTeamDatasets(tier_name)
+        self.team_datasets.initialize(
+            FormatSpec.from_format_string(pokemon_battle_type), unique_pkmn_names
         )
 
     def add_revealed_pokemon(self, battle, pkmn):
@@ -41,7 +46,7 @@ class BattleFactoryMode(StandardBattleMode):
         return prepare_random_battles(battle, num_battles)
 
     def get_all_remaining_sets(self, pkmn):
-        return TeamDatasets.get_all_remaining_sets(pkmn)
+        return self.team_datasets.get_all_remaining_sets(pkmn)
 
     def check_zoroark_from_immune(self, battle, side, pkmn, zoroark_from_reserves):
         # Battle Factory: Zoroark must be in the reserves
@@ -64,5 +69,7 @@ class BattleFactoryMode(StandardBattleMode):
             _switch_active_with_zoroark_from_reserves(side, zoroark_from_reserves)
 
     def dataset_possibilities(self, battle):
-        possibilites = TeamDatasets.get_pkmn_sets_from_pkmn_name(battle.opponent.active)
+        possibilites = self.team_datasets.get_pkmn_sets_from_pkmn_name(
+            battle.opponent.active
+        )
         return possibilites, None, False
