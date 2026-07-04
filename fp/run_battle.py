@@ -150,7 +150,7 @@ async def start_battle_common(
     battle = Battle(battle_tag)
     battle.opponent.account_name = opponent_name
     battle.pokemon_format = pokemon_battle_type
-    battle.generation = battle.format_spec.gen_string
+    battle.generation = battle.format_spec.generation
     battle.battle_type = battle.format_spec.battle_type
 
     # wait until the opponent's identifier is received. This will be `p1` or `p2`.
@@ -220,7 +220,7 @@ async def start_standard_battle(
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
     battle.user.team_dict = team_dict
 
-    if battle.generation in constants.NO_TEAM_PREVIEW_GENS:
+    if not battle.gen.has_team_preview:
         while True:
             if constants.START_STRING in msg:
                 battle.started = True

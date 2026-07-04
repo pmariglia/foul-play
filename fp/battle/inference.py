@@ -254,16 +254,10 @@ def check_speed_ranges(battle, msg_lines):
         speed_threshold = int(speed_threshold * 2)
 
     if battle.opponent.active.status == constants.PARALYZED:
-        if battle.generation in ["gen4", "gen5", "gen6"]:
-            speed_threshold = int(speed_threshold * 4)
-        else:
-            speed_threshold = int(speed_threshold * 2)
+        speed_threshold = int(speed_threshold * battle.gen.paralysis_speed_divisor)
 
     if battle.user.active.status == constants.PARALYZED:
-        if battle.generation in ["gen4", "gen5", "gen6"]:
-            speed_threshold = int(speed_threshold / 4)
-        else:
-            speed_threshold = int(speed_threshold / 2)
+        speed_threshold = int(speed_threshold / battle.gen.paralysis_speed_divisor)
 
     if battle.user.active.item == "choicescarf":
         speed_threshold = int(speed_threshold * 1.5)
@@ -358,7 +352,7 @@ def check_opponent_hiddenpower(battle, msg_line):
 def check_choicescarf(battle, msg_lines):
     # If either side switched this turn - don't do this check
     if any(
-        battle.generation in ["gen1", "gen2", "gen3"]
+        not battle.gen.choice_scarf_exists
         or ln.startswith("|switch|")
         or ln.startswith("|cant|")
         or (ln.startswith("|-activate|") and ln.endswith("confusion"))
@@ -573,7 +567,7 @@ def update_dataset_possibilities(
 ):
     if (
         battle.wait
-        or battle.generation in {"gen1", "gen2"}
+        or not battle.gen.supports_reverse_damage_checking
         or battle.opponent.active is None
         or battle.opponent.active.hp <= 0
         or battle.opponent.active.name
@@ -683,7 +677,7 @@ def check_heavydutyboots(battle, msg_lines):
     side_to_check = battle.opponent
 
     if (
-        battle.generation not in ["gen8", "gen9"]
+        not battle.gen.heavy_duty_boots_exists
         or side_to_check.active.item != constants.UNKNOWN_ITEM
         or "magicguard"
         in [

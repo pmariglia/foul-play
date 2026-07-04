@@ -70,6 +70,7 @@ from fp.battle.protocol import inactive
 class TestRequestMessage(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.active = Pokemon("pikachu", 100)
         self.request_json = {
             "active": [
@@ -262,6 +263,7 @@ class TestRequestMessage(unittest.TestCase):
 class TestSwitchOrDrag(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
         self.battle.user.active = Pokemon("pikachu", 100)
@@ -935,6 +937,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 class TestHealOrDamage(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1191,6 +1194,7 @@ class TestHealOrDamage(unittest.TestCase):
 class TestActivate(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1325,6 +1329,7 @@ class TestActivate(unittest.TestCase):
 class TestPrepare(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1348,6 +1353,7 @@ class TestPrepare(unittest.TestCase):
 class TestClearAllBoosts(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -1389,6 +1395,7 @@ class TestClearAllBoosts(unittest.TestCase):
 class TestMove(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2139,6 +2146,7 @@ class TestMove(unittest.TestCase):
 class TestTrickRoom(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2174,6 +2182,7 @@ class TestTrickRoom(unittest.TestCase):
 class TestWeather(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2430,6 +2439,7 @@ class TestWeather(unittest.TestCase):
 class TestSetBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2474,6 +2484,7 @@ class TestSetBoost(unittest.TestCase):
 class TestBoostAndUnboost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2564,6 +2575,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 class TestStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2637,6 +2649,7 @@ class TestStatus(unittest.TestCase):
 class TestCureStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2692,6 +2705,7 @@ class TestCureStatus(unittest.TestCase):
 class TestStartFutureSight(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2718,6 +2732,7 @@ class TestStartFutureSight(unittest.TestCase):
 class TestSetItem(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -2799,6 +2814,7 @@ class TestSetItem(unittest.TestCase):
 class TestStartVolatileStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3037,6 +3053,7 @@ class TestStartVolatileStatus(unittest.TestCase):
 class TestEndVolatileStatus(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3193,6 +3210,7 @@ class TestEndVolatileStatus(unittest.TestCase):
 class TestUpdateAbility(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3327,6 +3345,7 @@ class TestUpdateAbility(unittest.TestCase):
 class TestSwapSideConditions(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3422,6 +3441,7 @@ class TestSwapSideConditions(unittest.TestCase):
 class TestIllusionEnd(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3597,6 +3617,7 @@ class TestIllusionEnd(unittest.TestCase):
 class TestFail(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3623,6 +3644,7 @@ class TestFail(unittest.TestCase):
 class TestFormChange(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3753,6 +3775,7 @@ class TestFormChange(unittest.TestCase):
 class TestClearNegativeBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3809,6 +3832,7 @@ class TestClearNegativeBoost(unittest.TestCase):
 class TestClearBoost(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3844,6 +3868,7 @@ class TestClearBoost(unittest.TestCase):
 class TestZPower(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3876,6 +3901,7 @@ class TestZPower(unittest.TestCase):
 class TestSideStart(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3938,6 +3964,7 @@ class TestSideStart(unittest.TestCase):
 class TestSingleTurn(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -3986,6 +4013,7 @@ class TestSingleTurn(unittest.TestCase):
 class TestTransform(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4216,6 +4244,7 @@ class TestTransform(unittest.TestCase):
 class TestCant(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4277,6 +4306,7 @@ class TestCant(unittest.TestCase):
 class TestUpkeep(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -4511,6 +4541,7 @@ class TestUpkeep(unittest.TestCase):
 class TestCheckSpeedRanges(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -5131,6 +5162,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 class TestGuessChoiceScarf(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -5633,6 +5665,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 class TestCheckHeavyDutyBoots(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6076,6 +6109,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 class TestRemoveItem(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6116,6 +6150,7 @@ class TestRemoveItem(unittest.TestCase):
 class TestImmune(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6522,6 +6557,7 @@ class TestImmune(unittest.TestCase):
 class TestInactive(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6573,6 +6609,7 @@ class TestInactive(unittest.TestCase):
 class TestInactiveOff(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
@@ -6618,6 +6655,7 @@ class TestInactiveOff(unittest.TestCase):
 class TestGetDamageDealt(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
 
         self.battle.user.name = "p1"
         self.battle.user.active = Pokemon("Caterpie", 100)
@@ -6978,6 +7016,7 @@ class TestGetDamageDealt(unittest.TestCase):
 class TestNoInit(unittest.TestCase):
     def setUp(self):
         self.battle = Battle(None)
+        self.battle.generation = "gen9"
 
         self.battle.user.name = "p1"
         self.battle.user.active = Pokemon("Caterpie", 100)

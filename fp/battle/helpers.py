@@ -1,6 +1,6 @@
 import math
 from fp import constants
-from fp.config import FoulPlayConfig
+from fp.generations import StatCalculation, current_generation_mechanics
 
 natures = {
     "lonely": {"plus": constants.ATTACK, "minus": constants.DEFENSE},
@@ -32,17 +32,11 @@ natures = {
 
 
 def random_battles_evs() -> tuple[int, int, int, int, int, int]:
-    if FoulPlayConfig.format_spec.champions:
-        return (11,) * 6
-    else:
-        return (85,) * 6
+    return current_generation_mechanics().randombattle_evs
 
 
 def maximum_ev() -> int:
-    if FoulPlayConfig.format_spec.champions:
-        return 32
-    else:
-        return 252
+    return current_generation_mechanics().max_ev
 
 
 def champions_stat_point_to_effective_ev(stat_point: int) -> int:
@@ -181,9 +175,10 @@ def _calculate_stats(base_stats, level, ivs, evs, nature):
 
 
 def calculate_stats(base_stats, level, ivs=(31,) * 6, evs=(85,) * 6, nature="serious"):
-    if FoulPlayConfig.format_spec.gen_number in (1, 2):
+    stat_calculation = current_generation_mechanics().stat_calculation
+    if stat_calculation is StatCalculation.GEN_1_2:
         return _calculate_stats_gen_1_2(base_stats, level)
-    elif FoulPlayConfig.format_spec.champions:
+    elif stat_calculation is StatCalculation.CHAMPIONS:
         evs = [champions_stat_point_to_effective_ev(ev) for ev in evs]
         return _calculate_stats(base_stats, level, ivs, evs, nature)
     else:

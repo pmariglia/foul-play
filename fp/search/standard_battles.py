@@ -486,7 +486,7 @@ def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):
             sample_pokemon(pkmn)
 
-        if battle.generation in constants.NO_TEAM_PREVIEW_GENS:
+        if not battle.gen.has_team_preview:
             populate_standardbattle_unrevealed_pkmn(battle_copy)
         battle_copy.opponent.lock_moves()
         sampled_battles.append((battle_copy, 1 / num_battles))

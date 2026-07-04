@@ -7,8 +7,6 @@ class BattleType(StrEnum):
     RANDOM_BATTLE = "random_battle"
 
 
-NO_TEAM_PREVIEW_GENS = {"gen1", "gen2", "gen3", "gen4"}
-
 START_STRING = "|start"
 RQID = "rqid"
 TEAM_PREVIEW_POKE = "poke"
@@ -62,7 +60,6 @@ DETAILS = "details"
 IDENT = "ident"
 TERA_TYPE = "teraType"
 
-MEGA_EVOLVE_GENERATIONS = ["gen6", "gen7"]
 CAN_MEGA_EVO = "canMegaEvo"
 CAN_ULTRA_BURST = "canUltraBurst"
 CAN_DYNAMAX = "canDynamax"
@@ -205,8 +202,6 @@ YAWN = "yawn"
 PARTIALLY_TRAPPED = "partiallytrapped"
 
 PROTECT_VOLATILE_STATUSES = [PROTECT, BANEFUL_BUNKER, SPIKY_SHIELD, SILK_TRAP, ENDURE]
-
-TAUNT_DURATION_INCREMENT_END_OF_TURN = {"gen3", "gen4"}
 
 # non-volatile statuses
 SLEEP = "slp"

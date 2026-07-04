@@ -4,7 +4,6 @@ from collections import namedtuple
 from fp import constants
 import logging
 
-from fp.config import FoulPlayConfig
 from fp.data import all_move_json
 from fp.data import pokedex
 
@@ -16,6 +15,11 @@ from fp.battle.helpers import (
 from fp.battle.helpers import normalize_name
 from fp.battle.helpers import calculate_stats
 from fp.format_spec import FormatSpec
+from fp.generations import (
+    GenerationMechanics,
+    current_generation_mechanics,
+    generation_mechanics,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -98,6 +102,10 @@ class Battle:
     def format_spec(self) -> FormatSpec:
         return FormatSpec.from_format_string(self.pokemon_format)
 
+    @property
+    def gen(self) -> GenerationMechanics:
+        return generation_mechanics(self.generation)
+
     def initialize_team_preview(self, opponent_pokemon, battle_type):
         self.user.reserve.insert(0, self.user.active)
         self.user.active = None
@@ -134,11 +142,7 @@ class Battle:
         self.rqid = user_json[constants.RQID]
 
     def mega_evolve_possible(self):
-        return (
-            self.format_spec.gen_string in constants.MEGA_EVOLVE_GENERATIONS
-            or self.format_spec.national_dex
-            or self.format_spec.champions
-        )
+        return self.gen.megas_exist or self.format_spec.national_dex
 
     def get_effective_speed(self, battler):
         boosted_speed = battler.active.calculate_boosted_stats()[constants.SPEED]
@@ -781,10 +785,8 @@ class Move:
 
         if move_json[constants.PP] == 1:
             self.max_pp = 1
-        elif FoulPlayConfig.format_spec.champions:
-            self.max_pp = int(int(move_json[constants.PP] / 5 + 1) * 4)
         else:
-            self.max_pp = int(move_json.get(constants.PP) * 1.6)
+            self.max_pp = current_generation_mechanics().max_pp(move_json[constants.PP])
 
         self.disabled = False
         self.can_z = False

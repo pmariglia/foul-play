@@ -249,7 +249,10 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 switch_keep_volatiles.append(constants.SUBSTITUTE)
 
         # gen5 rest turns are reset upon switching
-        if battle.generation == "gen5" and side.active.status == constants.SLEEP:
+        if (
+            battle.gen.rest_turns_reset_on_switch
+            and side.active.status == constants.SLEEP
+        ):
             if side.active.rest_turns != 0:
                 logger.info(
                     "{} switched while asleep and with non-zero rest turns, resetting rest turns to 3".format(
@@ -266,7 +269,10 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 side.active.sleep_turns = 0
 
         # gen3 rest turns are decremented by the number of consecutive sleep talks
-        if battle.generation == "gen3" and side.active.status == constants.SLEEP:
+        if (
+            battle.gen.tracks_consecutive_sleep_talks
+            and side.active.status == constants.SLEEP
+        ):
             if side.active.rest_turns != 0:
                 side.active.rest_turns += side.active.gen_3_consecutive_sleep_talks
                 logger.info(
@@ -302,7 +308,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
         # if the side is alive and has regenerator, give it back 1/3 of it's maxhp
         if (
-            not battle.format_spec.champions
+            battle.gen.regenerator_heals_on_switch_out
             and side.active.hp > 0
             and not side.active.fainted
             and side.active.ability == "regenerator"
@@ -351,7 +357,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         # because there is no teampreview
         if (
             battle.battle_type == BattleType.STANDARD_BATTLE
-            and battle.generation in constants.NO_TEAM_PREVIEW_GENS
+            and not battle.gen.has_team_preview
         ):
             SmogonSets.add_new_pokemon(pkmn.name)
             TeamDatasets.add_new_pokemon(pkmn.name)
@@ -388,7 +394,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 for a in pokedex[pkmn.name][constants.ABILITIES].values()
             ]
             and pkmn.ability is None
-            and not battle.format_spec.champions
+            and battle.gen.regenerator_heals_on_switch_out
         ):
             logger.info(
                 "{} switched out with {}% HP but now has {}% HP, setting its ability to regenerator".format(
@@ -422,7 +428,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         battle.user.re_initialize_active_pokemon_from_request_json(battle.request_json)
 
     for ability in ABILITIES_REVEALED_ON_SWITCH_IN:
-        if battle.generation == "gen3" and ability == "pressure":
+        if not battle.gen.pressure_revealed_on_switch_in and ability == "pressure":
             # gen3 pressure is not revealed on switch-in
             continue
 
@@ -598,7 +604,7 @@ def heal_or_damage(battle, split_msg):
 
     # gen 1 if you are trapping the opponent and hit yourself in confusion, the opponent is released
     if (
-        battle.generation == "gen1"
+        battle.gen.partial_trapping_mechanics
         and split_msg[-1] == "[from] confusion"
         and (
             constants.PARTIALLY_TRAPPED in other_side.active.volatile_statuses
@@ -700,7 +706,7 @@ def move(battle, split_msg):
             actual_zoroark = zoroark_from_reserves
 
         elif (
-            battle.generation not in constants.NO_TEAM_PREVIEW_GENS
+            battle.gen.has_team_preview
             and zoroark_from_reserves is None
             and move_name
             in RandomBattleTeamDatasets.get_all_possible_moves(zoroark_hisui)
@@ -712,7 +718,7 @@ def move(battle, split_msg):
             side.reserve.append(actual_zoroark)
 
         elif (
-            battle.generation not in constants.NO_TEAM_PREVIEW_GENS
+            battle.gen.has_team_preview
             and zoroark_from_reserves is None
             and move_name
             in RandomBattleTeamDatasets.get_all_possible_moves(zoroark_regular)
@@ -736,7 +742,7 @@ def move(battle, split_msg):
 
     if (
         any(msg == "[from]Sleep Talk" for msg in split_msg)
-        and battle.generation == "gen3"
+        and battle.gen.tracks_consecutive_sleep_talks
     ):
         pkmn.gen_3_consecutive_sleep_talks += 1
         logger.info(
@@ -752,7 +758,7 @@ def move(battle, split_msg):
     # e.g. |move|p1a: Dragonite|Wrap|p2a: Tauros|
     # does not activate on a miss: |move|p1a: Dragonite|Wrap|p2a: Tauros|[miss]
     if (
-        battle.generation == "gen1"
+        battle.gen.partial_trapping_mechanics
         and all_move_json.get(move_name, {}).get(constants.VOLATILE_STATUS)
         == constants.PARTIALLY_TRAPPED
         and not any(msg == "[miss]" for msg in split_msg)
@@ -767,7 +773,7 @@ def move(battle, split_msg):
         )
 
     # in gen1 if you just moved, you are released from partially trapped
-    if battle.generation == "gen1" and (
+    if battle.gen.partial_trapping_mechanics and (
         pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED] > 0
         or constants.PARTIALLY_TRAPPED in pkmn.volatile_statuses
     ):
@@ -778,7 +784,7 @@ def move(battle, split_msg):
     # gen1 stat modification glitches.
     # swordsdance and agility nullify the effects of burn and paralysis respectively
     # This is implemented by setting a custom volatile
-    if battle.generation == "gen1":
+    if battle.gen.stat_modification_glitches:
         if (
             move_name == "swordsdance" or move_name == "meditate"
         ) and pkmn.status == constants.BURN:
@@ -831,7 +837,7 @@ def move(battle, split_msg):
 
     if (
         "taunt" in pkmn.volatile_statuses
-        and battle.generation not in constants.TAUNT_DURATION_INCREMENT_END_OF_TURN
+        and not battle.gen.taunt_duration_increments_end_of_turn
     ):
         pkmn.volatile_status_durations[constants.TAUNT] += 1
         logger.info(
@@ -1406,7 +1412,7 @@ def weather(battle, split_msg):
         logger.debug("Weather {} permanently active".format(weather_name))
     elif (
         len(split_msg) > 3
-        and battle.generation in ["gen3", "gen4", "gen5"]
+        and battle.gen.ability_weather_is_permanent
         and split_msg[3].startswith("[from] ability:")
     ):
         battle.weather_turns_remaining = -1
@@ -2155,7 +2161,7 @@ def cant(battle, split_msg):
 
     # gen1 if you get `cant` from full paralysis while the opponent is partiallytrapped, they are freed
     if (
-        battle.generation == "gen1"
+        battle.gen.partial_trapping_mechanics
         and len(split_msg) == 4
         and split_msg[3] == constants.PARALYZED
         and (
@@ -2212,7 +2218,7 @@ def upkeep(battle, _):
 
         if (
             "taunt" in side.active.volatile_statuses
-            and battle.generation in constants.TAUNT_DURATION_INCREMENT_END_OF_TURN
+            and battle.gen.taunt_duration_increments_end_of_turn
         ):
             side.active.volatile_status_durations[constants.TAUNT] += 1
             logger.info(
@@ -2329,7 +2335,7 @@ def upkeep(battle, _):
             )
 
         if (
-            battle.generation == "gen3"
+            battle.gen.tracks_consecutive_sleep_talks
             and pkmn.status == constants.SLEEP
             and side.last_used_move.move != "sleeptalk"
         ):
