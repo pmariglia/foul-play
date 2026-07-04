@@ -148,11 +148,20 @@ class Battle:
     def get_effective_speed(self, battler):
         boosted_speed = battler.active.calculate_boosted_stats()[constants.SPEED]
 
-        if self.weather == constants.SUN and battler.active.ability == "chlorophyll":
+        if (
+            self.weather == constants.Weather.SUN
+            and battler.active.ability == "chlorophyll"
+        ):
             boosted_speed *= 2
-        elif self.weather == constants.RAIN and battler.active.ability == "swiftswim":
+        elif (
+            self.weather == constants.Weather.RAIN
+            and battler.active.ability == "swiftswim"
+        ):
             boosted_speed *= 2
-        elif self.weather == constants.SAND and battler.active.ability == "sandrush":
+        elif (
+            self.weather == constants.Weather.SAND
+            and battler.active.ability == "sandrush"
+        ):
             boosted_speed *= 2
         elif (
             self.weather in constants.HAIL_OR_SNOW
@@ -161,7 +170,7 @@ class Battle:
             boosted_speed *= 2
 
         if (
-            self.field == constants.ELECTRIC_TERRAIN
+            self.field == constants.Terrain.ELECTRIC
             and battler.active.ability == "surgesurfer"
         ):
             boosted_speed *= 2
@@ -180,7 +189,7 @@ class Battle:
             boosted_speed *= 1.5
 
         if (
-            constants.PARALYZED == battler.active.status
+            constants.Status.PARALYZED == battler.active.status
             and battler.active.ability != "quickfeet"
         ):
             boosted_speed *= 0.5
@@ -276,7 +285,10 @@ class Battler:
     def lock_active_pkmn_status_moves_if_active_has_assaultvest(self):
         if self.active.item == "assaultvest":
             for m in self.active.moves:
-                if all_move_json[m.name][constants.CATEGORY] == constants.STATUS:
+                if (
+                    all_move_json[m.name][constants.CATEGORY]
+                    == constants.MoveCategory.STATUS
+                ):
                     m.disabled = True
 
     def choice_lock_moves(self):
@@ -301,7 +313,10 @@ class Battler:
     def taunt_lock_moves(self):
         if constants.TAUNT in self.active.volatile_statuses:
             for m in self.active.moves:
-                if all_move_json[m.name][constants.CATEGORY] == constants.STATUS:
+                if (
+                    all_move_json[m.name][constants.CATEGORY]
+                    == constants.MoveCategory.STATUS
+                ):
                     m.disabled = True
 
     def locked_move_lock(self):

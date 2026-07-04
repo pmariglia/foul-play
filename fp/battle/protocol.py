@@ -64,7 +64,7 @@ def unlikely_to_have_choice_item(move_name):
 
     if (
         constants.BOOSTS in move_dict
-        and move_dict[constants.CATEGORY] == constants.STATUS
+        and move_dict[constants.CATEGORY] == constants.MoveCategory.STATUS
     ):
         return True
     elif move_name in ["substitute", "roost", "recover"]:
@@ -231,7 +231,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         # gen5 rest turns are reset upon switching
         if (
             battle.gen.rest_turns_reset_on_switch
-            and side.active.status == constants.SLEEP
+            and side.active.status == constants.Status.SLEEP
         ):
             if side.active.rest_turns != 0:
                 logger.info(
@@ -251,7 +251,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         # gen3 rest turns are decremented by the number of consecutive sleep talks
         if (
             battle.gen.tracks_consecutive_sleep_talks
-            and side.active.status == constants.SLEEP
+            and side.active.status == constants.Status.SLEEP
         ):
             if side.active.rest_turns != 0:
                 side.active.rest_turns += side.active.gen_3_consecutive_sleep_talks
@@ -407,26 +407,38 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             (
                 ability == "sandstream"
                 and battle.weather
-                in [constants.SAND, constants.HEAVY_RAIN, constants.DESOLATE_LAND]
+                in [
+                    constants.Weather.SAND,
+                    constants.Weather.HEAVY_RAIN,
+                    constants.Weather.DESOLATE_LAND,
+                ]
             )
             or (
                 ability == "drought"
                 and battle.weather
-                in [constants.SUN, constants.HEAVY_RAIN, constants.DESOLATE_LAND]
+                in [
+                    constants.Weather.SUN,
+                    constants.Weather.HEAVY_RAIN,
+                    constants.Weather.DESOLATE_LAND,
+                ]
             )
             or (
                 ability == "drizzle"
                 and battle.weather
-                in [constants.RAIN, constants.HEAVY_RAIN, constants.DESOLATE_LAND]
+                in [
+                    constants.Weather.RAIN,
+                    constants.Weather.HEAVY_RAIN,
+                    constants.Weather.DESOLATE_LAND,
+                ]
             )
             or (
                 ability == "snowwarning"
                 and battle.weather
                 in [
-                    constants.HAIL,
-                    constants.SNOW,
-                    constants.HEAVY_RAIN,
-                    constants.DESOLATE_LAND,
+                    constants.Weather.HAIL,
+                    constants.Weather.SNOW,
+                    constants.Weather.HEAVY_RAIN,
+                    constants.Weather.DESOLATE_LAND,
                 ]
             )
         ):
@@ -517,7 +529,7 @@ def heal_or_damage(battle, split_msg):
     # increase the amount of turns toxic has been active
     if (
         len(split_msg) == 5
-        and constants.TOXIC in split_msg[3]
+        and constants.Status.TOXIC in split_msg[3]
         and "[from] psn" in split_msg[4]
     ):
         side.side_conditions[constants.TOXIC_COUNT] += 1
@@ -685,14 +697,14 @@ def move(battle, split_msg):
     if battle.gen.stat_modification_glitches:
         if (
             move_name == "swordsdance" or move_name == "meditate"
-        ) and pkmn.status == constants.BURN:
+        ) and pkmn.status == constants.Status.BURN:
             logger.info(
                 "{} used swordsdance with burn, nullifying the effects of burn".format(
                     pkmn.name
                 )
             )
             pkmn.volatile_statuses.append("gen1burnnullify")
-        elif move_name == "agility" and pkmn.status == constants.PARALYZED:
+        elif move_name == "agility" and pkmn.status == constants.Status.PARALYZED:
             logger.info(
                 "{} used agility while paralyzed, nullifying the effects of paralysis".format(
                     pkmn.name
@@ -811,7 +823,7 @@ def move(battle, split_msg):
     try:
         mv = all_move_json[move_name]
         move_type = mv[constants.TYPE]
-        if mv[constants.CATEGORY] != constants.STATUS:
+        if mv[constants.CATEGORY] != constants.MoveCategory.STATUS:
             logger.info(
                 "{} used a {} move, removing {}gem from possible items".format(
                     pkmn.name, move_type, move_type
@@ -832,7 +844,10 @@ def move(battle, split_msg):
         pass
 
     try:
-        if all_move_json[move_name][constants.CATEGORY] == constants.STATUS:
+        if (
+            all_move_json[move_name][constants.CATEGORY]
+            == constants.MoveCategory.STATUS
+        ):
             logger.info(
                 "{} used a status-move. Adding `assaultvest` to impossible items".format(
                     pkmn.name
@@ -1250,7 +1265,7 @@ def curestatus(battle, split_msg):
             pkmn = side.active
 
     # even if rest wasn't the cause of sleep, this should be set to 0
-    if pkmn.status == constants.SLEEP:
+    if pkmn.status == constants.Status.SLEEP:
         logger.info(
             "{} is being cured of sleep, setting rest_turns & sleep_turns to 0".format(
                 pkmn.name
@@ -1258,7 +1273,7 @@ def curestatus(battle, split_msg):
         )
         pkmn.rest_turns = 0
         pkmn.sleep_turns = 0
-    elif pkmn.status == constants.TOXIC:
+    elif pkmn.status == constants.Status.TOXIC:
         side.side_conditions[constants.TOXIC_COUNT] = 0
 
     pkmn.status = None
@@ -1316,14 +1331,14 @@ def weather(battle, split_msg):
         battle.weather_turns_remaining = -1
     elif (
         side is not None
-        and weather_name == constants.SUN
+        and weather_name == constants.Weather.SUN
         and side.active.item == "heatrock"
     ):
         logger.info("{} has heatrock, assuming 8 turns of sun".format(side.active.name))
         battle.weather_turns_remaining = 8
     elif (
         side is not None
-        and weather_name == constants.RAIN
+        and weather_name == constants.Weather.RAIN
         and side.active.item == "damprock"
     ):
         logger.info(
@@ -1332,7 +1347,7 @@ def weather(battle, split_msg):
         battle.weather_turns_remaining = 8
     elif (
         side is not None
-        and weather_name == constants.SAND
+        and weather_name == constants.Weather.SAND
         and side.active.item == "smoothrock"
     ):
         logger.info(
@@ -1370,11 +1385,11 @@ def weather(battle, split_msg):
                 else side.find_pokemon_in_reserves(pkmn_name)
             )
             if pkmn is not None and pkmn.item == constants.UNKNOWN_ITEM:
-                if weather_name == constants.SUN:
+                if weather_name == constants.Weather.SUN:
                     item = "heatrock"
-                elif weather_name == constants.RAIN:
+                elif weather_name == constants.Weather.RAIN:
                     item = "damprock"
-                elif weather_name == constants.SAND:
+                elif weather_name == constants.Weather.SAND:
                     item = "smoothrock"
                 elif weather_name in constants.HAIL_OR_SNOW:
                     item = "icyrock"
@@ -1600,7 +1615,7 @@ def immune(battle, split_msg):
         and not side.active.name.startswith("zoroark")
         and battle.user.last_used_move.move in all_move_json
         and all_move_json[battle.user.last_used_move.move][constants.CATEGORY]
-        != constants.STATUS
+        != constants.MoveCategory.STATUS
         and type_effectiveness_modifier(
             all_move_json[battle.user.last_used_move.move][constants.TYPE],
             side.active.types,
@@ -1904,7 +1919,7 @@ def cant(battle, split_msg):
                 )
             )
 
-    if len(split_msg) == 4 and split_msg[3] == constants.SLEEP:
+    if len(split_msg) == 4 and split_msg[3] == constants.Status.SLEEP:
         logger.info("{} got 'cant' from sleep".format(side.active.name))
         if side.active.rest_turns > 1:
             side.active.rest_turns -= 1
@@ -1932,7 +1947,7 @@ def cant(battle, split_msg):
     if (
         battle.gen.partial_trapping_mechanics
         and len(split_msg) == 4
-        and split_msg[3] == constants.PARALYZED
+        and split_msg[3] == constants.Status.PARALYZED
         and (
             constants.PARTIALLY_TRAPPED in other_side.active.volatile_statuses
             or other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED]
@@ -2105,7 +2120,7 @@ def upkeep(battle, _):
 
         if (
             battle.gen.tracks_consecutive_sleep_talks
-            and pkmn.status == constants.SLEEP
+            and pkmn.status == constants.Status.SLEEP
             and side.last_used_move.move != "sleeptalk"
         ):
             pkmn.gen_3_consecutive_sleep_talks = 0

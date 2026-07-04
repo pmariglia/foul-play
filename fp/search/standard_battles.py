@@ -37,7 +37,8 @@ def physical_boosting_move(mv: str, predicted_pkmn_set: PredictedPokemonSet) -> 
     # do not allow more than 1 non-physical move, excluding the boosting move
     if (
         sum(
-            m != mv and all_move_json[m][constants.CATEGORY] != constants.PHYSICAL
+            m != mv
+            and all_move_json[m][constants.CATEGORY] != constants.MoveCategory.PHYSICAL
             for m in predicted_pkmn_set.pkmn_moveset.moves
         )
         > 1
@@ -54,7 +55,8 @@ def special_boosting_move(mv: str, predicted_pkmn_set: PredictedPokemonSet) -> b
     # do not allow more than 1 non-special move, excluding the boosting move
     if (
         sum(
-            m != mv and all_move_json[m][constants.CATEGORY] != constants.SPECIAL
+            m != mv
+            and all_move_json[m][constants.CATEGORY] != constants.MoveCategory.SPECIAL
             for m in predicted_pkmn_set.pkmn_moveset.moves
         )
         > 1
@@ -68,11 +70,14 @@ def choice_item(predicted_pkmn_set: PredictedPokemonSet):
     item = predicted_pkmn_set.pkmn_set.item
     match item:
         case "choiceband":
-            logical_moves = [constants.PHYSICAL]
+            logical_moves = [constants.MoveCategory.PHYSICAL]
         case "choicespecs":
-            logical_moves = [constants.SPECIAL]
+            logical_moves = [constants.MoveCategory.SPECIAL]
         case "choicescarf":
-            logical_moves = [constants.PHYSICAL, constants.SPECIAL]
+            logical_moves = [
+                constants.MoveCategory.PHYSICAL,
+                constants.MoveCategory.SPECIAL,
+            ]
         case _:
             raise ValueError("Invalid choice item: {}".format(item))
 
@@ -118,7 +123,7 @@ def smogon_set_makes_sense(predicted_pkmn_set: PredictedPokemonSet):
 
         case "assaultvest":
             if predicted_pkmn_set.pkmn_set.ability != "klutz" and any(
-                all_move_json[mv][constants.CATEGORY] == constants.STATUS
+                all_move_json[mv][constants.CATEGORY] == constants.MoveCategory.STATUS
                 for mv in predicted_pkmn_set.pkmn_moveset.moves
             ):
                 return False

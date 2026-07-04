@@ -518,7 +518,7 @@ class TestUpdateFromRequestJson:
         self.battler.update_from_request_json(request_dict)
 
         assert rattata.level == 100
-        assert rattata.status == constants.PARALYZED
+        assert rattata.status == constants.Status.PARALYZED
         assert rattata.ability == "runaway"
         assert rattata.ability == "runaway"
         assert rattata.item == "leftovers"

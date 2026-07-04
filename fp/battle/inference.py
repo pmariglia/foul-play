@@ -31,10 +31,11 @@ def can_have_priority_modified(battle, pokemon, move_name):
             normalize_name(a)
             for a in pokedex[pokemon.name][constants.ABILITIES].values()
         ]
-        or (move_name == "grassyglide" and battle.field == constants.GRASSY_TERRAIN)
+        or (move_name == "grassyglide" and battle.field == constants.Terrain.GRASSY)
         or (
             move_name in all_move_json
-            and all_move_json[move_name][constants.CATEGORY] == constants.STATUS
+            and all_move_json[move_name][constants.CATEGORY]
+            == constants.MoveCategory.STATUS
             and "myceliummight"
             in [
                 normalize_name(a)
@@ -55,7 +56,7 @@ def can_have_speed_modified(battle, pokemon):
             ]
         )
         or (
-            battle.weather == constants.RAIN
+            battle.weather == constants.Weather.RAIN
             and pokemon.ability is None
             and "swiftswim"
             in [
@@ -64,7 +65,7 @@ def can_have_speed_modified(battle, pokemon):
             ]
         )
         or (
-            battle.weather == constants.SUN
+            battle.weather == constants.Weather.SUN
             and pokemon.ability is None
             and "chlorophyll"
             in [
@@ -73,7 +74,7 @@ def can_have_speed_modified(battle, pokemon):
             ]
         )
         or (
-            battle.weather == constants.SAND
+            battle.weather == constants.Weather.SAND
             and pokemon.ability is None
             and "sandrush"
             in [
@@ -91,7 +92,7 @@ def can_have_speed_modified(battle, pokemon):
             ]
         )
         or (
-            battle.field == constants.ELECTRIC_TERRAIN
+            battle.field == constants.Terrain.ELECTRIC
             and pokemon.ability is None
             and "surgesurfer"
             in [
@@ -100,7 +101,7 @@ def can_have_speed_modified(battle, pokemon):
             ]
         )
         or (
-            pokemon.status == constants.PARALYZED
+            pokemon.status == constants.Status.PARALYZED
             and pokemon.ability is None
             and "quickfeet"
             in [
@@ -244,10 +245,10 @@ def check_speed_ranges(battle, msg_lines):
     if battle.user.side_conditions[constants.TAILWIND]:
         speed_threshold = int(speed_threshold * 2)
 
-    if battle.opponent.active.status == constants.PARALYZED:
+    if battle.opponent.active.status == constants.Status.PARALYZED:
         speed_threshold = int(speed_threshold * battle.gen.paralysis_speed_divisor)
 
-    if battle.user.active.status == constants.PARALYZED:
+    if battle.user.active.status == constants.Status.PARALYZED:
         speed_threshold = int(speed_threshold / battle.gen.paralysis_speed_divisor)
 
     if battle.user.active.item == "choicescarf":
@@ -552,7 +553,8 @@ def update_dataset_possibilities(
         or battle.user.active.name
         in ["ditto", "shedinja", "terapagosterastal", "meloetta", "meloettapirouette"]
         or damage_dealt.move not in all_move_json
-        or all_move_json[damage_dealt.move][constants.CATEGORY] == constants.STATUS
+        or all_move_json[damage_dealt.move][constants.CATEGORY]
+        == constants.MoveCategory.STATUS
         or "multiaccuracy" in all_move_json[damage_dealt.move]
         or damage_dealt.move.startswith(constants.HIDDEN_POWER)
         or damage_dealt.percent_damage == 0
@@ -740,8 +742,8 @@ def check_heavydutyboots(battle, msg_lines):
             if (
                 split_line[1] == "-status"
                 and (
-                    split_line[3] == constants.POISON
-                    or split_line[3] == constants.TOXIC
+                    split_line[3] == constants.Status.POISON
+                    or split_line[3] == constants.Status.TOXIC
                 )
                 and split_line[2].startswith(side_to_check.name)
             ):

@@ -42,7 +42,6 @@ DO_NOTHING_MOVE = "splash"
 ID = "id"
 BASESTATS = "baseStats"
 NAME = "name"
-STATUS = "status"
 TYPES = "types"
 TYPE = "type"
 WEIGHT = "weightkg"
@@ -103,11 +102,16 @@ HIDDEN_POWER = "hiddenpower"
 HIDDEN_POWER_TYPE_STRING_INDEX = -1
 HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "60"
 
-PHYSICAL = "physical"
-SPECIAL = "special"
+
+class MoveCategory(StrEnum):
+    PHYSICAL = "physical"
+    SPECIAL = "special"
+    STATUS = "status"
+
+
 CATEGORY = "category"
 
-DAMAGING_CATEGORIES = [PHYSICAL, SPECIAL]
+DAMAGING_CATEGORIES = [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]
 
 VOLATILE_STATUS = "volatileStatus"
 LOCKED_MOVE = "lockedmove"
@@ -124,16 +128,18 @@ WISH = "wish"
 FUTURE_SIGHT = "futuresight"
 HEALING_WISH = "healingwish"
 
-# weather
-RAIN = "raindance"
-SUN = "sunnyday"
-SAND = "sandstorm"
-HAIL = "hail"
-SNOW = "snowscape"
-DESOLATE_LAND = "desolateland"
-HEAVY_RAIN = "primordialsea"
 
-HAIL_OR_SNOW = {HAIL, SNOW}
+class Weather(StrEnum):
+    RAIN = "raindance"
+    SUN = "sunnyday"
+    SAND = "sandstorm"
+    HAIL = "hail"
+    SNOW = "snowscape"
+    DESOLATE_LAND = "desolateland"
+    HEAVY_RAIN = "primordialsea"
+
+
+HAIL_OR_SNOW = {Weather.HAIL, Weather.SNOW}
 
 # Hazards
 STEALTH_ROCK = "stealthrock"
@@ -143,15 +149,6 @@ TOXIC_SPIKES = "toxicspikes"
 TYPECHANGE = "typechange"
 
 FIRST_TURN_MOVES = {"fakeout", "firstimpression"}
-
-WEIGHT_BASED_MOVES = {
-    "heavyslam",
-    "heatcrash",
-    "lowkick",
-    "grassknot",
-}
-
-SPEED_BASED_MOVES = {"gyroball", "electroball"}
 
 COURT_CHANGE_SWAPS = {
     "spikes",
@@ -167,10 +164,13 @@ COURT_CHANGE_SWAPS = {
 TRICK_ROOM = "trickroom"
 GRAVITY = "gravity"
 
-ELECTRIC_TERRAIN = "electricterrain"
-GRASSY_TERRAIN = "grassyterrain"
-MISTY_TERRAIN = "mistyterrain"
-PSYCHIC_TERRAIN = "psychicterrain"
+
+class Terrain(StrEnum):
+    ELECTRIC = "electricterrain"
+    GRASSY = "grassyterrain"
+    MISTY = "mistyterrain"
+    PSYCHIC = "psychicterrain"
+
 
 # switch-out moves
 SWITCH_OUT_MOVES = {
@@ -203,15 +203,19 @@ PARTIALLY_TRAPPED = "partiallytrapped"
 
 PROTECT_VOLATILE_STATUSES = [PROTECT, BANEFUL_BUNKER, SPIKY_SHIELD, SILK_TRAP, ENDURE]
 
+
 # non-volatile statuses
-SLEEP = "slp"
-BURN = "brn"
-FROZEN = "frz"
-PARALYZED = "par"
-POISON = "psn"
-TOXIC = "tox"
+class Status(StrEnum):
+    SLEEP = "slp"
+    BURN = "brn"
+    FROZEN = "frz"
+    PARALYZED = "par"
+    POISON = "psn"
+    TOXIC = "tox"
+
+
 TOXIC_COUNT = "toxic_count"
-NON_VOLATILE_STATUSES = {SLEEP, BURN, FROZEN, PARALYZED, POISON, TOXIC}
+NON_VOLATILE_STATUSES = set(Status)
 
 IMMUNE_TO_POISON_ABILITIES = {"immunity", "pastelveil"}
 

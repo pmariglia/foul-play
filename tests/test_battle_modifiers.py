@@ -295,7 +295,7 @@ class TestSwitchOrDrag:
 
     def test_does_not_add_sandstream_to_impossible_abilities_if_sand_active(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        self.battle.weather = constants.SAND
+        self.battle.weather = constants.Weather.SAND
         switch_or_drag(self.battle, split_msg)
 
         assert "caterpie" == self.battle.opponent.active.name
@@ -305,7 +305,7 @@ class TestSwitchOrDrag:
         self,
     ):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        self.battle.weather = constants.HEAVY_RAIN
+        self.battle.weather = constants.Weather.HEAVY_RAIN
         switch_or_drag(self.battle, split_msg)
 
         assert "caterpie" == self.battle.opponent.active.name
@@ -507,7 +507,7 @@ class TestSwitchOrDrag:
         active = self.battle.opponent.active
         active.gen_3_consecutive_sleep_talks = 1
         active.rest_turns = 1
-        active.status = constants.SLEEP
+        active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -520,7 +520,7 @@ class TestSwitchOrDrag:
         active = self.battle.opponent.active
         active.gen_3_consecutive_sleep_talks = 1
         active.sleep_turns = 1
-        active.status = constants.SLEEP
+        active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -531,7 +531,7 @@ class TestSwitchOrDrag:
         self.battle.generation = "gen5"
         active = self.battle.opponent.active
         active.rest_turns = 1
-        active.status = constants.SLEEP
+        active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -542,7 +542,7 @@ class TestSwitchOrDrag:
         self.battle.generation = "gen5"
         active = self.battle.opponent.active
         active.sleep_turns = 1
-        active.status = constants.SLEEP
+        active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -554,7 +554,7 @@ class TestSwitchOrDrag:
         self.battle.mode = RandomBattleMode()
         active = self.battle.opponent.active
         active.sleep_turns = 1
-        active.status = constants.SLEEP
+        active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
@@ -1633,7 +1633,7 @@ class TestMove:
     def test_swordsdance_sets_burn_nullify_volatile_when_burned(self):
         self.battle.generation = "gen1"
         split_msg = ["", "move", "p2a: Caterpie", "Swords Dance"]
-        self.battle.opponent.active.status = constants.BURN
+        self.battle.opponent.active.status = constants.Status.BURN
 
         move(self.battle, split_msg)
 
@@ -1642,7 +1642,7 @@ class TestMove:
     def test_meditate_sets_burn_nullify_volatile_when_burned(self):
         self.battle.generation = "gen1"
         split_msg = ["", "move", "p2a: Caterpie", "Meditate"]
-        self.battle.opponent.active.status = constants.BURN
+        self.battle.opponent.active.status = constants.Status.BURN
 
         move(self.battle, split_msg)
 
@@ -1651,7 +1651,7 @@ class TestMove:
     def test_agility_sets_paralysis_nullify_when_paralyzed(self):
         self.battle.generation = "gen1"
         split_msg = ["", "move", "p2a: Caterpie", "Agility"]
-        self.battle.opponent.active.status = constants.PARALYZED
+        self.battle.opponent.active.status = constants.Status.PARALYZED
 
         move(self.battle, split_msg)
 
@@ -1742,7 +1742,7 @@ class TestMove:
 
     def test_increments_gen3_consecutive_sleeptalk_turns_when_using_sleeptalk(self):
         split_msg = ["", "move", "p2a: Caterpie", "Earthquake", "[from]Sleep Talk"]
-        self.battle.opponent.active.status = constants.SLEEP
+        self.battle.opponent.active.status = constants.Status.SLEEP
         self.battle.generation = "gen3"
 
         move(self.battle, split_msg)
@@ -1753,7 +1753,7 @@ class TestMove:
         self,
     ):
         split_msg = ["", "move", "p2a: Caterpie", "Sleep Talk"]
-        self.battle.opponent.active.status = constants.SLEEP
+        self.battle.opponent.active.status = constants.Status.SLEEP
         self.battle.opponent.active.gen_3_consecutive_sleep_talks = 1
         self.battle.generation = "gen3"
 
@@ -1765,7 +1765,7 @@ class TestMove:
         self,
     ):
         split_msg = ["", "move", "p2a: Caterpie", "Earthquake"]
-        self.battle.opponent.active.status = constants.SLEEP
+        self.battle.opponent.active.status = constants.Status.SLEEP
         self.battle.opponent.active.gen_3_consecutive_sleep_talks = 1
         self.battle.generation = "gen3"
 
@@ -2343,7 +2343,7 @@ class TestWeather:
 
     def test_decrements_weather(self):
         self.battle.generation = "gen4"
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.weather_turns_remaining = 5
         split_msg = [
             "",
@@ -2359,7 +2359,7 @@ class TestWeather:
 
     def test_does_not_decrement_weather_if_set_to_negative_1(self):
         self.battle.generation = "gen4"
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.weather_turns_remaining = -1
         split_msg = [
             "",
@@ -2377,7 +2377,7 @@ class TestWeather:
         self,
     ):
         self.battle.generation = "gen6"
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.weather_source = "opponent:caterpie"
         self.battle.opponent.active.item = constants.UNKNOWN_ITEM
         self.battle.weather_turns_remaining = 1
@@ -2398,7 +2398,7 @@ class TestWeather:
         self,
     ):
         self.battle.generation = "gen6"
-        self.battle.weather = constants.SUN
+        self.battle.weather = constants.Weather.SUN
         self.battle.weather_source = "opponent:caterpie"
         self.battle.opponent.active.item = constants.UNKNOWN_ITEM
         self.battle.weather_turns_remaining = 1
@@ -2623,7 +2623,7 @@ class TestStatus:
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
         status(self.battle, split_msg)
 
-        assert self.battle.opponent.active.status == constants.BURN
+        assert self.battle.opponent.active.status == constants.Status.BURN
 
     def test_getting_status_causes_lumberry_to_be_an_impossible_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
@@ -2635,14 +2635,14 @@ class TestStatus:
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Rest"]
         status(self.battle, split_msg)
 
-        assert self.battle.opponent.active.status == constants.SLEEP
+        assert self.battle.opponent.active.status == constants.Status.SLEEP
         assert self.battle.opponent.active.rest_turns == 3
 
     def test_rest_turns_at_0_and_sleep_turns_at_0_from_nonrest_sleep(self):
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Sleep powder"]
         status(self.battle, split_msg)
 
-        assert self.battle.opponent.active.status == constants.SLEEP
+        assert self.battle.opponent.active.status == constants.Status.SLEEP
         assert self.battle.opponent.active.rest_turns == 0
         assert self.battle.opponent.active.sleep_turns == 0
 
@@ -2650,7 +2650,7 @@ class TestStatus:
         split_msg = ["", "-status", "p1a: Caterpie", "brn"]
         status(self.battle, split_msg)
 
-        assert self.battle.user.active.status == constants.BURN
+        assert self.battle.user.active.status == constants.Status.BURN
 
     def test_status_from_item_properly_sets_that_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn", "[from] item: Flame Orb"]
@@ -2677,7 +2677,7 @@ class TestCureStatus:
         self.battle.user.active = Pokemon("weedle", 100)
 
     def test_curestatus_resets_toxic_count(self):
-        self.battle.opponent.active.status = constants.TOXIC
+        self.battle.opponent.active.status = constants.Status.TOXIC
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 3
         split_msg = ["", "-curestatus", "p2: Caterpie", "tox", "[msg]"]
         curestatus(self.battle, split_msg)
@@ -2686,28 +2686,28 @@ class TestCureStatus:
         assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_curestatus_works_on_active_pokemon(self):
-        self.opponent_active.status = constants.BURN
+        self.opponent_active.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p2: Caterpie", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
         assert None is self.opponent_active.status
 
     def test_curestatus_works_on_active_pokemon_for_bot(self):
-        self.battle.user.active.status = constants.BURN
+        self.battle.user.active.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p1: Weedle", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
         assert None is self.battle.user.active.status
 
     def test_curestatus_works_on_reserve_pokemon(self):
-        self.opponent_reserve.status = constants.BURN
+        self.opponent_reserve.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p2: Pikachu", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
         assert None is self.opponent_reserve.status
 
     def test_curestatus_sets_sleep_and_rest_turns_to_0(self):
-        self.opponent_reserve.status = constants.SLEEP
+        self.opponent_reserve.status = constants.Status.SLEEP
         self.opponent_reserve.sleep_turns = 1
         self.opponent_reserve.rest_turns = 1
         split_msg = ["", "-curestatus", "p2: Pikachu", "slp", "[msg]"]
@@ -3486,7 +3486,7 @@ class TestIllusionEnd:
 
     def test_pkmn_disguised_as_gets_original_status(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
-        self.battle.opponent.active.status = constants.PARALYZED
+        self.battle.opponent.active.status = constants.Status.PARALYZED
         self.battle.opponent.active.status_at_switch_in = None
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
@@ -3702,7 +3702,7 @@ class TestFormChange:
 
     def test_preserves_status(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
-        self.battle.opponent.active.status = constants.BURN
+        self.battle.opponent.active.status = constants.Status.BURN
         split_msg = [
             "",
             "-formechange",
@@ -3712,7 +3712,7 @@ class TestFormChange:
         ]
         form_change(self.battle, split_msg)
 
-        assert constants.BURN == self.battle.opponent.active.status
+        assert constants.Status.BURN == self.battle.opponent.active.status
 
     def test_preserves_item(self):
         self.battle.opponent.active = Pokemon("aegislash", 100)
@@ -4272,7 +4272,7 @@ class TestCant:
 
     def test_increments_sleep_turns_when_cant_from_sleep(self):
         self.battle.user.active.sleep_turns = 0
-        self.battle.user.active.status = constants.SLEEP
+        self.battle.user.active.status = constants.Status.SLEEP
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
         assert 1 == self.battle.user.active.sleep_turns
 
@@ -4291,7 +4291,7 @@ class TestCant:
     def test_only_decrements_rest_turns_when_cant_from_sleep_with_a_rest_turn(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.rest_turns = 3
-        self.battle.user.active.status = constants.SLEEP
+        self.battle.user.active.status = constants.Status.SLEEP
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
         assert 0 == self.battle.user.active.sleep_turns
         assert 2 == self.battle.user.active.rest_turns
@@ -4409,13 +4409,13 @@ class TestUpkeep:
 
     def test_field_turns_remaining_is_decremented(self):
         self.battle.field_turns_remaining = 5
-        self.battle.field = constants.GRASSY_TERRAIN
+        self.battle.field = constants.Terrain.GRASSY
         upkeep(self.battle, "")
         assert 4 == self.battle.field_turns_remaining
 
     def test_0_turns_remaining_field_sets_turns_remaining_to_3(self):
         self.battle.field_turns_remaining = 1
-        self.battle.field = constants.GRASSY_TERRAIN
+        self.battle.field = constants.Terrain.GRASSY
         upkeep(self.battle, "")
         assert 3 == self.battle.field_turns_remaining
 
@@ -4427,7 +4427,7 @@ class TestUpkeep:
 
     def test_resets_sleep_turns_to_zero_after_not_using_sleeptalk(self):
         self.battle.generation = "gen3"
-        self.battle.user.active.status = constants.SLEEP
+        self.battle.user.active.status = constants.Status.SLEEP
         self.battle.user.active.gen_3_consecutive_sleep_talks = 1
 
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
@@ -4437,7 +4437,7 @@ class TestUpkeep:
 
     def test_does_not_reset_sleep_turns_when_sleeptalk_used(self):
         self.battle.generation = "gen3"
-        self.battle.user.active.status = constants.SLEEP
+        self.battle.user.active.status = constants.Status.SLEEP
         self.battle.user.active.gen_3_consecutive_sleep_talks = 1
 
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
@@ -4537,7 +4537,7 @@ class TestUpkeep:
         assert "toxicorb" in self.battle.opponent.active.impossible_items
 
     def test_does_not_add_flameorb_toxicorb_if_status_exists_at_end_of_turn(self):
-        self.battle.opponent.active.status = constants.FROZEN
+        self.battle.opponent.active.status = constants.Status.FROZEN
         upkeep(self.battle, "")
         assert "flameorb" not in self.battle.opponent.active.impossible_items
         assert "toxicorb" not in self.battle.opponent.active.impossible_items
@@ -4757,7 +4757,7 @@ class TestCheckSpeedRanges:
     def test_accounts_for_paralysis_when_calculating_speed_range(self):
         # opponent should have min speed equal to the bot's speed
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.opponent.active.status = constants.PARALYZED
+        self.battle.opponent.active.status = constants.Status.PARALYZED
 
         messages = [
             "|move|p2a: Caterpie|Stealth Rock|",
@@ -4774,7 +4774,7 @@ class TestCheckSpeedRanges:
     def test_accounts_for_paralysis_on_bots_side_when_calculating_speed_range(self):
         # opponent should have min speed equal to the bot's speed
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.user.active.status = constants.PARALYZED
+        self.battle.user.active.status = constants.Status.PARALYZED
 
         messages = [
             "|move|p2a: Caterpie|Stealth Rock|",
@@ -4877,7 +4877,7 @@ class TestCheckSpeedRanges:
     def test_minspeed_is_not_set_when_rain_is_up_and_opponent_can_have_swiftswim(self):
         # opponent should have max speed equal to the bot's speed
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.opponent.active.name = "seismitoad"
 
         messages = [
@@ -4892,7 +4892,7 @@ class TestCheckSpeedRanges:
     def test_minspeed_is_set_when_only_rain_is_up(self):
         # opponent should have max speed equal to the bot's speed
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
 
         messages = [
             "|move|p2a: Caterpie|Stealth Rock|",
@@ -5104,7 +5104,7 @@ class TestCheckSpeedRanges:
         self,
     ):
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.field = constants.GRASSY_TERRAIN
+        self.battle.field = constants.Terrain.GRASSY
 
         messages = [
             "|move|p2a: Caterpie|Grassy Glide|",
@@ -5118,7 +5118,7 @@ class TestCheckSpeedRanges:
         self,
     ):
         self.battle.user.active.stats[constants.SPEED] = 150
-        self.battle.field = constants.GRASSY_TERRAIN
+        self.battle.field = constants.Terrain.GRASSY
 
         messages = [
             "|move|p1a: Caterpie|Grassy Glide|",
@@ -5310,7 +5310,7 @@ class TestGuessChoiceScarf:
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed should not be greater than 207 (max speed caterpie)
         )
-        self.battle.field = constants.GRASSY_TERRAIN
+        self.battle.field = constants.Terrain.GRASSY
 
         messages = [
             "|move|p2a: Caterpie|Grassy Glide|",
@@ -5455,7 +5455,7 @@ class TestGuessChoiceScarf:
         self,
     ):
         self.battle.opponent.active.ability = "swiftswim"
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.user.active.stats[constants.SPEED] = (
             300  # opponent's speed can be 414 (max speed caterpie plus swiftswim)
         )
@@ -5473,7 +5473,7 @@ class TestGuessChoiceScarf:
         self,
     ):
         self.battle.opponent.active.name = "seismitoad"  # can have swiftswim
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed can be 414 (max speed caterpie plus swiftswim)
         )
@@ -5492,7 +5492,7 @@ class TestGuessChoiceScarf:
             "seismitoad"  # set ID so lookup says it has swiftswim
         )
         self.battle.opponent.active.ability = "waterabsorb"  # but ability has been revealed so if it is faster a choice item should be inferred
-        self.battle.weather = constants.RAIN
+        self.battle.weather = constants.Weather.RAIN
         self.battle.user.active.stats[constants.SPEED] = (
             300  # opponent's speed can be 414 (max speed caterpie plus swiftswim). Yes it is still a caterpie
         )
@@ -5510,7 +5510,7 @@ class TestGuessChoiceScarf:
         self.battle.opponent.active.name = (
             "raichualola"  # set ID so lookup says it has surgesurfer
         )
-        self.battle.field = constants.ELECTRIC_TERRAIN
+        self.battle.field = constants.Terrain.ELECTRIC
         self.battle.user.active.stats[constants.SPEED] = (
             300  # opponent's speed can be 414 (max speed caterpie plus swiftswim). Yes it is still a caterpie
         )
@@ -5531,7 +5531,7 @@ class TestGuessChoiceScarf:
             "raichualola"  # set ID so lookup says it has surgesurfer
         )
         self.battle.opponent.active.ability = "some_weird_ability"
-        self.battle.field = constants.ELECTRIC_TERRAIN
+        self.battle.field = constants.Terrain.ELECTRIC
         self.battle.user.active.stats[constants.SPEED] = (
             300  # opponent's speed can be 414 (max speed caterpie plus swiftswim). Yes it is still a caterpie
         )
@@ -5549,7 +5549,7 @@ class TestGuessChoiceScarf:
         self.battle.opponent.active.name = (
             "ursaring"  # set ID so lookup says it has quickfeet
         )
-        self.battle.opponent.active.status = constants.PARALYZED
+        self.battle.opponent.active.status = constants.Status.PARALYZED
         self.battle.user.active.stats[constants.SPEED] = 210
 
         messages = [
@@ -5570,7 +5570,7 @@ class TestGuessChoiceScarf:
         self.battle.opponent.active.ability = (
             "some_other_ability"  # ability cant be quickfeet
         )
-        self.battle.opponent.active.status = constants.PARALYZED
+        self.battle.opponent.active.status = constants.Status.PARALYZED
         self.battle.user.active.stats[constants.SPEED] = 210
 
         messages = [
@@ -5842,7 +5842,7 @@ class TestCheckHeavyDutyBoots:
     ):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
         pikachu = Pokemon("pikachu", 100)
-        pikachu.status = constants.POISON
+        pikachu.status = constants.Status.POISON
         self.battle.opponent.reserve.append(pikachu)
         self.battle.msg_list = [
             "|switch|p2a: Pikachu|Pikachu, M|100/100",
