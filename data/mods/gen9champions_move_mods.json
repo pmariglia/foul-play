@@ -1,0 +1,185 @@
+{
+  "anchorshot": {
+    "basePower": 90
+  },
+  "appleacid": {
+    "basePower": 90
+  },
+  "astralbarrage": {
+    "basePower": 110
+  },
+  "banefulbunker": {
+    "pp": 5
+  },
+  "beakblast": {
+    "basePower": 120,
+    "pp": 5
+  },
+  "bloodmoon": {
+    "basePower": 130
+  },
+  "boltbeak": {
+    "basePower": 80
+  },
+  "bonerush": {
+    "basePower": 30
+  },
+  "crabhammer": {
+    "accuracy": 95
+  },
+  "crushclaw": {
+    "flags": {
+      "contact": 1,
+      "protect": 1,
+      "mirror": 1,
+      "metronome": 1,
+      "slicing": 1
+    }
+  },
+  "direclaw": {
+    "flags": {
+      "contact": 1,
+      "protect": 1,
+      "mirror": 1,
+      "metronome": 1,
+      "slicing": 1
+    }
+  },
+  "dragoncheer": {
+    "flags": {
+      "bypasssub": 1,
+      "allyanim": 1,
+      "metronome": 1,
+      "sound": 1
+    }
+  },
+  "dragonclaw": {
+    "flags": {
+      "contact": 1,
+      "protect": 1,
+      "mirror": 1,
+      "metronome": 1,
+      "slicing": 1
+    }
+  },
+  "dragonhammer": {
+    "basePower": 100
+  },
+  "firelash": {
+    "basePower": 90
+  },
+  "firstimpression": {
+    "basePower": 100
+  },
+  "fishiousrend": {
+    "basePower": 80
+  },
+  "geargrind": {
+    "accuracy": 90,
+    "basePower": 60
+  },
+  "gravapple": {
+    "basePower": 90
+  },
+  "growth": {
+    "type": "grass"
+  },
+  "howl": {
+    "flags": {
+      "snatch": 1,
+      "sound": 1,
+      "bypasssub": 1,
+      "metronome": 1
+    }
+  },
+  "hyperdrill": {
+    "basePower": 120
+  },
+  "infernalparade": {
+    "basePower": 65
+  },
+  "kingsshield": {
+    "pp": 5
+  },
+  "makeitrain": {
+    "accuracy": 95
+  },
+  "metalclaw": {
+    "flags": {
+      "contact": 1,
+      "protect": 1,
+      "mirror": 1,
+      "metronome": 1,
+      "slicing": 1
+    }
+  },
+  "mountaingale": {
+    "basePower": 120
+  },
+  "nightdaze": {
+    "basePower": 90
+  },
+  "nightslash": {
+    "pp": 20
+  },
+  "nihillight": {
+    "pp": 5
+  },
+  "obstruct": {
+    "pp": 5
+  },
+  "protect": {
+    "pp": 5
+  },
+  "psyshieldbash": {
+    "basePower": 90
+  },
+  "purify": {
+    "pp": 5
+  },
+  "revelationdance": {
+    "basePower": 100
+  },
+  "sandstorm": {
+    "pp": 5
+  },
+  "shadowclaw": {
+    "flags": {
+      "contact": 1,
+      "protect": 1,
+      "mirror": 1,
+      "metronome": 1,
+      "slicing": 1
+    }
+  },
+  "shelltrap": {
+    "pp": 10
+  },
+  "snaptrap": {
+    "type": "steel"
+  },
+  "snipeshot": {
+    "basePower": 85
+  },
+  "snowscape": {
+    "pp": 5
+  },
+  "spikyshield": {
+    "pp": 5
+  },
+  "spinout": {
+    "pp": 10
+  },
+  "spiritshackle": {
+    "basePower": 90
+  },
+  "syrupbomb": {
+    "accuracy": 90
+  },
+  "tripledive": {
+    "basePower": 35
+  },
+  "tropkick": {
+    "basePower": 85
+  }
+}

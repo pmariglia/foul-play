@@ -185,7 +185,7 @@ async def start_random_battle(
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
     battle.battle_type = BattleType.RANDOM_BATTLE
-    RandomBattleTeamDatasets.initialize(battle.generation)
+    RandomBattleTeamDatasets.initialize(pokemon_battle_type)
 
     while True:
         if constants.START_STRING in msg:

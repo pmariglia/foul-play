@@ -4,10 +4,15 @@ from collections import namedtuple
 import constants
 import logging
 
+from config import FoulPlayConfig
 from data import all_move_json
 from data import pokedex
 
-from fp.helpers import get_pokemon_info_from_condition, possible_hidden_power_types
+from fp.helpers import (
+    get_pokemon_info_from_condition,
+    possible_hidden_power_types,
+    random_battles_evs,
+)
 from fp.helpers import normalize_name
 from fp.helpers import calculate_stats
 
@@ -81,7 +86,7 @@ class Battle:
         self.wait = False
 
         self.battle_type = None
-        self.pokemon_format = None
+        self.pokemon_format = ""
         self.generation = None
         self.time_remaining = None
 
@@ -127,6 +132,7 @@ class Battle:
         return (
             any(g in self.generation for g in constants.MEGA_EVOLVE_GENERATIONS)
             or "nationaldex" in self.pokemon_format
+            or "champions" in self.pokemon_format
         )
 
     def get_effective_speed(self, battler):
@@ -543,7 +549,10 @@ class Battler:
 
 
 class Pokemon:
-    def __init__(self, name: str, level: int, nature="serious", evs=(85,) * 6):
+    def __init__(self, name: str, level: int, nature="serious", evs=None):
+        if evs is None:
+            evs = random_battles_evs()
+
         self.name = normalize_name(name)
         self.nickname = None
         self.base_name = self.name
@@ -618,6 +627,8 @@ class Pokemon:
         mega_names = []
         if self.name == "rayquaza":
             return [("rayquaza", "none")]
+        elif self.name == "floetteeternal":
+            return [("floettemega", "floettite")]
 
         potential_megas = [
             f"{self.name}mega",
@@ -625,7 +636,7 @@ class Pokemon:
             f"{self.name}megay",
         ]
         for mega_forme in potential_megas:
-            if mega_forme in pokedex and pokedex[mega_forme].get("gen") != 9:
+            if mega_forme in pokedex:
                 mega_names.append(
                     (
                         mega_forme,
@@ -762,7 +773,13 @@ class Move:
             )
         move_json = all_move_json[name]
         self.name = name
-        self.max_pp = int(move_json.get(constants.PP) * 1.6)
+
+        if move_json[constants.PP] == 1:
+            self.max_pp = 1
+        elif "champions" in FoulPlayConfig.pokemon_format:
+            self.max_pp = int(int(move_json[constants.PP] / 5 + 1) * 4)
+        else:
+            self.max_pp = int(move_json.get(constants.PP) * 1.6)
 
         self.disabled = False
         self.can_z = False

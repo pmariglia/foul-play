@@ -18,7 +18,12 @@ from fp.battle import LastUsedMove
 from fp.battle import DamageDealt
 from fp.battle import StatRange
 from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
-from fp.helpers import normalize_name, type_effectiveness_modifier
+from fp.helpers import (
+    normalize_name,
+    type_effectiveness_modifier,
+    random_battles_evs,
+    maximum_ev,
+)
 from fp.helpers import get_pokemon_info_from_condition
 from fp.helpers import calculate_stats
 from fp.helpers import (
@@ -407,7 +412,8 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
         # if the side is alive and has regenerator, give it back 1/3 of it's maxhp
         if (
-            side.active.hp > 0
+            "champions" not in battle.pokemon_format
+            and side.active.hp > 0
             and not side.active.fainted
             and side.active.ability == "regenerator"
         ):
@@ -492,6 +498,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 for a in pokedex[pkmn.name][constants.ABILITIES].values()
             ]
             and pkmn.ability is None
+            and "champions" not in battle.pokemon_format
         ):
             logger.info(
                 "{} switched out with {}% HP but now has {}% HP, setting its ability to regenerator".format(
@@ -503,8 +510,9 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             pkmn.ability = "regenerator"
         pkmn.hp = pkmn.max_hp * new_hp_percentage
     else:
-        pkmn.hp = float(split_hp_msg[0])
-        pkmn.max_hp = float(split_hp_msg[1].split()[0])
+        hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[4])
+        pkmn.hp = hp
+        pkmn.max_hp = maxhp
 
     side.last_used_move = LastUsedMove(
         pokemon_name=None, move="switch {}".format(pkmn.name), turn=battle.turn
@@ -635,8 +643,9 @@ def heal_or_damage(battle, split_msg):
         if constants.FNT in split_msg[3]:
             pkmn.hp = 0
         else:
-            pkmn.hp = float(split_msg[3].split("/")[0])
-            pkmn.max_hp = float(split_msg[3].split("/")[1].split()[0])
+            hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[3])
+            pkmn.hp = hp
+            pkmn.max_hp = maxhp
 
     # increase the amount of turns toxic has been active
     if (
@@ -2840,8 +2849,9 @@ def check_choicescarf(battle, msg_lines):
         return
 
     if battle.battle_type == BattleType.RANDOM_BATTLE:
+        evs = ",".join(str(ev) for ev in random_battles_evs())
         battle_copy.opponent.active.set_spread(
-            "serious", "85,85,85,85,85,85"
+            "serious", evs
         )  # random battles have known spreads
     else:
         if battle.trick_room:
@@ -2850,7 +2860,7 @@ def check_choicescarf(battle, msg_lines):
             )  # assume as slow as possible in trickroom
         else:
             battle_copy.opponent.active.set_spread(
-                "jolly", "0,0,0,0,0,252"
+                "jolly", f"0,0,0,0,0,{maximum_ev()}"
             )  # assume as fast as possible
     opponent_effective_speed = battle_copy.get_effective_speed(battle_copy.opponent)
     bot_effective_speed = battle_copy.get_effective_speed(battle_copy.user)
