@@ -65,9 +65,6 @@ def apply_pokedex_mods(gen_number):
 
 
 def apply_gen_3_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(3)
     apply_pokedex_mods(4)  # no pokedex mods in gen3 so use gen4
     undo_physical_special_split()
@@ -100,25 +97,18 @@ def apply_gen_1_mods():
 
 
 def apply_gen_4_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(4)
     apply_pokedex_mods(4)
     _steel_resists_dark_and_ghost()
 
 
 def apply_gen_5_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(5)
     apply_pokedex_mods(5)
     _steel_resists_dark_and_ghost()
 
 
 def apply_gen_6_mods():
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(6)
     apply_pokedex_mods(6)
 

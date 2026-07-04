@@ -427,7 +427,9 @@ class Battler:
             pkmn.hp, pkmn.max_hp, pkmn.status = get_pokemon_info_from_condition(
                 pkmn_dict[constants.CONDITION]
             )
-            pkmn.ability = pkmn_dict[constants.REQUEST_DICT_ABILITY]
+            pkmn.ability = pkmn_dict[
+                current_generation_mechanics().request_dict_ability
+            ]
             pkmn.item = pkmn_dict[constants.ITEM] if pkmn_dict[constants.ITEM] else None
             for stat, number in pkmn_dict[constants.STATS].items():
                 pkmn.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
@@ -494,7 +496,9 @@ class Battler:
                 pkmn = Pokemon("zaciancrowned", pkmn.level)
                 pkmn.nickname = nickname
 
-            pkmn.ability = pkmn_dict[constants.REQUEST_DICT_ABILITY]
+            pkmn.ability = pkmn_dict[
+                current_generation_mechanics().request_dict_ability
+            ]
             pkmn.index = index + 1
             pkmn.reviving = pkmn_dict.get(constants.REVIVING, False)
             pkmn.hp, pkmn.max_hp, pkmn.status = get_pokemon_info_from_condition(
@@ -791,10 +795,12 @@ class Move:
         if (
             constants.HIDDEN_POWER != name
             and constants.HIDDEN_POWER in name
-            and not name.endswith(constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING)
+            and not name.endswith(
+                current_generation_mechanics().hidden_power_base_damage_string
+            )
         ):
             name = "{}{}".format(
-                name, constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING
+                name, current_generation_mechanics().hidden_power_base_damage_string
             )
         move_json = all_move_json[name]
         self.name = name

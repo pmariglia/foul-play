@@ -19,6 +19,7 @@ from fp.data.sets.base import (
     spreads_are_alike,
 )
 from fp.format_spec import FormatSpec
+from fp.generations import current_generation_mechanics
 
 if typing.TYPE_CHECKING:
     from fp.battle.state import Pokemon
@@ -141,7 +142,7 @@ class SmogonSets(PokemonSets):
             for move, count in pkmn_information["Moves"].items():
                 if count > 0 and move and move.lower() != "nothing":
                     if move.startswith(constants.HIDDEN_POWER):
-                        move = f"{move}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                        move = f"{move}{current_generation_mechanics().hidden_power_base_damage_string}"
                     moves.append((move, count / total_count))
 
             for ability, count in pkmn_information["Abilities"].items():

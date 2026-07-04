@@ -88,6 +88,20 @@ class TestGenerationMechanicsTable:
         assert champions.has_team_preview
         assert champions.heavy_duty_boots_exists
 
+    def test_request_dict_ability_key(self):
+        for gen, mechanics in GENERATIONS.items():
+            expected = (
+                "baseAbility"
+                if gen in ["gen1", "gen2", "gen3", "gen4", "gen5", "gen6"]
+                else "ability"
+            )
+            assert expected == mechanics.request_dict_ability, gen
+
+    def test_hidden_power_base_damage(self):
+        for gen, mechanics in GENERATIONS.items():
+            expected = "70" if gen in ["gen1", "gen2", "gen3", "gen4", "gen5"] else "60"
+            assert expected == mechanics.hidden_power_base_damage_string, gen
+
     def test_modern_max_pp(self):
         assert 24 == GENERATIONS["gen9"].max_pp(15)
         assert 32 == GENERATIONS["gen9"].max_pp(20)

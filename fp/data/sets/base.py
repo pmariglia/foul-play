@@ -15,6 +15,7 @@ from fp.battle.helpers import calculate_stats
 from fp.data import pokedex
 from fp.battle.helpers import normalize_name
 from fp.format_spec import FormatSpec
+from fp.generations import current_generation_mechanics
 
 if typing.TYPE_CHECKING:
     from fp.battle.state import Pokemon
@@ -174,7 +175,7 @@ class PokemonMoveset:
         for mv in self.moves:
             if mv.startswith(constants.HIDDEN_POWER) and not mv.endswith("0"):
                 new_moves.append(
-                    f"{mv}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                    f"{mv}{current_generation_mechanics().hidden_power_base_damage_string}"
                 )
             else:
                 new_moves.append(mv)
@@ -185,7 +186,7 @@ class PokemonMoveset:
         for mv in pkmn.moves:
             if mv.name == constants.HIDDEN_POWER:
                 hidden_power_possibilities = [
-                    f"{constants.HIDDEN_POWER}{p}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+                    f"{constants.HIDDEN_POWER}{p}{current_generation_mechanics().hidden_power_base_damage_string}"
                     for p in pkmn.hidden_power_possibilities
                 ]
                 hidden_power_in_this_pkmn_set = [

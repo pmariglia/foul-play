@@ -7,6 +7,7 @@ from fp.data import all_move_json, pokedex
 from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import natures, normalize_name
 from fp.battle.state import Pokemon, Battle, Battler
+from fp.generations import current_generation_mechanics
 from fp.data.sets import (
     PokemonMoveset,
     PokemonSet,
@@ -293,7 +294,7 @@ def set_most_likely_hidden_power(pkmn: Pokemon, mode):
     # be replaced by the most likely hiddenpower that is still possible
     if pkmn.get_move(constants.HIDDEN_POWER) is not None:
         hidden_power_possibilities = [
-            f"{constants.HIDDEN_POWER}{p}{constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING}"
+            f"{constants.HIDDEN_POWER}{p}{current_generation_mechanics().hidden_power_base_damage_string}"
             for p in pkmn.hidden_power_possibilities
         ]
         for mv, _count in mode.smogon_sets.move_usage_rates(pkmn):
