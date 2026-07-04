@@ -1,4 +1,5 @@
-import unittest
+import pytest
+
 import json
 from collections import defaultdict
 
@@ -69,8 +70,9 @@ from fp.battle.protocol import upkeep
 from fp.battle.protocol import inactive
 
 
-class TestRequestMessage(unittest.TestCase):
-    def setUp(self):
+class TestRequestMessage:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -239,32 +241,33 @@ class TestRequestMessage(unittest.TestCase):
     def test_request_sets_force_switch_to_false(self):
         split_request_message = ["", "request", json.dumps(self.request_json)]
         request(self.battle, split_request_message)
-        self.assertEqual(False, self.battle.force_switch)
+        assert False is self.battle.force_switch
 
     def test_force_switch_properly_sets_the_force_switch_flag(self):
         self.request_json.pop("active")
         self.request_json[constants.FORCE_SWITCH] = [True]
         split_request_message = ["", "request", json.dumps(self.request_json)]
         request(self.battle, split_request_message)
-        self.assertEqual(True, self.battle.force_switch)
+        assert True is self.battle.force_switch
 
     def test_wait_properly_sets_wait_flag(self):
         self.request_json.pop("active")
         self.request_json[constants.WAIT] = [True]
         split_request_message = ["", "request", json.dumps(self.request_json)]
         request(self.battle, split_request_message)
-        self.assertEqual(True, self.battle.wait)
+        assert True is self.battle.wait
 
     def test_wait_does_not_initialize_pokemon(self):
         self.request_json.pop("active")
         self.request_json[constants.WAIT] = [True]
         split_request_message = ["", "request", json.dumps(self.request_json)]
         request(self.battle, split_request_message)
-        self.assertEqual(0, len(self.battle.user.reserve))
+        assert 0 == len(self.battle.user.reserve)
 
 
-class TestSwitchOrDrag(unittest.TestCase):
-    def setUp(self):
+class TestSwitchOrDrag:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -280,25 +283,23 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: pikachu", "Pikachu, L100, M", "50/100g"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("pikachu", self.battle.user.active.name)
-        self.assertEqual(
-            0.5, self.battle.user.active.hp / self.battle.user.active.max_hp
-        )
+        assert "pikachu" == self.battle.user.active.name
+        assert 0.5 == self.battle.user.active.hp / self.battle.user.active.max_hp
 
     def test_adds_intimidate_to_impossible_abilities_when_switching_in(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertIn("intimidate", self.battle.opponent.active.impossible_abilities)
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "intimidate" in self.battle.opponent.active.impossible_abilities
 
     def test_does_not_add_sandstream_to_impossible_abilities_if_sand_active(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         self.battle.weather = constants.SAND
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertNotIn("sandstream", self.battle.opponent.active.impossible_abilities)
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "sandstream" not in self.battle.opponent.active.impossible_abilities
 
     def test_does_not_add_sandstream_to_impossible_abilities_if_heavy_rain_is_active(
         self,
@@ -307,8 +308,8 @@ class TestSwitchOrDrag(unittest.TestCase):
         self.battle.weather = constants.HEAVY_RAIN
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertNotIn("sandstream", self.battle.opponent.active.impossible_abilities)
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "sandstream" not in self.battle.opponent.active.impossible_abilities
 
     def test_does_not_add_pressure_to_impossible_abilities_gen3(self):
         self.battle.generation = "gen3"
@@ -316,38 +317,36 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertNotIn("pressure", self.battle.opponent.active.impossible_abilities)
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "pressure" not in self.battle.opponent.active.impossible_abilities
 
     def test_does_not_add_impossible_ability_if_other_side_has_neutralizinggas(self):
         self.battle.user.active.ability = "neutralizinggas"
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertNotIn("intimidate", self.battle.opponent.active.impossible_abilities)
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "intimidate" not in self.battle.opponent.active.impossible_abilities
 
     def test_adds_impossible_items_when_switching_in(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
 
         for item in ITEMS_REVEALED_ON_SWITCH_IN:
-            self.assertNotIn(item, self.battle.opponent.active.impossible_items)
+            assert item not in self.battle.opponent.active.impossible_items
 
         switch_or_drag(self.battle, split_msg)
 
         for item in ITEMS_REVEALED_ON_SWITCH_IN:
-            self.assertIn(item, self.battle.opponent.active.impossible_items)
+            assert item in self.battle.opponent.active.impossible_items
 
     def test_cramorantgulping_reverts_to_cramorant_in_switchout(self):
         self.battle.opponent.active.name = "cramorantgulping"
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("caterpie", self.battle.opponent.active.name)
-        self.assertIn("cramorant", [p.name for p in self.battle.opponent.reserve])
-        self.assertNotIn(
-            "cramorantgulping", [p.name for p in self.battle.opponent.reserve]
-        )
+        assert "caterpie" == self.battle.opponent.active.name
+        assert "cramorant" in [p.name for p in self.battle.opponent.reserve]
+        assert "cramorantgulping" not in [p.name for p in self.battle.opponent.reserve]
 
     def test_user_switching_in_zaciancrowned_properly_re_initializes_stats(self):
         self.battle.request_json = {
@@ -396,7 +395,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         self.battle.user.reserve = [zacian_crowned_reserve]
         split_msg = ["", "switch", "p1a: Zacian", "Zacian-Crowned", "211/325"]
         switch_or_drag(self.battle, split_msg)
-        self.assertEqual(399, self.battle.user.active.stats[constants.ATTACK])
+        assert 399 == self.battle.user.active.stats[constants.ATTACK]
 
     def test_switch_properly_switches_zoroark_for_user_when_last_selected_move_was_zoroark(
         self,
@@ -428,7 +427,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: Weedle", "Weedle, L100, M", "100/100"]
         switch(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.user.active.name)
+        assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_zoroark_properly_sets_zoroark(self):
         self.battle.request_json = {
@@ -455,7 +454,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "drag", "p1a: Weedle", "Weedle, L100, M", "100/100"]
         drag(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.user.active.name)
+        assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_not_zoroark_properly_sets_not_zoroark(self):
         self.battle.request_json = {
@@ -482,7 +481,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "drag", "p1a: Weedle", "Weedle, L100, M", "100/100"]
         drag(self.battle, split_msg)
 
-        self.assertEqual("weedle", self.battle.user.active.name)
+        assert "weedle" == self.battle.user.active.name
 
     def test_switch_properly_resets_types_when_pkmn_was_typechanged(self):
         self.battle.opponent.active.volatile_statuses.append(constants.TYPECHANGE)
@@ -491,7 +490,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(["bug"], active.types)
+        assert ["bug"] == active.types
 
     def test_switch_properly_resets_ability_when_pkmn_had_ability_changed(self):
         self.battle.opponent.active.ability = "lingeringarmoa"
@@ -500,7 +499,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual("intimidate", active.ability)
+        assert "intimidate" == active.ability
 
     def test_increments_rest_turns_by_consequtive_sleeptalks(self):
         self.battle.generation = "gen3"
@@ -512,8 +511,8 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, active.gen_3_consecutive_sleep_talks)
-        self.assertEqual(2, active.rest_turns)
+        assert 0 == active.gen_3_consecutive_sleep_talks
+        assert 2 == active.rest_turns
 
     def test_decrements_sleep_turns_by_consequtive_sleeptalks(self):
         self.battle.generation = "gen3"
@@ -525,8 +524,8 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, active.gen_3_consecutive_sleep_talks)
-        self.assertEqual(0, active.rest_turns)
+        assert 0 == active.gen_3_consecutive_sleep_talks
+        assert 0 == active.rest_turns
 
     def test_switch_properly_resets_rest_turns_to_2_in_gen5(self):
         self.battle.generation = "gen5"
@@ -536,7 +535,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(3, active.rest_turns)
+        assert 3 == active.rest_turns
 
     def test_switch_properly_resets_sleep_turns_to_0_in_gen5(self):
         self.battle.opponent.active.volatile_statuses.append(constants.TYPECHANGE)
@@ -547,7 +546,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, active.sleep_turns)
+        assert 0 == active.sleep_turns
 
     def test_switch_does_not_reset_sleep_turns_to_0_in_gen4(self):
         self.battle.opponent.active.volatile_statuses.append(constants.TYPECHANGE)
@@ -559,14 +558,14 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(1, active.sleep_turns)
+        assert 1 == active.sleep_turns
 
     def test_switch_opponents_pokemon_successfully_creates_new_pokemon_for_active(self):
         new_pkmn = Pokemon("weedle", 100)
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(new_pkmn, self.battle.opponent.active)
+        assert new_pkmn == self.battle.opponent.active
 
     def test_bot_switching_properly_heals_pokemon_if_it_had_regenerator(self):
         current_active = self.battle.user.active
@@ -576,7 +575,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(101, current_active.hp)  # 100 hp from regenerator heal
+        assert 101 == current_active.hp  # 100 hp from regenerator heal
 
     def test_bot_switching_with_regenerator_does_not_overheal(self):
         current_active = self.battle.user.active
@@ -586,7 +585,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(300, current_active.hp)  # 50 hp from regenerator heal
+        assert 300 == current_active.hp  # 50 hp from regenerator heal
 
     def test_fainted_pokemon_switching_does_not_heal(self):
         current_active = self.battle.user.active
@@ -597,37 +596,35 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(
-            0, current_active.hp
-        )  # no regenerator heal when you are fainted
+        assert 0 == current_active.hp  # no regenerator heal when you are fainted
 
     def test_nickname_attribute_is_set_when_switching(self):
         # |switch|p2a: Sus|Amoonguss, F|100/100
         split_msg = ["", "switch", "p2a: Sus", "Amoonguss, F", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.active.name, "amoonguss")
-        self.assertEqual(self.battle.opponent.active.nickname, "Sus")
+        assert self.battle.opponent.active.name == "amoonguss"
+        assert self.battle.opponent.active.nickname == "Sus"
 
     def test_switch_resets_toxic_count_for_opponent(self):
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_switch_resets_toxic_count_for_opponent_when_there_is_no_toxic_count(self):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_switch_resets_toxic_count_for_user(self):
         self.battle.user.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.user.side_conditions[constants.TOXIC_COUNT])
+        assert 0 == self.battle.user.side_conditions[constants.TOXIC_COUNT]
 
     def test_switch_opponents_pokemon_successfully_places_previous_active_pokemon_in_reserve(
         self,
@@ -635,7 +632,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertIn(self.opponent_active, self.battle.opponent.reserve)
+        assert self.opponent_active in self.battle.opponent.reserve
 
     def test_switch_opponents_pokemon_creates_reserve_of_length_1_when_reserve_was_previously_empty(
         self,
@@ -643,7 +640,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(1, len(self.battle.opponent.reserve))
+        assert 1 == len(self.battle.opponent.reserve)
 
     def test_switch_into_already_seen_pokemon_does_not_create_a_new_pokemon(self):
         already_seen_pokemon = Pokemon("weedle", 100)
@@ -651,7 +648,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(1, len(self.battle.opponent.reserve))
+        assert 1 == len(self.battle.opponent.reserve)
 
     def test_user_switching_causes_pokemon_to_switch(self):
         already_seen_pokemon = Pokemon("weedle", 100)
@@ -659,7 +656,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(Pokemon("weedle", 100), self.battle.user.active)
+        assert Pokemon("weedle", 100) == self.battle.user.active
 
     def test_user_switching_causes_active_pokemon_to_be_placed_in_reserve(self):
         already_seen_pokemon = Pokemon("weedle", 100)
@@ -667,7 +664,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(Pokemon("pikachu", 100), self.battle.user.reserve[0])
+        assert Pokemon("pikachu", 100) == self.battle.user.reserve[0]
 
     def test_user_switching_removes_volatile_statuses(self):
         user_active = self.battle.user.active
@@ -679,9 +676,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual([], user_active.volatile_statuses)
-        self.assertEqual(0, user_active.volatile_status_durations["encore"])
-        self.assertEqual(0, user_active.volatile_status_durations["taunt"])
+        assert [] == user_active.volatile_statuses
+        assert 0 == user_active.volatile_status_durations["encore"]
+        assert 0 == user_active.volatile_status_durations["taunt"]
 
     def test_already_seen_pokemon_is_the_same_object_as_the_one_in_the_reserve(self):
         already_seen_pokemon = Pokemon("weedle", 100)
@@ -689,7 +686,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertIs(already_seen_pokemon, self.battle.opponent.active)
+        assert already_seen_pokemon is self.battle.opponent.active
 
     def test_silvally_steel_replaces_silvally(self):
         already_seen_pokemon = Pokemon("silvally", 100)
@@ -705,7 +702,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
-        self.assertEqual(expected_pokemon, self.battle.opponent.active)
+        assert expected_pokemon == self.battle.opponent.active
 
     def test_silvally_steel_with_nickname_replaces_silvally(self):
         already_seen_pokemon = Pokemon("silvally", 100)
@@ -721,7 +718,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
-        self.assertEqual(expected_pokemon, self.battle.opponent.active)
+        assert expected_pokemon == self.battle.opponent.active
 
     def test_silvally_replaces_reserve_silvally_with_different_name(self):
         already_seen_pokemon = Pokemon("silvally", 100)
@@ -738,8 +735,8 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
-        self.assertEqual(expected_pokemon, self.battle.opponent.active)
-        self.assertNotIn(already_seen_pokemon, self.battle.opponent.reserve)
+        assert expected_pokemon == self.battle.opponent.active
+        assert already_seen_pokemon not in self.battle.opponent.reserve
 
     def test_silvally_switching_in_preserves_previous_hp(self):
         already_seen_pokemon = Pokemon("silvallysteel", 100)
@@ -754,9 +751,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         ]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(
-            self.battle.opponent.active.max_hp / 2, self.battle.opponent.active.hp
-        )
+        assert self.battle.opponent.active.max_hp / 2 == self.battle.opponent.active.hp
 
     def test_arceus_ghost_switching_in(self):
         already_seen_pokemon = Pokemon("arceus", 100)
@@ -766,7 +761,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         expected_pokemon = Pokemon("arceus-ghost", 100)
 
-        self.assertEqual(expected_pokemon, self.battle.opponent.active)
+        assert expected_pokemon == self.battle.opponent.active
 
     def test_existing_boosts_on_opponents_active_pokemon_are_cleared_when_switching(
         self,
@@ -776,7 +771,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual({}, self.opponent_active.boosts)
+        assert {} == self.opponent_active.boosts
 
     def test_existing_boosts_on_bots_active_pokemon_are_cleared_when_switching(self):
         pkmn = self.battle.user.active
@@ -785,7 +780,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p1a: pidgey", "Pidgey, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual({}, pkmn.boosts)
+        assert {} == pkmn.boosts
 
     def test_switching_into_the_same_pokemon_does_not_put_that_pokemon_in_the_reserves(
         self,
@@ -794,7 +789,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertFalse(self.battle.opponent.reserve)
+        assert not self.battle.opponent.reserve
 
     def test_switching_sets_last_move_to_none(self):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
@@ -802,7 +797,7 @@ class TestSwitchOrDrag(unittest.TestCase):
 
         expected_last_move = LastUsedMove(None, "switch weedle", 0)
 
-        self.assertEqual(expected_last_move, self.battle.opponent.last_used_move)
+        assert expected_last_move == self.battle.opponent.last_used_move
 
     def test_ditto_switching_sets_ability_to_imposter_via_original_ability(self):
         ditto = Pokemon("ditto", 100)
@@ -814,9 +809,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.opponent.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
-        self.assertEqual("imposter", ditto.ability)
+        assert "imposter" == ditto.ability
 
     def test_ditto_switching_sets_moves_to_empty_list(self):
         ditto = Pokemon("ditto", 100)
@@ -828,9 +823,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.opponent.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
-        self.assertEqual([], ditto.moves)
+        assert [] == ditto.moves
 
     def test_ditto_switching_sets_moves_to_empty_list_for_user(self):
         ditto = Pokemon("ditto", 100)
@@ -842,9 +837,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.user.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
-        self.assertEqual([], ditto.moves)
+        assert [] == ditto.moves
 
     def test_ditto_switching_resets_stats(self):
         ditto = Pokemon("ditto", 100)
@@ -862,11 +857,11 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.opponent.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
         expected_stats = calculate_stats(ditto.base_stats, ditto.level)
 
-        self.assertEqual(expected_stats, ditto.stats)
+        assert expected_stats == ditto.stats
 
     def test_ditto_switching_resets_boosts(self):
         ditto = Pokemon("ditto", 100)
@@ -884,9 +879,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.opponent.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
-        self.assertEqual({}, ditto.boosts)
+        assert {} == ditto.boosts
 
     def test_ditto_switching_resets_types(self):
         ditto = Pokemon("ditto", 100)
@@ -898,9 +893,9 @@ class TestSwitchOrDrag(unittest.TestCase):
         switch_or_drag(self.battle, split_msg)
 
         if self.battle.opponent.reserve[0] != ditto:
-            self.fail("Ditto was not moved to reserves")
+            pytest.fail("Ditto was not moved to reserves")
 
-        self.assertEqual(["normal"], ditto.types)
+        assert ["normal"] == ditto.types
 
     def test_shed_tail_switching_in_gets_shed_tailing_flag_set_to_false(self):
         self.battle.user.shed_tailing = True
@@ -915,7 +910,7 @@ class TestSwitchOrDrag(unittest.TestCase):
         ]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertFalse(self.battle.user.shed_tailing)
+        assert not self.battle.user.shed_tailing
 
     def test_shed_tail_switching_in_only_keeps_substitute(self):
         self.battle.user.active.volatile_statuses = [
@@ -935,15 +930,14 @@ class TestSwitchOrDrag(unittest.TestCase):
         ]
         switch_or_drag(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.user.active.boosts[constants.SPEED])
-        self.assertEqual(0, self.battle.user.active.boosts[constants.ATTACK])
-        self.assertEqual(
-            [constants.SUBSTITUTE], self.battle.user.active.volatile_statuses
-        )
+        assert 0 == self.battle.user.active.boosts[constants.SPEED]
+        assert 0 == self.battle.user.active.boosts[constants.ATTACK]
+        assert [constants.SUBSTITUTE] == self.battle.user.active.volatile_statuses
 
 
-class TestHealOrDamage(unittest.TestCase):
-    def setUp(self):
+class TestHealOrDamage:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -968,9 +962,7 @@ class TestHealOrDamage(unittest.TestCase):
             "50/100g",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(
-            0.5, self.battle.user.active.hp / self.battle.user.active.max_hp
-        )
+        assert 0.5 == self.battle.user.active.hp / self.battle.user.active.max_hp
 
     def test_heal_from_healing_wish_clears_side_condition(self):
         # |-heal|p1a: Caterpie|100/100|[from] move: Healing Wish
@@ -983,9 +975,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[from] move: Healing Wish",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(
-            0, self.battle.opponent.side_conditions[constants.HEALING_WISH]
-        )
+        assert 0 == self.battle.opponent.side_conditions[constants.HEALING_WISH]
 
     def test_sets_ability_when_the_information_is_present(self):
         split_msg = [
@@ -997,7 +987,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p1a: Genesect",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("waterabsorb", self.battle.opponent.active.ability)
+        assert "waterabsorb" == self.battle.opponent.active.ability
 
     def test_sets_ability_when_the_bot_is_damaged_from_opponents_ability(self):
         split_msg = [
@@ -1009,7 +999,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p2a: Ferrothorn",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("ironbarbs", self.battle.opponent.active.ability)
+        assert "ironbarbs" == self.battle.opponent.active.ability
 
     def test_sets_ability_when_the_opponent_is_damaged_from_bots_ability(self):
         split_msg = [
@@ -1021,7 +1011,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p1a: Ferrothorn",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("ironbarbs", self.battle.user.active.ability)
+        assert "ironbarbs" == self.battle.user.active.ability
 
     def test_sets_item_when_it_causes_the_bot_damage(self):
         split_msg = [
@@ -1033,7 +1023,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p2a: Ferrothorn",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("rockyhelmet", self.battle.opponent.active.item)
+        assert "rockyhelmet" == self.battle.opponent.active.item
 
     def test_sets_item_when_it_causes_the_opponent_damage(self):
         split_msg = [
@@ -1045,7 +1035,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p1a: Ferrothorn",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("rockyhelmet", self.battle.user.active.item)
+        assert "rockyhelmet" == self.battle.user.active.item
 
     def test_does_not_set_item_when_item_is_none(self):
         # |-heal|p2a: Drifblim|37/100|[from] item: Sitrus Berry
@@ -1058,57 +1048,57 @@ class TestHealOrDamage(unittest.TestCase):
         ]
         self.battle.opponent.active.item = None
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(None, self.battle.opponent.active.item)
+        assert None is self.battle.opponent.active.item
 
     def test_damage_sets_opponents_active_pokemon_to_correct_hp(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "80/100"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(160, self.battle.opponent.active.hp)
+        assert 160 == self.battle.opponent.active.hp
 
     def test_damage_sets_bots_active_pokemon_to_correct_hp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "150/250"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(150, self.battle.user.active.hp)
+        assert 150 == self.battle.user.active.hp
 
     def test_damage_sets_bots_active_pokemon_to_correct_maxhp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "150/250"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(250, self.battle.user.active.max_hp)
+        assert 250 == self.battle.user.active.max_hp
 
     def test_damage_sets_bots_active_pokemon_to_zero_hp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "0 fnt"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(0, self.battle.user.active.hp)
+        assert 0 == self.battle.user.active.hp
 
     def test_fainted_message_properly_faints_opponents_pokemon(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "0 fnt"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(0, self.battle.opponent.active.hp)
+        assert 0 == self.battle.opponent.active.hp
 
     def test_damage_caused_by_an_item_properly_sets_opponents_item(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "100/100", "[from] item: Life Orb"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("lifeorb", self.battle.opponent.active.item)
+        assert "lifeorb" == self.battle.opponent.active.item
 
     def test_damage_caused_by_toxic_increases_side_condition_toxic_counter_for_opponent(
         self,
     ):
         split_msg = ["", "-damage", "p2a: Caterpie", "94/100 tox", "[from] psn"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(1, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert 1 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_damage_caused_by_toxic_increases_side_condition_toxic_counter_for_user(
         self,
     ):
         split_msg = ["", "-damage", "p1a: Caterpie", "94/100 tox", "[from] psn"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(1, self.battle.user.side_conditions[constants.TOXIC_COUNT])
+        assert 1 == self.battle.user.side_conditions[constants.TOXIC_COUNT]
 
     def test_toxic_count_increases_to_2(self):
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "-damage", "p2a: Caterpie", "94/100 tox", "[from] psn"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(2, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert 2 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_damage_caused_by_non_toxic_damage_does_not_increase_toxic_count(self):
         split_msg = [
@@ -1119,7 +1109,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[from] item: Life Orb",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(0, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_healing_from_ability_sets_ability_to_opponent(self):
         split_msg = [
@@ -1131,7 +1121,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p1a: Caterpie",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual("voltabsorb", self.battle.opponent.active.ability)
+        assert "voltabsorb" == self.battle.opponent.active.ability
 
     def test_healing_from_ability_does_not_set_bots_ability(self):
         self.battle.user.active.ability = None
@@ -1144,7 +1134,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[of] p1a: Caterpie",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertIsNone(self.battle.user.active.ability)
+        assert self.battle.user.active.ability is None
 
     def test_healing_from_revivalblessing_for_opponent_pkmn(self):
         amoongus_reserve = Pokemon("amoonguss", 100)
@@ -1156,7 +1146,7 @@ class TestHealOrDamage(unittest.TestCase):
         # |-heal|p1: Amoonguss|50/100|[from] move: Revival Blessing
         split_msg = ["", "-heal", "p2a: Sus", "50/100", "[from] move: Revival Blessing"]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(amoongus_reserve.hp, int(amoongus_reserve.max_hp / 2))
+        assert amoongus_reserve.hp == int(amoongus_reserve.max_hp / 2)
 
     def test_healing_from_revivalblessing_for_bot_pkmn(self):
         amoongus_reserve = Pokemon("amoonguss", 100)
@@ -1173,7 +1163,7 @@ class TestHealOrDamage(unittest.TestCase):
             "[from] move: Revival Blessing",
         ]
         heal_or_damage(self.battle, split_msg)
-        self.assertEqual(amoongus_reserve.hp, int(amoongus_reserve.max_hp / 2))
+        assert amoongus_reserve.hp == int(amoongus_reserve.max_hp / 2)
 
     def test_gen1_pkmn_trapping_foe_releases_target_after_hitting_self_in_confusion(
         self,
@@ -1189,19 +1179,21 @@ class TestHealOrDamage(unittest.TestCase):
         ] = 1
         split_msg = ["", "-damage", "p1a: Rhydon", "376/413", "[from] confusion"]
         heal_or_damage(self.battle, split_msg)
-        self.assertNotIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED
+            not in self.battle.opponent.active.volatile_statuses
         )
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.PARTIALLY_TRAPPED
-            ],
+            ]
         )
 
 
-class TestActivate(unittest.TestCase):
-    def setUp(self):
+class TestActivate:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -1234,11 +1226,11 @@ class TestActivate(unittest.TestCase):
         activate(self.battle, split_msg)
 
         # sets ability but retains original ability
-        self.assertEqual("lingeringaroma", self.battle.user.active.ability)
-        self.assertEqual("intimidate", self.battle.user.active.original_ability)
+        assert "lingeringaroma" == self.battle.user.active.ability
+        assert "intimidate" == self.battle.user.active.original_ability
 
         # sets ability on the other pkmn
-        self.assertEqual("lingeringaroma", self.battle.opponent.active.ability)
+        assert "lingeringaroma" == self.battle.opponent.active.ability
 
     def test_activating_partially_trapped_whirlpool(self):
         split_msg = [
@@ -1249,8 +1241,8 @@ class TestActivate(unittest.TestCase):
             "[of] p1a: Luvdisc",
         ]
         activate(self.battle, split_msg)
-        self.assertIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED in self.battle.opponent.active.volatile_statuses
         )
 
     def test_activating_partially_trapped_magmastorm(self):
@@ -1262,8 +1254,8 @@ class TestActivate(unittest.TestCase):
             "[of] p1a: Luvdisc",
         ]
         activate(self.battle, split_msg)
-        self.assertIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED in self.battle.opponent.active.volatile_statuses
         )
 
     def test_does_not_activate_partiallytrapped_when_not_a_partiallytrapping_move(self):
@@ -1276,8 +1268,9 @@ class TestActivate(unittest.TestCase):
             "[of] p1a: Luvdisc",
         ]
         activate(self.battle, split_msg)
-        self.assertNotIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED
+            not in self.battle.opponent.active.volatile_statuses
         )
 
     def test_does_not_set_consumed_item(self):
@@ -1290,7 +1283,7 @@ class TestActivate(unittest.TestCase):
         ]
         self.battle.opponent.active.item = None
         activate(self.battle, split_msg)
-        self.assertIsNone(self.battle.opponent.active.item)
+        assert self.battle.opponent.active.item is None
 
     def test_sets_item_when_poltergeist_activates(self):
         split_msg = [
@@ -1301,7 +1294,7 @@ class TestActivate(unittest.TestCase):
             "Leftovers",
         ]
         activate(self.battle, split_msg)
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        assert "leftovers" == self.battle.opponent.active.item
 
     def test_sets_item_when_poltergeist_activates_and_move_is_lowercase(self):
         split_msg = [
@@ -1312,7 +1305,7 @@ class TestActivate(unittest.TestCase):
             "Leftovers",
         ]
         activate(self.battle, split_msg)
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        assert "leftovers" == self.battle.opponent.active.item
 
     def test_sets_item_from_activate(self):
         split_msg = [
@@ -1323,21 +1316,22 @@ class TestActivate(unittest.TestCase):
             "Stun Spore",
         ]
         activate(self.battle, split_msg)
-        self.assertEqual("safetygoggles", self.battle.opponent.active.item)
+        assert "safetygoggles" == self.battle.opponent.active.item
 
     def test_sets_ability_from_activate(self):
         split_msg = ["", "-activate", "p2a: Ferrothorn", "ability: Iron Barbs"]
         activate(self.battle, split_msg)
-        self.assertEqual("ironbarbs", self.battle.opponent.active.ability)
+        assert "ironbarbs" == self.battle.opponent.active.ability
 
     def test_sets_substitute_hit_from_activate(self):
         split_msg = ["", "-activate", "p2a: Heatran", "Substitute", "[damage]"]
         activate(self.battle, split_msg)
-        self.assertTrue(self.battle.opponent.active.substitute_hit)
+        assert self.battle.opponent.active.substitute_hit
 
 
-class TestPrepare(unittest.TestCase):
-    def setUp(self):
+class TestPrepare:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -1358,11 +1352,12 @@ class TestPrepare(unittest.TestCase):
         # |-prepare|p1a: Dragapult|Phantom Force
         split_msg = ["", "-prepare", "p2a: Caterpie", "Phantom Force"]
         prepare(self.battle, split_msg)
-        self.assertIn("phantomforce", self.battle.opponent.active.volatile_statuses)
+        assert "phantomforce" in self.battle.opponent.active.volatile_statuses
 
 
-class TestClearAllBoosts(unittest.TestCase):
-    def setUp(self):
+class TestClearAllBoosts:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -1383,29 +1378,30 @@ class TestClearAllBoosts(unittest.TestCase):
         split_msg = ["", "-clearallboost"]
         self.battle.user.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
         clearallboost(self.battle, split_msg)
-        self.assertEqual(0, self.battle.user.active.boosts[constants.ATTACK])
-        self.assertEqual(0, self.battle.user.active.boosts[constants.DEFENSE])
+        assert 0 == self.battle.user.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.user.active.boosts[constants.DEFENSE]
 
     def test_clears_opponents_boosts(self):
         split_msg = ["", "-clearallboost"]
         self.battle.opponent.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
         clearallboost(self.battle, split_msg)
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.DEFENSE])
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.DEFENSE]
 
     def test_clears_opponents_and_botsboosts(self):
         split_msg = ["", "-clearallboost"]
         self.battle.user.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
         self.battle.opponent.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
         clearallboost(self.battle, split_msg)
-        self.assertEqual(0, self.battle.user.active.boosts[constants.ATTACK])
-        self.assertEqual(0, self.battle.user.active.boosts[constants.DEFENSE])
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.DEFENSE])
+        assert 0 == self.battle.user.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.user.active.boosts[constants.DEFENSE]
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.DEFENSE]
 
 
-class TestMove(unittest.TestCase):
-    def setUp(self):
+class TestMove:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -1457,24 +1453,23 @@ class TestMove(unittest.TestCase):
         ]  # Gyarados does not get shadowball in gen9 battle factory
         move(self.battle, split_msg)
 
-        self.assertEqual("zoroarkhisui", self.battle.opponent.active.name)
+        assert "zoroarkhisui" == self.battle.opponent.active.name
 
         # nastyplot was previously revealed on zoroarkhisui
         # terablast was used by gyarados since switching in, but should be re-associated with zoroarkhisui
         # shadowball is the move used to deduce it was a zoroarkhisui and should be added to zoroarkhisui's moves
-        self.assertEqual(
-            [Move("nastyplot"), Move("terablast"), Move("shadowball")],
-            self.battle.opponent.active.moves,
-        )
+        assert [
+            Move("nastyplot"),
+            Move("terablast"),
+            Move("shadowball"),
+        ] == self.battle.opponent.active.moves
         # the boosts that existed on gyarados should be on the active zoroarkhisui now
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
         # terablast was used by gyarados since switching in so it should be dis-associated with gyarados
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_infer_zoroarkhisui_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
@@ -1498,27 +1493,25 @@ class TestMove(unittest.TestCase):
         ]  # Gyarados does not get Poltergeist in gen9randbats
         move(self.battle, split_msg)
 
-        self.assertEqual("zoroarkhisui", self.battle.opponent.active.name)
+        assert "zoroarkhisui" == self.battle.opponent.active.name
 
         # since this is randbats, just make sure we aren't setting level to 100
         # dont want to assert a specific level because the levels may change
-        self.assertNotEqual(100, self.battle.opponent.active.level)
+        assert 100 != self.battle.opponent.active.level
 
         # terablast was used by gyarados since switching in, but should be re-associated with zoroarkhisui
         # poltergeist is the move used to deduce it was a zoroarkhisui and should be added to zoroarkhisui's moves
-        self.assertEqual(
-            [Move("terablast"), Move("poltergeist")],
-            self.battle.opponent.active.moves,
-        )
+        assert [
+            Move("terablast"),
+            Move("poltergeist"),
+        ] == self.battle.opponent.active.moves
         # the boosts that existed on gyarados should be on the active zoroarkhisui now
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
         # terablast was used by gyarados since switching in so it should be dis-associated with gyarados
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_infer_zoroark_regular_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
@@ -1542,23 +1535,21 @@ class TestMove(unittest.TestCase):
         ]
         move(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.name)
+        assert "zoroark" == self.battle.opponent.active.name
 
         # since this is randbats, just make sure we aren't setting level to 100
         # dont want to assert a specific level because the levels may change
-        self.assertNotEqual(100, self.battle.opponent.active.level)
+        assert 100 != self.battle.opponent.active.level
 
-        self.assertEqual(
-            [Move("terablast"), Move("darkpulse")],
-            self.battle.opponent.active.moves,
-        )
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert [
+            Move("terablast"),
+            Move("darkpulse"),
+        ] == self.battle.opponent.active.moves
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert "gyarados" == self.battle.opponent.reserve[0].name
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_does_not_infer_zoroark_if_move_can_be_on_active_pkmn(
         self,
@@ -1582,8 +1573,8 @@ class TestMove(unittest.TestCase):
         ]  # Tornadus Therian gets nastyplot so no inferring zoroark
         move(self.battle, split_msg)
 
-        self.assertEqual("tornadustherian", self.battle.opponent.active.name)
-        self.assertEqual([], self.battle.opponent.reserve)
+        assert "tornadustherian" == self.battle.opponent.active.name
+        assert [] == self.battle.opponent.reserve
 
     def test_does_not_infer_zoroark_when_struggle(
         self,
@@ -1607,8 +1598,8 @@ class TestMove(unittest.TestCase):
         ]
         move(self.battle, split_msg)
 
-        self.assertEqual("tornadustherian", self.battle.opponent.active.name)
-        self.assertEqual([], self.battle.opponent.reserve)
+        assert "tornadustherian" == self.battle.opponent.active.name
+        assert [] == self.battle.opponent.reserve
 
     def test_does_not_infer_from_struggle(self):
         self.battle.mode = BattleFactoryMode()
@@ -1631,15 +1622,13 @@ class TestMove(unittest.TestCase):
         move(self.battle, split_msg)
 
         # nothing changes
-        self.assertEqual("gyarados", self.battle.opponent.active.name)
-        self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
+        assert "gyarados" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
 
     def test_sets_healing_wish_side_condition_when_healing_wish_is_used(self):
         split_msg = ["", "move", "p2a: Caterpie", "Healing Wish", "p2a: Caterpie"]
         move(self.battle, split_msg)
-        self.assertEqual(
-            1, self.battle.opponent.side_conditions[constants.HEALING_WISH]
-        )
+        assert 1 == self.battle.opponent.side_conditions[constants.HEALING_WISH]
 
     def test_swordsdance_sets_burn_nullify_volatile_when_burned(self):
         self.battle.generation = "gen1"
@@ -1648,7 +1637,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertIn("gen1burnnullify", self.battle.opponent.active.volatile_statuses)
+        assert "gen1burnnullify" in self.battle.opponent.active.volatile_statuses
 
     def test_meditate_sets_burn_nullify_volatile_when_burned(self):
         self.battle.generation = "gen1"
@@ -1657,7 +1646,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertIn("gen1burnnullify", self.battle.opponent.active.volatile_statuses)
+        assert "gen1burnnullify" in self.battle.opponent.active.volatile_statuses
 
     def test_agility_sets_paralysis_nullify_when_paralyzed(self):
         self.battle.generation = "gen1"
@@ -1666,9 +1655,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertIn(
-            "gen1paralysisnullify", self.battle.opponent.active.volatile_statuses
-        )
+        assert "gen1paralysisnullify" in self.battle.opponent.active.volatile_statuses
 
     def test_adds_move_to_opponent(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1676,19 +1663,19 @@ class TestMove(unittest.TestCase):
         move(self.battle, split_msg)
         m = Move("String Shot")
 
-        self.assertIn(m, self.battle.opponent.active.moves)
+        assert m in self.battle.opponent.active.moves
 
     def test_adds_truant_when_truant_pkmn(self):
         self.battle.opponent.active.ability = "truant"
         split_msg = ["", "move", "p2a: Slaking", "Earthquake"]
         move(self.battle, split_msg)
-        self.assertIn("truant", self.battle.opponent.active.volatile_statuses)
+        assert "truant" in self.battle.opponent.active.volatile_statuses
 
     def test_adds_truant_when_slaking_pkmn(self):
         self.battle.opponent.active.name = "slaking"
         split_msg = ["", "move", "p2a: Slaking", "Earthquake"]
         move(self.battle, split_msg)
-        self.assertIn("truant", self.battle.opponent.active.volatile_statuses)
+        assert "truant" in self.battle.opponent.active.volatile_statuses
 
     def test_does_not_set_move_for_magicbounce(self):
         split_msg = [
@@ -1702,8 +1689,8 @@ class TestMove(unittest.TestCase):
         move(self.battle, split_msg)
         m = Move("String Shot")
 
-        self.assertNotIn(m, self.battle.opponent.active.moves)
-        self.assertEqual("magicbounce", self.battle.opponent.active.ability)
+        assert m not in self.battle.opponent.active.moves
+        assert "magicbounce" == self.battle.opponent.active.ability
 
     def test_does_not_set_move_for_magicbounce_when_still(self):
         # |move|p2a: Espeon|Leech Seed||[from] ability: Magic Bounce|[still]
@@ -1719,7 +1706,7 @@ class TestMove(unittest.TestCase):
         move(self.battle, split_msg)
         m = Move("String Shot")
 
-        self.assertNotIn(m, self.battle.opponent.active.moves)
+        assert m not in self.battle.opponent.active.moves
 
     def test_new_move_has_one_pp_less_than_max(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1728,7 +1715,7 @@ class TestMove(unittest.TestCase):
         m = self.battle.opponent.active.get_move("String Shot")
         expected_pp = m.max_pp - 1
 
-        self.assertEqual(expected_pp, m.current_pp)
+        assert expected_pp == m.current_pp
 
     def test_new_move_has_two_pp_less_than_max_if_against_pressure(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1738,7 +1725,7 @@ class TestMove(unittest.TestCase):
         m = self.battle.opponent.active.get_move("String Shot")
         expected_pp = m.max_pp - 2
 
-        self.assertEqual(expected_pp, m.current_pp)
+        assert expected_pp == m.current_pp
 
     def test_unknown_move_does_not_try_to_decrement(self):
         split_msg = ["", "move", "p2a: Caterpie", "some-random-unknown-move"]
@@ -1751,7 +1738,7 @@ class TestMove(unittest.TestCase):
         self.battle.opponent.active.moves.append(Move("String Shot"))
         move(self.battle, split_msg)
 
-        self.assertEqual(1, len(self.battle.opponent.active.moves))
+        assert 1 == len(self.battle.opponent.active.moves)
 
     def test_increments_gen3_consecutive_sleeptalk_turns_when_using_sleeptalk(self):
         split_msg = ["", "move", "p2a: Caterpie", "Earthquake", "[from]Sleep Talk"]
@@ -1760,7 +1747,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.opponent.active.gen_3_consecutive_sleep_talks)
+        assert 1 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
     def test_does_not_reset_consecutive_sleeptalk_turns_in_gen3_when_move_is_sleeptalk(
         self,
@@ -1772,7 +1759,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.opponent.active.gen_3_consecutive_sleep_talks)
+        assert 1 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
     def test_resets_consecutive_sleeptalk_turns_in_gen3_when_move_is_non_sleeptalk(
         self,
@@ -1784,7 +1771,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.active.gen_3_consecutive_sleep_talks)
+        assert 0 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
     def test_does_not_decrement_pp_if_move_is_called_by_sleeptalk(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot", "[from]Sleep Talk"]
@@ -1793,16 +1780,16 @@ class TestMove(unittest.TestCase):
         self.battle.opponent.active.moves.append(m)
         move(self.battle, split_msg)
 
-        self.assertEqual(5, m.current_pp)
+        assert 5 == m.current_pp
 
     def test_sets_move_if_doesnt_exist_from_sleeptalk(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot", "[from]Sleep Talk"]
         move(self.battle, split_msg)
 
-        self.assertIn(Move("stringshot"), self.battle.opponent.active.moves)
-        self.assertEqual(
-            self.battle.opponent.active.moves[0].current_pp,
-            self.battle.opponent.active.moves[0].max_pp,
+        assert Move("stringshot") in self.battle.opponent.active.moves
+        assert (
+            self.battle.opponent.active.moves[0].current_pp
+            == self.battle.opponent.active.moves[0].max_pp
         )
 
     def test_sets_move_if_doesnt_exist_from_move_sleeptalk(self):
@@ -1815,10 +1802,10 @@ class TestMove(unittest.TestCase):
         ]
         move(self.battle, split_msg)
 
-        self.assertIn(Move("stringshot"), self.battle.opponent.active.moves)
-        self.assertEqual(
-            self.battle.opponent.active.moves[0].current_pp,
-            self.battle.opponent.active.moves[0].max_pp,
+        assert Move("stringshot") in self.battle.opponent.active.moves
+        assert (
+            self.battle.opponent.active.moves[0].current_pp
+            == self.battle.opponent.active.moves[0].max_pp
         )
 
     def test_does_not_decrement_pp_if_move_is_called_by_move_sleeptalk(self):
@@ -1834,7 +1821,7 @@ class TestMove(unittest.TestCase):
         self.battle.opponent.active.moves.append(m)
         move(self.battle, split_msg)
 
-        self.assertEqual(5, m.current_pp)
+        assert 5 == m.current_pp
 
     def test_decrements_seen_move_pp_if_seen_again(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1843,7 +1830,7 @@ class TestMove(unittest.TestCase):
         self.battle.opponent.active.moves.append(m)
         move(self.battle, split_msg)
 
-        self.assertEqual(4, m.current_pp)
+        assert 4 == m.current_pp
 
     def test_decrements_seen_move_pp_by_two_if_opponent_has_pressure(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1853,7 +1840,7 @@ class TestMove(unittest.TestCase):
         self.battle.opponent.active.moves.append(m)
         move(self.battle, split_msg)
 
-        self.assertEqual(3, m.current_pp)
+        assert 3 == m.current_pp
 
     def test_properly_sets_last_used_move(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1864,7 +1851,7 @@ class TestMove(unittest.TestCase):
             pokemon_name="caterpie", move="stringshot", turn=0
         )
 
-        self.assertEqual(expected_last_used_move, self.battle.opponent.last_used_move)
+        assert expected_last_used_move == self.battle.opponent.last_used_move
 
     def test_using_status_move_makes_assaultvest_impossible(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
@@ -1872,9 +1859,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertIn(
-            constants.ASSAULT_VEST, self.battle.opponent.active.impossible_items
-        )
+        assert constants.ASSAULT_VEST in self.battle.opponent.active.impossible_items
 
     def test_using_nonstatus_move_does_not_make_assultvest_impossible(self):
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
@@ -1882,8 +1867,8 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertNotIn(
-            constants.ASSAULT_VEST, self.battle.opponent.active.impossible_items
+        assert (
+            constants.ASSAULT_VEST not in self.battle.opponent.active.impossible_items
         )
 
     def test_removes_volatilestatus_if_pkmn_has_it_when_using_move(self):
@@ -1892,24 +1877,22 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_increments_encore_duration_when_using_move_having_been_encored(self):
         self.battle.opponent.active.volatile_statuses = ["encore"]
         self.battle.opponent.active.volatile_status_durations["encore"] = 0
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
         move(self.battle, split_msg)
-        self.assertEqual(
-            1, self.battle.opponent.active.volatile_status_durations["encore"]
-        )
+        assert 1 == self.battle.opponent.active.volatile_status_durations["encore"]
 
     def test_increments_taunt_duration_when_using_move_having_been_taunted(self):
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
         move(self.battle, split_msg)
-        self.assertEqual(
-            1, self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
+        assert (
+            1 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
 
     def test_removes_destinybond_if_it_exists_in_volatiles_when_using_destinybond(self):
@@ -1918,7 +1901,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_removes_destinybond_if_it_exists_in_volatiles_when_not_using_destinybond(
         self,
@@ -1928,7 +1911,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_sets_can_have_choice_item_to_false_if_two_different_moves_are_used_when_the_pkmn_has_an_unknown_item(
         self,
@@ -1939,7 +1922,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertFalse(self.battle.opponent.active.can_have_choice_item)
+        assert not self.battle.opponent.active.can_have_choice_item
 
     def test_using_a_boosting_status_move_sets_can_have_choice_item_to_false(self):
         self.battle.opponent.active.can_have_choice_item = True
@@ -1947,7 +1930,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertFalse(self.battle.opponent.active.can_have_choice_item)
+        assert not self.battle.opponent.active.can_have_choice_item
 
     def test_using_a_boosting_physical_move_does_not_set_can_have_choice_item_to_false(
         self,
@@ -1957,7 +1940,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertTrue(self.battle.opponent.active.can_have_choice_item)
+        assert self.battle.opponent.active.can_have_choice_item
 
     def test_using_a_boosting_special_move_does_not_set_can_have_choice_item_to_false(
         self,
@@ -1967,7 +1950,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertTrue(self.battle.opponent.active.can_have_choice_item)
+        assert self.battle.opponent.active.can_have_choice_item
 
     def test_sets_item_to_unknown_if_the_pokemon_choice_item_was_inferred_but_two_different_moves_are_used(
         self,
@@ -1980,7 +1963,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_set_item_to_unknow_if_choice_item_was_not_inferred_and_two_different_moves_were_used(
         self,
@@ -1993,7 +1976,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual(constants.CHOICE_BAND, self.battle.opponent.active.item)
+        assert constants.CHOICE_BAND == self.battle.opponent.active.item
 
     def test_does_not_set_item_to_unknown_if_the_known_item_is_not_a_choice_item_and_two_different_moves_are_used(
         self,
@@ -2005,7 +1988,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        assert "leftovers" == self.battle.opponent.active.item
 
     def test_does_not_set_can_have_choice_item_to_false_if_the_same_move_is_used_when_the_pkmn_has_an_unknown_item(
         self,
@@ -2016,7 +1999,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertTrue(self.battle.opponent.active.can_have_choice_item)
+        assert self.battle.opponent.active.can_have_choice_item
 
     def test_sets_can_have_choice_item_to_false_even_if_item_is_known(self):
         # if the item is known - this flag doesn't matter anyways
@@ -2027,7 +2010,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertFalse(self.battle.opponent.active.can_have_choice_item)
+        assert not self.battle.opponent.active.can_have_choice_item
 
     def test_sets_life_orb_as_impossible_if_damaging_move_is_used(self):
         # if a damaging move is used, we no longer want to guess lifeorb as an item
@@ -2035,7 +2018,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertIn(constants.LIFE_ORB, self.battle.opponent.active.impossible_items)
+        assert constants.LIFE_ORB in self.battle.opponent.active.impossible_items
 
     def test_does_not_set_can_life_orb_to_impossible_if_pokemon_could_have_sheerforce(
         self,
@@ -2047,9 +2030,7 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertNotIn(
-            constants.LIFE_ORB, self.battle.opponent.active.impossible_items
-        )
+        assert constants.LIFE_ORB not in self.battle.opponent.active.impossible_items
 
     def test_does_not_set_life_orb_to_impossible_if_pokemon_could_have_magic_guard(
         self,
@@ -2061,27 +2042,25 @@ class TestMove(unittest.TestCase):
 
         move(self.battle, split_msg)
 
-        self.assertNotIn(
-            constants.LIFE_ORB, self.battle.opponent.active.impossible_items
-        )
+        assert constants.LIFE_ORB not in self.battle.opponent.active.impossible_items
 
     def test_adds_normal_gem_to_impossible_items(self):
         split_msg = ["", "move", "p2a: Clefable", "Tackle"]
 
         move(self.battle, split_msg)
-        self.assertIn("normalgem", self.battle.opponent.active.impossible_items)
+        assert "normalgem" in self.battle.opponent.active.impossible_items
 
     def test_adds_flying_gem_to_impossible_items(self):
         split_msg = ["", "move", "p2a: Clefable", "Acrobatics"]
 
         move(self.battle, split_msg)
-        self.assertIn("flyinggem", self.battle.opponent.active.impossible_items)
+        assert "flyinggem" in self.battle.opponent.active.impossible_items
 
     def test_does_not_add_gem_if_non_damaging_move(self):
         split_msg = ["", "move", "p2a: Clefable", "Protect"]
 
         move(self.battle, split_msg)
-        self.assertNotIn("normalgem", self.battle.opponent.active.impossible_items)
+        assert "normalgem" not in self.battle.opponent.active.impossible_items
 
     def test_wish_sets_battler_wish(self):
         split_msg = ["", "move", "p1a: Clefable", "Wish", "p1a: Clefable"]
@@ -2090,7 +2069,7 @@ class TestMove(unittest.TestCase):
 
         expected_wish = (2, self.battle.user.active.max_hp / 2)
 
-        self.assertEqual(expected_wish, self.battle.user.wish)
+        assert expected_wish == self.battle.user.wish
 
     def test_failed_wish_does_not_set_wish(self):
         self.battle.user.wish = (1, 100)
@@ -2100,7 +2079,7 @@ class TestMove(unittest.TestCase):
 
         expected_wish = (1, 100)
 
-        self.assertEqual(expected_wish, self.battle.user.wish)
+        assert expected_wish == self.battle.user.wish
 
     def test_activating_partially_trapped_gen1(self):
         self.battle.generation = "gen1"
@@ -2112,11 +2091,11 @@ class TestMove(unittest.TestCase):
             "p2a: Weedle",
         ]
         move(self.battle, split_msg)
-        self.assertEqual(
-            1,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            1
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.PARTIALLY_TRAPPED
-            ],
+            ]
         )
 
     def test_does_not_activate_partiallytrapped_on_miss(self):
@@ -2130,11 +2109,11 @@ class TestMove(unittest.TestCase):
             "[miss]",
         ]
         move(self.battle, split_msg)
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.PARTIALLY_TRAPPED
-            ],
+            ]
         )
 
     def test_removes_existing_partiallytrapped_volatile_after_successfully_using_a_move(
@@ -2155,19 +2134,21 @@ class TestMove(unittest.TestCase):
             "p1a: Weedle",
         ]
         move(self.battle, split_msg)
-        self.assertNotIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED
+            not in self.battle.opponent.active.volatile_statuses
         )
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.PARTIALLY_TRAPPED
-            ],
+            ]
         )
 
 
-class TestTrickRoom(unittest.TestCase):
-    def setUp(self):
+class TestTrickRoom:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2187,8 +2168,8 @@ class TestTrickRoom(unittest.TestCase):
 
         fieldstart(self.battle, split_msg)
 
-        self.assertEqual(True, self.battle.trick_room)
-        self.assertEqual(5, self.battle.trick_room_turns_remaining)
+        assert True is self.battle.trick_room
+        assert 5 == self.battle.trick_room_turns_remaining
 
     def test_removes_trickroom_properly(self):
         split_msg = [
@@ -2199,12 +2180,13 @@ class TestTrickRoom(unittest.TestCase):
 
         fieldend(self.battle, split_msg)
 
-        self.assertEqual(False, self.battle.trick_room)
-        self.assertEqual(0, self.battle.trick_room_turns_remaining)
+        assert False is self.battle.trick_room
+        assert 0 == self.battle.trick_room_turns_remaining
 
 
-class TestWeather(unittest.TestCase):
-    def setUp(self):
+class TestWeather:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2227,8 +2209,8 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "raindance" == self.battle.weather
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_weather_turns_remaining_from_ability_gen4(self):
         self.battle.generation = "gen4"
@@ -2242,9 +2224,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(-1, self.battle.weather_turns_remaining)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "raindance" == self.battle.weather
+        assert -1 == self.battle.weather_turns_remaining
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_weather_turns_remaining_from_ability_gen6(self):
         self.battle.generation = "gen6"
@@ -2258,9 +2240,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(5, self.battle.weather_turns_remaining)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "raindance" == self.battle.weather
+        assert 5 == self.battle.weather_turns_remaining
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_weather_turns_remaining_from_user_ability(self):
         self.battle.generation = "gen6"
@@ -2274,9 +2256,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(5, self.battle.weather_turns_remaining)
-        self.assertEqual("user:caterpie", self.battle.weather_source)
+        assert "raindance" == self.battle.weather
+        assert 5 == self.battle.weather_turns_remaining
+        assert "user:caterpie" == self.battle.weather_source
 
     def test_sets_rain_to_8_turns_from_ability_gen6_with_extension_item(self):
         self.battle.generation = "gen6"
@@ -2291,9 +2273,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(8, self.battle.weather_turns_remaining)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "raindance" == self.battle.weather
+        assert 8 == self.battle.weather_turns_remaining
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_sun_to_8_turns_from_ability_gen6_with_extension_item(self):
         self.battle.generation = "gen6"
@@ -2308,9 +2290,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("sunnyday", self.battle.weather)
-        self.assertEqual(8, self.battle.weather_turns_remaining)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "sunnyday" == self.battle.weather
+        assert 8 == self.battle.weather_turns_remaining
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_sand_to_8_turns_from_ability_gen6_with_extension_item(self):
         self.battle.generation = "gen6"
@@ -2325,9 +2307,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("sandstorm", self.battle.weather)
-        self.assertEqual(8, self.battle.weather_turns_remaining)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
+        assert "sandstorm" == self.battle.weather
+        assert 8 == self.battle.weather_turns_remaining
+        assert "opponent:caterpie" == self.battle.weather_source
 
     def test_sets_hail_to_8_turns_from_ability_gen6_with_extension_item(self):
         self.battle.generation = "gen6"
@@ -2342,9 +2324,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("hail", self.battle.weather)
-        self.assertEqual("opponent:caterpie", self.battle.weather_source)
-        self.assertEqual(8, self.battle.weather_turns_remaining)
+        assert "hail" == self.battle.weather
+        assert "opponent:caterpie" == self.battle.weather_source
+        assert 8 == self.battle.weather_turns_remaining
 
     def test_sets_weather_turns_remaining_from_move_gen4(self):
         self.battle.generation = "gen4"
@@ -2356,8 +2338,8 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(5, self.battle.weather_turns_remaining)
+        assert "raindance" == self.battle.weather
+        assert 5 == self.battle.weather_turns_remaining
 
     def test_decrements_weather(self):
         self.battle.generation = "gen4"
@@ -2372,8 +2354,8 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(4, self.battle.weather_turns_remaining)
+        assert "raindance" == self.battle.weather
+        assert 4 == self.battle.weather_turns_remaining
 
     def test_does_not_decrement_weather_if_set_to_negative_1(self):
         self.battle.generation = "gen4"
@@ -2388,8 +2370,8 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(-1, self.battle.weather_turns_remaining)
+        assert "raindance" == self.battle.weather
+        assert -1 == self.battle.weather_turns_remaining
 
     def test_sets_weather_to_3_when_expecting_0_and_sets_appropriate_extension_item(
         self,
@@ -2408,9 +2390,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("damprock", self.battle.opponent.active.item)
-        self.assertEqual("raindance", self.battle.weather)
-        self.assertEqual(3, self.battle.weather_turns_remaining)
+        assert "damprock" == self.battle.opponent.active.item
+        assert "raindance" == self.battle.weather
+        assert 3 == self.battle.weather_turns_remaining
 
     def test_sets_sun_to_3_when_expecting_0_and_sets_appropriate_extension_item(
         self,
@@ -2429,9 +2411,9 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("heatrock", self.battle.opponent.active.item)
-        self.assertEqual("sunnyday", self.battle.weather)
-        self.assertEqual(3, self.battle.weather_turns_remaining)
+        assert "heatrock" == self.battle.opponent.active.item
+        assert "sunnyday" == self.battle.weather
+        assert 3 == self.battle.weather_turns_remaining
 
     def test_sets_weather_ability_on_opponent_when_it_is_present(self):
         split_msg = [
@@ -2444,7 +2426,7 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("drizzle", self.battle.opponent.active.ability)
+        assert "drizzle" == self.battle.opponent.active.ability
 
     def test_sets_weather_ability_on_user_when_it_is_present(self):
         split_msg = [
@@ -2457,12 +2439,13 @@ class TestWeather(unittest.TestCase):
 
         weather(self.battle, split_msg)
 
-        self.assertEqual("drizzle", self.battle.user.active.ability)
+        assert "drizzle" == self.battle.user.active.ability
 
 
 # |-setboost|p2a: Linoone|atk|6|[from] move: Belly Drum
-class TestSetBoost(unittest.TestCase):
-    def setUp(self):
+class TestSetBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2488,7 +2471,7 @@ class TestSetBoost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 6}
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
     def test_set_boost_to_6_even_when_at_negative_from_bellydrum(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = -3
@@ -2504,11 +2487,12 @@ class TestSetBoost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 6}
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
 
-class TestBoostAndUnboost(unittest.TestCase):
-    def setUp(self):
+class TestBoostAndUnboost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2527,7 +2511,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 1}
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
     def test_unboost_works_properly_on_opponent(self):
         split_msg = ["", "boost", "p2a: Weedle", "atk", "1"]
@@ -2535,7 +2519,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: -1}
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
     def test_unboost_does_not_lower_below_negative_6(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = -6
@@ -2544,7 +2528,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: -6}
 
-        self.assertEqual(expected_boosts, dict(self.battle.opponent.active.boosts))
+        assert expected_boosts == dict(self.battle.opponent.active.boosts)
 
     def test_unboost_lowers_one_when_it_hits_the_limit(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = -5
@@ -2553,7 +2537,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: -6}
 
-        self.assertEqual(expected_boosts, dict(self.battle.opponent.active.boosts))
+        assert expected_boosts == dict(self.battle.opponent.active.boosts)
 
     def test_boost_does_not_lower_below_negative_6(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = 6
@@ -2562,7 +2546,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 6}
 
-        self.assertEqual(expected_boosts, dict(self.battle.opponent.active.boosts))
+        assert expected_boosts == dict(self.battle.opponent.active.boosts)
 
     def test_boost_lowers_one_when_it_hits_the_limit(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = 5
@@ -2571,7 +2555,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 6}
 
-        self.assertEqual(expected_boosts, dict(self.battle.opponent.active.boosts))
+        assert expected_boosts == dict(self.battle.opponent.active.boosts)
 
     def test_unboost_works_properly_on_user(self):
         split_msg = ["", "boost", "p1a: Caterpie", "atk", "1"]
@@ -2579,7 +2563,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: -1}
 
-        self.assertEqual(expected_boosts, self.battle.user.active.boosts)
+        assert expected_boosts == self.battle.user.active.boosts
 
     def test_user_boosts_updates_properly(self):
         split_msg = ["", "boost", "p1a: Caterpie", "atk", "1"]
@@ -2587,7 +2571,7 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 1}
 
-        self.assertEqual(expected_boosts, self.battle.user.active.boosts)
+        assert expected_boosts == self.battle.user.active.boosts
 
     def test_multiple_boost_properly_updates(self):
         split_msg = ["", "boost", "p2a: Weedle", "atk", "1"]
@@ -2596,11 +2580,12 @@ class TestBoostAndUnboost(unittest.TestCase):
 
         expected_boosts = {constants.ATTACK: 2}
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
 
-class TestStatus(unittest.TestCase):
-    def setUp(self):
+class TestStatus:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2620,7 +2605,7 @@ class TestStatus(unittest.TestCase):
             "[of] p2a: Caterpie",
         ]
         status(self.battle, split_msg)
-        self.assertEqual("flamebody", self.battle.opponent.active.ability)
+        assert "flamebody" == self.battle.opponent.active.ability
 
     def test_sets_ability_when_status_comes_from_effectspore(self):
         split_msg = [
@@ -2632,50 +2617,51 @@ class TestStatus(unittest.TestCase):
             "[of] p2a: Caterpie",
         ]
         status(self.battle, split_msg)
-        self.assertEqual("effectspore", self.battle.opponent.active.ability)
+        assert "effectspore" == self.battle.opponent.active.ability
 
     def test_opponents_active_pokemon_has_status_properly_set(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
         status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.active.status, constants.BURN)
+        assert self.battle.opponent.active.status == constants.BURN
 
     def test_getting_status_causes_lumberry_to_be_an_impossible_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
         status(self.battle, split_msg)
 
-        self.assertIn("lumberry", self.battle.opponent.active.impossible_items)
+        assert "lumberry" in self.battle.opponent.active.impossible_items
 
     def test_rest_turns_set_to_3_on_rest(self):
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Rest"]
         status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.active.status, constants.SLEEP)
-        self.assertEqual(self.battle.opponent.active.rest_turns, 3)
+        assert self.battle.opponent.active.status == constants.SLEEP
+        assert self.battle.opponent.active.rest_turns == 3
 
     def test_rest_turns_at_0_and_sleep_turns_at_0_from_nonrest_sleep(self):
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Sleep powder"]
         status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.active.status, constants.SLEEP)
-        self.assertEqual(self.battle.opponent.active.rest_turns, 0)
-        self.assertEqual(self.battle.opponent.active.sleep_turns, 0)
+        assert self.battle.opponent.active.status == constants.SLEEP
+        assert self.battle.opponent.active.rest_turns == 0
+        assert self.battle.opponent.active.sleep_turns == 0
 
     def test_bots_active_pokemon_has_status_properly_set(self):
         split_msg = ["", "-status", "p1a: Caterpie", "brn"]
         status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.user.active.status, constants.BURN)
+        assert self.battle.user.active.status == constants.BURN
 
     def test_status_from_item_properly_sets_that_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn", "[from] item: Flame Orb"]
         status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.active.item, "flameorb")
+        assert self.battle.opponent.active.item == "flameorb"
 
 
-class TestCureStatus(unittest.TestCase):
-    def setUp(self):
+class TestCureStatus:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2696,29 +2682,29 @@ class TestCureStatus(unittest.TestCase):
         split_msg = ["", "-curestatus", "p2: Caterpie", "tox", "[msg]"]
         curestatus(self.battle, split_msg)
 
-        self.assertEqual(None, self.battle.opponent.active.status)
-        self.assertEqual(0, self.battle.opponent.side_conditions[constants.TOXIC_COUNT])
+        assert None is self.battle.opponent.active.status
+        assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_curestatus_works_on_active_pokemon(self):
         self.opponent_active.status = constants.BURN
         split_msg = ["", "-curestatus", "p2: Caterpie", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
-        self.assertEqual(None, self.opponent_active.status)
+        assert None is self.opponent_active.status
 
     def test_curestatus_works_on_active_pokemon_for_bot(self):
         self.battle.user.active.status = constants.BURN
         split_msg = ["", "-curestatus", "p1: Weedle", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
-        self.assertEqual(None, self.battle.user.active.status)
+        assert None is self.battle.user.active.status
 
     def test_curestatus_works_on_reserve_pokemon(self):
         self.opponent_reserve.status = constants.BURN
         split_msg = ["", "-curestatus", "p2: Pikachu", "brn", "[msg]"]
         curestatus(self.battle, split_msg)
 
-        self.assertEqual(None, self.opponent_reserve.status)
+        assert None is self.opponent_reserve.status
 
     def test_curestatus_sets_sleep_and_rest_turns_to_0(self):
         self.opponent_reserve.status = constants.SLEEP
@@ -2727,12 +2713,13 @@ class TestCureStatus(unittest.TestCase):
         split_msg = ["", "-curestatus", "p2: Pikachu", "slp", "[msg]"]
         curestatus(self.battle, split_msg)
 
-        self.assertEqual(0, self.opponent_reserve.sleep_turns)
-        self.assertEqual(0, self.opponent_reserve.rest_turns)
+        assert 0 == self.opponent_reserve.sleep_turns
+        assert 0 == self.opponent_reserve.rest_turns
 
 
-class TestStartFutureSight(unittest.TestCase):
-    def setUp(self):
+class TestStartFutureSight:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2749,18 +2736,19 @@ class TestStartFutureSight(unittest.TestCase):
         split_msg = ["", "-start", "p2a: Caterpie", "Future Sight"]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(self.battle.opponent.future_sight, (3, "caterpie"))
+        assert self.battle.opponent.future_sight == (3, "caterpie")
 
     def test_does_not_set_futuresight_as_a_volatilestatus(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Future Sight"]
         self.battle.opponent.active.volatile_statuses = []
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
 
-class TestSetItem(unittest.TestCase):
-    def setUp(self):
+class TestSetItem:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2778,8 +2766,8 @@ class TestSetItem(unittest.TestCase):
         self.battle.opponent.active.item = "choicescarf"
         set_item(self.battle, split_msg)
 
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
-        self.assertEqual("choicescarf", self.battle.opponent.active.removed_item)
+        assert "leftovers" == self.battle.opponent.active.item
+        assert "choicescarf" == self.battle.opponent.active.removed_item
 
     def test_does_not_set_removed_item_when_removed_item_already_exists(self):
         split_msg = ["", "-item", "p2a: Caterpie", "Choice Scarf", "[from] move: Trick"]
@@ -2789,8 +2777,8 @@ class TestSetItem(unittest.TestCase):
         )
         set_item(self.battle, split_msg)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
-        self.assertEqual("choicescarf", self.battle.opponent.active.removed_item)
+        assert "choicescarf" == self.battle.opponent.active.item
+        assert "choicescarf" == self.battle.opponent.active.removed_item
 
     def test_does_not_set_removed_item_if_unknown(self):
         split_msg = ["", "-item", "p2a: Caterpie", "Choice Scarf", "[from] move: Trick"]
@@ -2798,8 +2786,8 @@ class TestSetItem(unittest.TestCase):
         self.battle.opponent.active.removed_item = None
         set_item(self.battle, split_msg)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
-        self.assertEqual(None, self.battle.opponent.active.removed_item)
+        assert "choicescarf" == self.battle.opponent.active.item
+        assert None is self.battle.opponent.active.removed_item
 
     def test_two_trick_protocol_messages_properly_sets_opponents_removed_item(self):
         split_msg_1 = ["", "-item", "p2a: Caterpie", "Leftovers", "[from] move: Trick"]
@@ -2811,10 +2799,10 @@ class TestSetItem(unittest.TestCase):
         set_item(self.battle, split_msg_1)
         set_item(self.battle, split_msg_2)
 
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
-        self.assertEqual("choicespecs", self.battle.user.active.item)
+        assert "leftovers" == self.battle.opponent.active.item
+        assert "choicespecs" == self.battle.user.active.item
 
-        self.assertEqual("choicespecs", self.battle.opponent.active.removed_item)
+        assert "choicespecs" == self.battle.opponent.active.removed_item
 
     def test_two_trick_protocol_messages_does_not_overwrite_removed_item_for_opponent(
         self,
@@ -2835,15 +2823,16 @@ class TestSetItem(unittest.TestCase):
         set_item(self.battle, split_msg_1)
         set_item(self.battle, split_msg_2)
 
-        self.assertEqual("choicespecs", self.battle.opponent.active.item)
-        self.assertEqual("leftovers", self.battle.user.active.item)
+        assert "choicespecs" == self.battle.opponent.active.item
+        assert "leftovers" == self.battle.user.active.item
 
         # unchanged because removed_item was already set
-        self.assertEqual("choicespecs", self.battle.opponent.active.removed_item)
+        assert "choicespecs" == self.battle.opponent.active.removed_item
 
 
-class TestStartVolatileStatus(unittest.TestCase):
-    def setUp(self):
+class TestStartVolatileStatus:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -2860,9 +2849,11 @@ class TestStartVolatileStatus(unittest.TestCase):
         split_msg = ["", "-start", "p2a: Caterpie", "Slow Start"]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(
-            6,
-            self.battle.opponent.active.volatile_status_durations[constants.SLOW_START],
+        assert (
+            6
+            == self.battle.opponent.active.volatile_status_durations[
+                constants.SLOW_START
+            ]
         )
 
     def test_volatile_status_is_set_on_opponent_pokemon(self):
@@ -2871,8 +2862,8 @@ class TestStartVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuese = ["encore"]
 
-        self.assertEqual(
-            expected_volatile_statuese, self.battle.opponent.active.volatile_statuses
+        assert (
+            expected_volatile_statuese == self.battle.opponent.active.volatile_statuses
         )
 
     def test_substitute_gets_substitute_hit_flag_set_to_false(self):
@@ -2891,7 +2882,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         split_msg = messages[1].split("|")
 
         start_volatile_status(self.battle, split_msg)
-        self.assertFalse(self.battle.opponent.active.substitute_hit)
+        assert not self.battle.opponent.active.substitute_hit
 
     def test_substitute_gets_shed_tailing_flag_set_to_true(self):
         self.battle.user.active.max_hp = 100
@@ -2909,19 +2900,19 @@ class TestStartVolatileStatus(unittest.TestCase):
         split_msg = messages[1].split("|")
 
         start_volatile_status(self.battle, split_msg)
-        self.assertTrue(self.battle.user.shed_tailing)
+        assert self.battle.user.shed_tailing
 
     def test_flashfire_sets_ability_on_opponent(self):
         split_msg = ["", "-start", "p2a: Caterpie", "ability: Flash Fire"]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual("flashfire", self.battle.opponent.active.ability)
+        assert "flashfire" == self.battle.opponent.active.ability
 
     def test_flashfire_sets_ability_on_bot(self):
         split_msg = ["", "-start", "p1a: Caterpie", "ability: Flash Fire"]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual("flashfire", self.battle.user.active.ability)
+        assert "flashfire" == self.battle.user.active.ability
 
     def test_volatile_status_is_set_on_user_pokemon(self):
         split_msg = ["", "-start", "p1a: Weedle", "Encore"]
@@ -2929,9 +2920,7 @@ class TestStartVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuese = ["encore"]
 
-        self.assertEqual(
-            expected_volatile_statuese, self.battle.user.active.volatile_statuses
-        )
+        assert expected_volatile_statuese == self.battle.user.active.volatile_statuses
 
     def test_adds_volatile_status_from_move_string(self):
         split_msg = ["", "-start", "p1a: Weedle", "move: Taunt"]
@@ -2939,9 +2928,7 @@ class TestStartVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuese = ["taunt"]
 
-        self.assertEqual(
-            expected_volatile_statuese, self.battle.user.active.volatile_statuses
-        )
+        assert expected_volatile_statuese == self.battle.user.active.volatile_statuses
 
     def test_does_not_add_the_same_volatile_status_twice(self):
         self.battle.opponent.active.volatile_statuses = ["encore"]
@@ -2950,8 +2937,8 @@ class TestStartVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuese = ["encore"]
 
-        self.assertEqual(
-            expected_volatile_statuese, self.battle.opponent.active.volatile_statuses
+        assert (
+            expected_volatile_statuese == self.battle.opponent.active.volatile_statuses
         )
 
     def test_doubles_hp_when_dynamax_starts_for_opponent(self):
@@ -2959,28 +2946,28 @@ class TestStartVolatileStatus(unittest.TestCase):
         hp, maxhp = self.battle.opponent.active.hp, self.battle.opponent.active.max_hp
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(hp * 2, self.battle.opponent.active.hp)
-        self.assertEqual(maxhp * 2, self.battle.opponent.active.max_hp)
+        assert hp * 2 == self.battle.opponent.active.hp
+        assert maxhp * 2 == self.battle.opponent.active.max_hp
 
     def test_doubles_hp_when_dynamax_starts_for_bot(self):
         split_msg = ["", "-start", "p1a: Caterpie", "Dynamax"]
         hp, maxhp = self.battle.user.active.hp, self.battle.user.active.max_hp
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(hp * 2, self.battle.user.active.hp)
-        self.assertEqual(maxhp * 2, self.battle.user.active.max_hp)
+        assert hp * 2 == self.battle.user.active.hp
+        assert maxhp * 2 == self.battle.user.active.max_hp
 
     def test_terastallize(self):
         split_msg = ["", "-terastallize", "p2a: Caterpie", "Fire"]
         terastallize(self.battle, split_msg)
 
-        self.assertTrue(self.battle.opponent.active.terastallized)
+        assert self.battle.opponent.active.terastallized
 
     def test_terastallize_sets_tera_type(self):
         split_msg = ["", "-terastallize", "p2a: Caterpie", "Fire"]
         terastallize(self.battle, split_msg)
 
-        self.assertEqual("fire", self.battle.opponent.active.tera_type)
+        assert "fire" == self.battle.opponent.active.tera_type
 
     def test_sets_ability(self):
         # |-start|p1a: Cinderace|typechange|Fighting|[from] ability: Libero
@@ -2994,7 +2981,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual("libero", self.battle.opponent.active.ability)
+        assert "libero" == self.battle.opponent.active.ability
 
     def test_typechange_starts_volatilestatus(self):
         # |-start|p1a: Cinderace|typechange|Fighting|[from] ability: Libero
@@ -3008,9 +2995,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertIn(
-            constants.TYPECHANGE, self.battle.opponent.active.volatile_statuses
-        )
+        assert constants.TYPECHANGE in self.battle.opponent.active.volatile_statuses
 
     def test_getting_confused_makes_lumberry_impossible(self):
         split_msg = [
@@ -3021,7 +3006,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertIn("lumberry", self.battle.opponent.active.impossible_items)
+        assert "lumberry" in self.battle.opponent.active.impossible_items
 
     def test_getting_confused_from_fatigue_removes_lockedmove(self):
         self.battle.opponent.active.volatile_statuses.append("lockedmove")
@@ -3029,14 +3014,14 @@ class TestStartVolatileStatus(unittest.TestCase):
         split_msg = ["", "-start", "p2a: Cinderace", "Confusion", "[fatigue]"]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertNotIn(
-            constants.LOCKED_MOVE, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.LOCKED_MOVE not in self.battle.opponent.active.volatile_statuses
         )
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.LOCKED_MOVE
-            ],
+            ]
         )
 
     def test_typechange_changes_the_type_of_the_user(self):
@@ -3051,7 +3036,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(["fighting"], self.battle.opponent.active.types)
+        assert ["fighting"] == self.battle.opponent.active.types
 
     def test_typechange_works_with_reflect_type(self):
         # |-start|p1a: Starmie|typechange|[from] move: Reflect Type|[of] p2a: Dragapult
@@ -3065,7 +3050,7 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(["dragon", "ghost"], self.battle.opponent.active.types)
+        assert ["dragon", "ghost"] == self.battle.opponent.active.types
 
     def test_typechange_from_multiple_types(self):
         # |-start|p2a: Moltres|typechange|???/Flying|[from] move: Burn Up
@@ -3079,11 +3064,12 @@ class TestStartVolatileStatus(unittest.TestCase):
         ]
         start_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(["???", "flying"], self.battle.opponent.active.types)
+        assert ["???", "flying"] == self.battle.opponent.active.types
 
 
-class TestEndVolatileStatus(unittest.TestCase):
-    def setUp(self):
+class TestEndVolatileStatus:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3101,7 +3087,7 @@ class TestEndVolatileStatus(unittest.TestCase):
         split_msg = ["", "-end", "p2a: Caterpie", "whirlpool", "[partiallytrapped]"]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_removes_partiallytrapped_silent(self):
         self.battle.opponent.active.volatile_statuses = [constants.PARTIALLY_TRAPPED]
@@ -3115,7 +3101,7 @@ class TestEndVolatileStatus(unittest.TestCase):
         ]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_removes_slowstart_volatile_duration(self):
         self.battle.opponent.active.volatile_statuses = ["slowstart"]
@@ -3129,10 +3115,12 @@ class TestEndVolatileStatus(unittest.TestCase):
         ]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[constants.SLOW_START],
+        assert [] == self.battle.opponent.active.volatile_statuses
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
+                constants.SLOW_START
+            ]
         )
 
     def test_removes_taunt_volatile_duration(self):
@@ -3147,10 +3135,9 @@ class TestEndVolatileStatus(unittest.TestCase):
         ]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[constants.TAUNT],
+        assert [] == self.battle.opponent.active.volatile_statuses
+        assert (
+            0 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
 
     def test_removes_yawn_volatile_duration(self):
@@ -3165,9 +3152,9 @@ class TestEndVolatileStatus(unittest.TestCase):
         ]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual([], self.battle.opponent.active.volatile_statuses)
-        self.assertEqual(
-            0, self.battle.opponent.active.volatile_status_durations[constants.YAWN]
+        assert [] == self.battle.opponent.active.volatile_statuses
+        assert (
+            0 == self.battle.opponent.active.volatile_status_durations[constants.YAWN]
         )
 
     def test_removes_volatile_status_from_opponent(self):
@@ -3177,8 +3164,8 @@ class TestEndVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuses = []
 
-        self.assertEqual(
-            expected_volatile_statuses, self.battle.opponent.active.volatile_statuses
+        assert (
+            expected_volatile_statuses == self.battle.opponent.active.volatile_statuses
         )
 
     def test_removes_protosynthesisspa_when_protocol_says_protosynthesis(self):
@@ -3188,8 +3175,8 @@ class TestEndVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuses = []
 
-        self.assertEqual(
-            expected_volatile_statuses, self.battle.opponent.active.volatile_statuses
+        assert (
+            expected_volatile_statuses == self.battle.opponent.active.volatile_statuses
         )
 
     def test_removes_quarkdriveatk_when_protocol_says_quark_drive(self):
@@ -3199,8 +3186,8 @@ class TestEndVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuses = []
 
-        self.assertEqual(
-            expected_volatile_statuses, self.battle.opponent.active.volatile_statuses
+        assert (
+            expected_volatile_statuses == self.battle.opponent.active.volatile_statuses
         )
 
     def test_removes_volatile_status_from_user(self):
@@ -3210,9 +3197,7 @@ class TestEndVolatileStatus(unittest.TestCase):
 
         expected_volatile_statuses = []
 
-        self.assertEqual(
-            expected_volatile_statuses, self.battle.user.active.volatile_statuses
-        )
+        assert expected_volatile_statuses == self.battle.user.active.volatile_statuses
 
     def test_halves_opponent_hp_when_dynamax_ends(self):
         self.battle.opponent.active.volatile_statuses = ["dynamax"]
@@ -3220,8 +3205,8 @@ class TestEndVolatileStatus(unittest.TestCase):
         split_msg = ["", "-end", "p2a: Weedle", "Dynamax"]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(hp / 2, self.battle.opponent.active.hp)
-        self.assertEqual(maxhp / 2, self.battle.opponent.active.max_hp)
+        assert hp / 2 == self.battle.opponent.active.hp
+        assert maxhp / 2 == self.battle.opponent.active.max_hp
 
     def test_halves_bots_hp_when_dynamax_ends(self):
         self.battle.user.active.volatile_statuses = ["dynamax"]
@@ -3229,19 +3214,20 @@ class TestEndVolatileStatus(unittest.TestCase):
         split_msg = ["", "-end", "p1a: Weedle", "Dynamax"]
         end_volatile_status(self.battle, split_msg)
 
-        self.assertEqual(hp / 2, self.battle.user.active.hp)
-        self.assertEqual(maxhp / 2, self.battle.user.active.max_hp)
+        assert hp / 2 == self.battle.user.active.hp
+        assert maxhp / 2 == self.battle.user.active.max_hp
 
     def test_ending_substitute_sets_substitute_hit_to_false(self):
         self.battle.opponent.active.substitute_hit = True
 
         split_msg = ["", "-end", "p2a: Weedle", "Substitute"]
         end_volatile_status(self.battle, split_msg)
-        self.assertFalse(self.battle.opponent.active.substitute_hit)
+        assert not self.battle.opponent.active.substitute_hit
 
 
-class TestUpdateAbility(unittest.TestCase):
-    def setUp(self):
+class TestUpdateAbility:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3259,13 +3245,13 @@ class TestUpdateAbility(unittest.TestCase):
         self.battle.opponent.active.name = "calyrexshadow"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
         update_ability(self.battle, split_msg)
-        self.assertEqual("asonespectrier", self.battle.opponent.active.ability)
+        assert "asonespectrier" == self.battle.opponent.active.ability
 
     def test_sets_as_one_glastrier(self):
         self.battle.opponent.active.name = "calyrexice"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
         update_ability(self.battle, split_msg)
-        self.assertEqual("asoneglastrier", self.battle.opponent.active.ability)
+        assert "asoneglastrier" == self.battle.opponent.active.ability
 
     def test_does_not_update_asoneglastrier_to_unnerve(self):
         self.battle.opponent.active.name = "calyrexice"
@@ -3273,7 +3259,7 @@ class TestUpdateAbility(unittest.TestCase):
         update_ability(self.battle, split_msg)
         split_msg = ["", "-ability", "p2a: Calyrex", "Unnerve"]
         update_ability(self.battle, split_msg)
-        self.assertEqual("asoneglastrier", self.battle.opponent.active.ability)
+        assert "asoneglastrier" == self.battle.opponent.active.ability
 
     def test_does_not_update_asonespectrier_to_unnerve(self):
         self.battle.opponent.active.name = "calyrexshadow"
@@ -3281,7 +3267,7 @@ class TestUpdateAbility(unittest.TestCase):
         update_ability(self.battle, split_msg)
         split_msg = ["", "-ability", "p2a: Calyrex", "Unnerve"]
         update_ability(self.battle, split_msg)
-        self.assertEqual("asonespectrier", self.battle.opponent.active.ability)
+        assert "asonespectrier" == self.battle.opponent.active.ability
 
     def test_alternate_set_trace_ability(self):
         # |-ability|p2a: Porygon2|Levitate|Trace|[from] ability: Trace|[of] p1a: Claydol
@@ -3298,8 +3284,8 @@ class TestUpdateAbility(unittest.TestCase):
             "[of] p1a: Caterpie",
         ]
         update_ability(self.battle, split_msg)
-        self.assertEqual("levitate", self.battle.opponent.active.ability)
-        self.assertEqual("trace", self.battle.opponent.active.original_ability)
+        assert "levitate" == self.battle.opponent.active.ability
+        assert "trace" == self.battle.opponent.active.original_ability
 
     def test_sets_original_ability_from_trace(self):
         self.battle.user.active.ability = "intimidate"
@@ -3315,8 +3301,8 @@ class TestUpdateAbility(unittest.TestCase):
         ]
         update_ability(self.battle, split_msg)
 
-        self.assertEqual("intimidate", self.battle.opponent.active.ability)
-        self.assertEqual("trace", self.battle.opponent.active.original_ability)
+        assert "intimidate" == self.battle.opponent.active.ability
+        assert "trace" == self.battle.opponent.active.original_ability
 
     def test_sets_original_ability_from_trace_with_intimidate(self):
         self.battle.user.active.ability = "intimidate"
@@ -3335,8 +3321,8 @@ class TestUpdateAbility(unittest.TestCase):
         update_ability(self.battle, split_msg_1)
         update_ability(self.battle, split_msg_2)
 
-        self.assertEqual("intimidate", self.battle.opponent.active.ability)
-        self.assertEqual("trace", self.battle.opponent.active.original_ability)
+        assert "intimidate" == self.battle.opponent.active.ability
+        assert "trace" == self.battle.opponent.active.original_ability
 
     def test_sets_original_ability_from_trace_with_intimidate_for_bot(self):
         self.battle.user.active.ability = "trace"
@@ -3355,9 +3341,9 @@ class TestUpdateAbility(unittest.TestCase):
         update_ability(self.battle, split_msg_1)
         update_ability(self.battle, split_msg_2)
 
-        self.assertEqual("intimidate", self.battle.opponent.active.ability)
-        self.assertEqual("trace", self.battle.user.active.original_ability)
-        self.assertEqual("intimidate", self.battle.user.active.ability)
+        assert "intimidate" == self.battle.opponent.active.ability
+        assert "trace" == self.battle.user.active.original_ability
+        assert "intimidate" == self.battle.user.active.ability
 
     def test_update_ability_from_ability_string_properly_updates_ability(self):
         split_msg = ["", "-ability", "p2a: Caterpie", "Lightning Rod", "boost"]
@@ -3365,7 +3351,7 @@ class TestUpdateAbility(unittest.TestCase):
 
         expected_ability = "lightningrod"
 
-        self.assertEqual(expected_ability, self.battle.opponent.active.ability)
+        assert expected_ability == self.battle.opponent.active.ability
 
     def test_update_ability_from_ability_string_properly_updates_ability_for_bot(self):
         split_msg = ["", "-ability", "p1a: Caterpie", "Lightning Rod", "boost"]
@@ -3373,11 +3359,12 @@ class TestUpdateAbility(unittest.TestCase):
 
         expected_ability = "lightningrod"
 
-        self.assertEqual(expected_ability, self.battle.user.active.ability)
+        assert expected_ability == self.battle.user.active.ability
 
 
-class TestSwapSideConditions(unittest.TestCase):
-    def setUp(self):
+class TestSwapSideConditions:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3401,8 +3388,8 @@ class TestSwapSideConditions(unittest.TestCase):
 
         expected_dict = self.get_expected_empty_dict()
 
-        self.assertEqual(expected_dict, self.battle.user.side_conditions)
-        self.assertEqual(expected_dict, self.battle.opponent.side_conditions)
+        assert expected_dict == self.battle.user.side_conditions
+        assert expected_dict == self.battle.opponent.side_conditions
 
     def test_swaps_one_layer_of_spikes(self):
         split_msg = ["", "-swapsideconditions"]
@@ -3416,12 +3403,8 @@ class TestSwapSideConditions(unittest.TestCase):
         expected_opponent_side_conditions = self.get_expected_empty_dict()
         expected_opponent_side_conditions[constants.SPIKES] = 1
 
-        self.assertEqual(
-            expected_user_side_conditions, self.battle.user.side_conditions
-        )
-        self.assertEqual(
-            expected_opponent_side_conditions, self.battle.opponent.side_conditions
-        )
+        assert expected_user_side_conditions == self.battle.user.side_conditions
+        assert expected_opponent_side_conditions == self.battle.opponent.side_conditions
 
     def test_swaps_one_layer_of_spikes_with_two_layers_of_spikes(self):
         split_msg = ["", "-swapsideconditions"]
@@ -3437,12 +3420,8 @@ class TestSwapSideConditions(unittest.TestCase):
         expected_opponent_side_conditions = self.get_expected_empty_dict()
         expected_opponent_side_conditions[constants.SPIKES] = 2
 
-        self.assertEqual(
-            expected_user_side_conditions, self.battle.user.side_conditions
-        )
-        self.assertEqual(
-            expected_opponent_side_conditions, self.battle.opponent.side_conditions
-        )
+        assert expected_user_side_conditions == self.battle.user.side_conditions
+        assert expected_opponent_side_conditions == self.battle.opponent.side_conditions
 
     def test_swaps_multiple_side_conditions_on_either_side(self):
         split_msg = ["", "-swapsideconditions"]
@@ -3465,16 +3444,13 @@ class TestSwapSideConditions(unittest.TestCase):
         expected_opponent_side_conditions[constants.REFLECT] = 3
         expected_opponent_side_conditions[constants.TAILWIND] = 2
 
-        self.assertEqual(
-            expected_user_side_conditions, self.battle.user.side_conditions
-        )
-        self.assertEqual(
-            expected_opponent_side_conditions, self.battle.opponent.side_conditions
-        )
+        assert expected_user_side_conditions == self.battle.user.side_conditions
+        assert expected_opponent_side_conditions == self.battle.opponent.side_conditions
 
 
-class TestIllusionEnd(unittest.TestCase):
-    def setUp(self):
+class TestIllusionEnd:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3494,7 +3470,7 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.name)
+        assert "zoroark" == self.battle.opponent.active.name
 
     def test_pkmn_disguised_as_gets_original_hp(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3505,8 +3481,8 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("meloetta", self.battle.opponent.reserve[0].name)
-        self.assertEqual(100, self.battle.opponent.reserve[0].hp)
+        assert "meloetta" == self.battle.opponent.reserve[0].name
+        assert 100 == self.battle.opponent.reserve[0].hp
 
     def test_pkmn_disguised_as_gets_original_status(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3516,8 +3492,8 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("meloetta", self.battle.opponent.reserve[0].name)
-        self.assertIsNone(self.battle.opponent.reserve[0].status)
+        assert "meloetta" == self.battle.opponent.reserve[0].name
+        assert self.battle.opponent.reserve[0].status is None
 
     def test_zoroark_disguising_as_pokemon_results_in_that_pkmn_in_reserve(
         self,
@@ -3533,7 +3509,7 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual([Pokemon("meloetta", 100)], self.battle.opponent.reserve)
+        assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
 
     def test_moves_used_while_disguised_are_associated_with_zoroark(
         self,
@@ -3563,12 +3539,14 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual(Pokemon("zoroark", 82), self.battle.opponent.active)
-        self.assertEqual([Pokemon("meloetta", 100)], self.battle.opponent.reserve)
-        self.assertEqual([Move("hypervoice")], meloetta.moves)
-        self.assertEqual(
-            [Move("flamethrower"), Move("nastyplot"), Move("focusblast")], zoroark.moves
-        )
+        assert Pokemon("zoroark", 82) == self.battle.opponent.active
+        assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
+        assert [Move("hypervoice")] == meloetta.moves
+        assert [
+            Move("flamethrower"),
+            Move("nastyplot"),
+            Move("focusblast"),
+        ] == zoroark.moves
 
     def test_moves_used_while_disguised_are_associated_with_previously_nonexistent_zoroark(
         self,
@@ -3585,13 +3563,13 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual(Pokemon("zoroark", 82), self.battle.opponent.active)
-        self.assertEqual([Pokemon("meloetta", 100)], self.battle.opponent.reserve)
-        self.assertEqual([Move("hypervoice")], meloetta.moves)
-        self.assertEqual(
-            [Move("focusblast"), Move("flamethrower")],
-            self.battle.opponent.active.moves,
-        )
+        assert Pokemon("zoroark", 82) == self.battle.opponent.active
+        assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
+        assert [Move("hypervoice")] == meloetta.moves
+        assert [
+            Move("focusblast"),
+            Move("flamethrower"),
+        ] == self.battle.opponent.active.moves
 
     def test_removes_zoroark_from_reserve_if_it_is_in_there(self):
         zoroark = Pokemon("zoroark", 82)
@@ -3600,14 +3578,14 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
         illusion_end(self.battle, split_msg)
 
-        self.assertNotIn(zoroark, self.battle.opponent.reserve)
+        assert zoroark not in self.battle.opponent.reserve
 
     def test_does_not_set_base_name_for_illusion_ending(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L84, F"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.base_name)
+        assert "zoroark" == self.battle.opponent.active.base_name
 
     def test_pulls_zoroark_out_of_reserves_if_it_is_in_there(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3622,8 +3600,8 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, F"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.base_name)
-        self.assertEqual(4, len(self.battle.opponent.active.moves))
+        assert "zoroark" == self.battle.opponent.active.base_name
+        assert 4 == len(self.battle.opponent.active.moves)
 
     def test_does_nothing_if_zoroark_was_already_active_pkmn(self):
         """
@@ -3644,14 +3622,15 @@ class TestIllusionEnd(unittest.TestCase):
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L84, F"]
         illusion_end(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.base_name)
-        self.assertEqual(None, self.battle.opponent.active.zoroark_disguised_as)
-        self.assertEqual("meloetta", self.battle.opponent.reserve[0].name)
-        self.assertEqual(4, len(self.battle.opponent.active.moves))
+        assert "zoroark" == self.battle.opponent.active.base_name
+        assert None is self.battle.opponent.active.zoroark_disguised_as
+        assert "meloetta" == self.battle.opponent.reserve[0].name
+        assert 4 == len(self.battle.opponent.active.moves)
 
 
-class TestFail(unittest.TestCase):
-    def setUp(self):
+class TestFail:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3675,11 +3654,12 @@ class TestFail(unittest.TestCase):
             "[of] p2a: Caterpie",
         ]
         fail(self.battle, split_msg)
-        self.assertEqual("clearbody", self.battle.opponent.active.ability)
+        assert "clearbody" == self.battle.opponent.active.ability
 
 
-class TestFormChange(unittest.TestCase):
-    def setUp(self):
+class TestFormChange:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3704,7 +3684,7 @@ class TestFormChange(unittest.TestCase):
         ]
         form_change(self.battle, split_msg)
 
-        self.assertEqual("meloettapirouette", self.battle.opponent.active.name)
+        assert "meloettapirouette" == self.battle.opponent.active.name
 
     def test_preserves_boosts(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3718,7 +3698,7 @@ class TestFormChange(unittest.TestCase):
         ]
         form_change(self.battle, split_msg)
 
-        self.assertEqual(2, self.battle.opponent.active.boosts[constants.ATTACK])
+        assert 2 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_preserves_status(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3732,7 +3712,7 @@ class TestFormChange(unittest.TestCase):
         ]
         form_change(self.battle, split_msg)
 
-        self.assertEqual(constants.BURN, self.battle.opponent.active.status)
+        assert constants.BURN == self.battle.opponent.active.status
 
     def test_preserves_item(self):
         self.battle.opponent.active = Pokemon("aegislash", 100)
@@ -3746,7 +3726,7 @@ class TestFormChange(unittest.TestCase):
         ]
         form_change(self.battle, split_msg)
 
-        self.assertEqual("airballoon", self.battle.opponent.active.item)
+        assert "airballoon" == self.battle.opponent.active.item
 
     def test_preserves_base_name_when_form_changes(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
@@ -3759,7 +3739,7 @@ class TestFormChange(unittest.TestCase):
         ]
         form_change(self.battle, split_msg)
 
-        self.assertEqual("meloetta", self.battle.opponent.active.base_name)
+        assert "meloetta" == self.battle.opponent.active.base_name
 
     def test_multiple_forme_changes_does_not_ruin_base_name(self):
         self.battle.user.active = Pokemon("pikachu", 100)
@@ -3807,11 +3787,12 @@ class TestFormChange(unittest.TestCase):
         form_change(self.battle, m8)
 
         pkmn = Pokemon("wishiwashischool", 100)
-        self.assertNotIn(pkmn, self.battle.opponent.reserve)
+        assert pkmn not in self.battle.opponent.reserve
 
 
-class TestClearNegativeBoost(unittest.TestCase):
-    def setUp(self):
+class TestClearNegativeBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3829,22 +3810,22 @@ class TestClearNegativeBoost(unittest.TestCase):
         split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_clears_multiple_negative_boosts(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: -1, constants.SPEED: -1}
         split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.SPEED])
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.SPEED]
 
     def test_does_not_clear_positive_boost(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: 1}
         split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.opponent.active.boosts[constants.ATTACK])
+        assert 1 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_clears_only_negative_boosts(self):
         self.battle.opponent.active.boosts = {
@@ -3865,11 +3846,12 @@ class TestClearNegativeBoost(unittest.TestCase):
             constants.SPECIAL_DEFENSE: 0,
         }
 
-        self.assertEqual(expected_boosts, self.battle.opponent.active.boosts)
+        assert expected_boosts == self.battle.opponent.active.boosts
 
 
-class TestClearBoost(unittest.TestCase):
-    def setUp(self):
+class TestClearBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3887,7 +3869,7 @@ class TestClearBoost(unittest.TestCase):
         split_msg = ["-clearboost", "p2a: caterpie", "[silent]"]
         clearboost(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_clears_multiple_boosts(self):
         self.battle.opponent.active.boosts = {
@@ -3898,15 +3880,14 @@ class TestClearBoost(unittest.TestCase):
         split_msg = ["-clearboost", "p2a: caterpie", "[silent]"]
         clearboost(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.ATTACK])
-        self.assertEqual(
-            0, self.battle.opponent.active.boosts[constants.SPECIAL_ATTACK]
-        )
-        self.assertEqual(0, self.battle.opponent.active.boosts[constants.SPEED])
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.SPECIAL_ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.SPEED]
 
 
-class TestZPower(unittest.TestCase):
-    def setUp(self):
+class TestZPower:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3929,18 +3910,19 @@ class TestZPower(unittest.TestCase):
         self.battle.opponent.active.item = "some_item"
         zpower(self.battle, split_msg)
 
-        self.assertEqual(None, self.battle.opponent.active.item)
+        assert None is self.battle.opponent.active.item
 
     def test_does_not_set_item_when_the_bot_moves(self):
         split_msg = ["", "-zpower", "p1a: Pkmn"]
         self.battle.opponent.active.item = "some_item"
         zpower(self.battle, split_msg)
 
-        self.assertEqual("some_item", self.battle.opponent.active.item)
+        assert "some_item" == self.battle.opponent.active.item
 
 
-class TestSideStart(unittest.TestCase):
-    def setUp(self):
+class TestSideStart:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -3961,50 +3943,45 @@ class TestSideStart(unittest.TestCase):
     def test_stealthrock_gets_1_layer(self):
         split_msg = ["", "-sidestart", "p2", "Stealth Rock"]
         sidestart(self.battle, split_msg)
-        self.assertEqual(
-            1, self.battle.opponent.side_conditions[constants.STEALTH_ROCK]
-        )
+        assert 1 == self.battle.opponent.side_conditions[constants.STEALTH_ROCK]
 
     def test_spikes_increments_by_1(self):
         split_msg = ["", "-sidestart", "p2", "Spikes"]
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
         sidestart(self.battle, split_msg)
-        self.assertEqual(2, self.battle.opponent.side_conditions[constants.SPIKES])
+        assert 2 == self.battle.opponent.side_conditions[constants.SPIKES]
 
     def test_reflect_gets_5_turns(self):
         split_msg = ["", "-sidestart", "p2", "Reflect"]
         sidestart(self.battle, split_msg)
-        self.assertEqual(5, self.battle.opponent.side_conditions[constants.REFLECT])
+        assert 5 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_lightscreen_gets_5_turns(self):
         split_msg = ["", "-sidestart", "p2", "move: Light Screen"]
         sidestart(self.battle, split_msg)
-        self.assertEqual(
-            5, self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
-        )
+        assert 5 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_lightscreen_gets_8_turns_with_lightclay(self):
         split_msg = ["", "-sidestart", "p2", "move: Light Screen"]
         self.battle.opponent.active.item = "lightclay"
         sidestart(self.battle, split_msg)
-        self.assertEqual(
-            8, self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
-        )
+        assert 8 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_auroraveil_gets_8_turns_with_lightclay(self):
         split_msg = ["", "-sidestart", "p2", "move: Aurora Veil"]
         self.battle.opponent.active.item = "lightclay"
         sidestart(self.battle, split_msg)
-        self.assertEqual(8, self.battle.opponent.side_conditions[constants.AURORA_VEIL])
+        assert 8 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_tailwind_gets_4_turns(self):
         split_msg = ["", "-sidestart", "p2", "move: Tail Wind"]
         sidestart(self.battle, split_msg)
-        self.assertEqual(4, self.battle.opponent.side_conditions[constants.TAILWIND])
+        assert 4 == self.battle.opponent.side_conditions[constants.TAILWIND]
 
 
-class TestSingleTurn(unittest.TestCase):
-    def setUp(self):
+class TestSingleTurn:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -4026,35 +4003,36 @@ class TestSingleTurn(unittest.TestCase):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Protect"]
         singleturn(self.battle, split_msg)
 
-        self.assertEqual(2, self.battle.opponent.side_conditions[constants.PROTECT])
+        assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_when_endure_is_used(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Endure"]
         singleturn(self.battle, split_msg)
 
-        self.assertEqual(2, self.battle.opponent.side_conditions[constants.PROTECT])
+        assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_does_not_set_for_non_protect_move(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Roost"]
         singleturn(self.battle, split_msg)
 
-        self.assertEqual(0, self.battle.opponent.side_conditions[constants.PROTECT])
+        assert 0 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_for_bot_when_used(self):
         split_msg = ["", "-singleturn", "p1a: Weedle", "Protect"]
         singleturn(self.battle, split_msg)
 
-        self.assertEqual(2, self.battle.user.side_conditions[constants.PROTECT])
+        assert 2 == self.battle.user.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_when_prefixed_by_move(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "move: Protect"]
         singleturn(self.battle, split_msg)
 
-        self.assertEqual(2, self.battle.opponent.side_conditions[constants.PROTECT])
+        assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
 
-class TestTransform(unittest.TestCase):
-    def setUp(self):
+class TestTransform:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -4179,12 +4157,12 @@ class TestTransform(unittest.TestCase):
         ]
 
         if self.battle.user.active.ability == self.battle.opponent.active.ability:
-            self.fail("Abilities were equal before transform")
+            pytest.fail("Abilities were equal before transform")
 
         transform(self.battle, split_msg)
 
-        self.assertEqual(self.user_active_ability, self.battle.opponent.active.ability)
-        self.assertEqual("imposter", self.battle.opponent.active.original_ability)
+        assert self.user_active_ability == self.battle.opponent.active.ability
+        assert "imposter" == self.battle.opponent.active.original_ability
 
     def test_transform_sets_moves_to_opposing_pokemons_moves(self):
         self.battle.user.active.moves = [
@@ -4202,13 +4180,11 @@ class TestTransform(unittest.TestCase):
         ]
 
         if self.battle.user.active.moves == self.battle.opponent.active.moves:
-            self.fail("Moves were equal before transform")
+            pytest.fail("Moves were equal before transform")
 
         transform(self.battle, split_msg)
 
-        self.assertEqual(
-            self.battle.user.active.moves, self.battle.opponent.active.moves
-        )
+        assert self.battle.user.active.moves == self.battle.opponent.active.moves
 
     def test_transform_sets_types_to_opposing_pokemons_types(self):
         self.battle.user.active.types = ["flying", "dragon"]
@@ -4223,9 +4199,7 @@ class TestTransform(unittest.TestCase):
 
         transform(self.battle, split_msg)
 
-        self.assertEqual(
-            self.battle.user.active.types, self.battle.opponent.active.types
-        )
+        assert self.battle.user.active.types == self.battle.opponent.active.types
 
     def test_transform_sets_boosts_to_opposing_pokemons_boosts(self):
         self.battle.user.active.boosts = defaultdict(
@@ -4250,9 +4224,7 @@ class TestTransform(unittest.TestCase):
 
         transform(self.battle, split_msg)
 
-        self.assertEqual(
-            self.battle.user.active.boosts, self.battle.opponent.active.boosts
-        )
+        assert self.battle.user.active.boosts == self.battle.opponent.active.boosts
 
     def test_transform_sets_transform_volatile_status(self):
         self.battle.user.active.volatile_statuses = []
@@ -4266,9 +4238,7 @@ class TestTransform(unittest.TestCase):
 
         transform(self.battle, split_msg)
 
-        self.assertIn(
-            constants.TRANSFORM, self.battle.opponent.active.volatile_statuses
-        )
+        assert constants.TRANSFORM in self.battle.opponent.active.volatile_statuses
 
     def test_transform_sets_volatile_for_bots_side(self):
         self.battle.user.active.volatile_statuses = []
@@ -4282,11 +4252,12 @@ class TestTransform(unittest.TestCase):
 
         transform(self.battle, split_msg)
 
-        self.assertIn(constants.TRANSFORM, self.battle.user.active.volatile_statuses)
+        assert constants.TRANSFORM in self.battle.user.active.volatile_statuses
 
 
-class TestCant(unittest.TestCase):
-    def setUp(self):
+class TestCant:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -4303,27 +4274,27 @@ class TestCant(unittest.TestCase):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.status = constants.SLEEP
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
-        self.assertEqual(1, self.battle.user.active.sleep_turns)
+        assert 1 == self.battle.user.active.sleep_turns
 
     def test_removes_truant_when_cant_from_truant(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.volatile_statuses.append("truant")
         cant(self.battle, ["", "-cant", "p1a: Slaking", "ability: Truant"])
-        self.assertNotIn("truant", self.battle.user.active.volatile_statuses)
+        assert "truant" not in self.battle.user.active.volatile_statuses
 
     def test_removes_mustrecharge_when_cant_from_recharge(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.volatile_statuses.append("mustrecharge")
         cant(self.battle, ["", "-cant", "p1a: Slaking", "recharge"])
-        self.assertNotIn("mustrecharge", self.battle.user.active.volatile_statuses)
+        assert "mustrecharge" not in self.battle.user.active.volatile_statuses
 
     def test_only_decrements_rest_turns_when_cant_from_sleep_with_a_rest_turn(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.rest_turns = 3
         self.battle.user.active.status = constants.SLEEP
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
-        self.assertEqual(0, self.battle.user.active.sleep_turns)
-        self.assertEqual(2, self.battle.user.active.rest_turns)
+        assert 0 == self.battle.user.active.sleep_turns
+        assert 2 == self.battle.user.active.rest_turns
 
     def test_gen1_pkmn_trapping_foe_releases_target_after_fully_paralyzed(
         self,
@@ -4337,19 +4308,21 @@ class TestCant(unittest.TestCase):
         ] = 1
         split_msg = ["", "-cant", "p1a: Rhydon", "par"]
         cant(self.battle, split_msg)
-        self.assertNotIn(
-            constants.PARTIALLY_TRAPPED, self.battle.opponent.active.volatile_statuses
+        assert (
+            constants.PARTIALLY_TRAPPED
+            not in self.battle.opponent.active.volatile_statuses
         )
-        self.assertEqual(
-            0,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            0
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.PARTIALLY_TRAPPED
-            ],
+            ]
         )
 
 
-class TestUpkeep(unittest.TestCase):
-    def setUp(self):
+class TestUpkeep:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -4367,8 +4340,8 @@ class TestUpkeep(unittest.TestCase):
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
         upkeep(self.battle, "")
-        self.assertEqual(
-            1, self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
+        assert (
+            1 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
 
     def test_gen5_does_not_increment_taunt_duration_end_of_turn(self):
@@ -4376,86 +4349,81 @@ class TestUpkeep(unittest.TestCase):
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
         upkeep(self.battle, "")
-        self.assertEqual(
-            0, self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
+        assert (
+            0 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
 
     def test_decrements_slowstart_volatile_duration(self):
         self.battle.user.active.volatile_statuses.append(constants.SLOW_START)
         self.battle.user.active.volatile_status_durations[constants.SLOW_START] = 5
         upkeep(self.battle, "")
-        self.assertEqual(
-            4,
-            self.battle.user.active.volatile_status_durations[constants.SLOW_START],
+        assert (
+            4 == self.battle.user.active.volatile_status_durations[constants.SLOW_START]
         )
 
     def test_increments_lockedmove_end_of_turn(self):
         self.battle.opponent.active.volatile_statuses.append(constants.LOCKED_MOVE)
         self.battle.opponent.active.volatile_status_durations[constants.LOCKED_MOVE] = 0
         upkeep(self.battle, "")
-        self.assertEqual(
-            1,
-            self.battle.opponent.active.volatile_status_durations[
+        assert (
+            1
+            == self.battle.opponent.active.volatile_status_durations[
                 constants.LOCKED_MOVE
-            ],
+            ]
         )
 
     def test_decrements_reflect_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.REFLECT] = 5
         upkeep(self.battle, "")
-        self.assertEqual(4, self.battle.opponent.side_conditions[constants.REFLECT])
+        assert 4 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_decrementing_reflect_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.REFLECT] = 1
         upkeep(self.battle, "")
-        self.assertEqual(3, self.battle.opponent.side_conditions[constants.REFLECT])
+        assert 3 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_decrements_lightscreen_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.LIGHT_SCREEN] = 5
         upkeep(self.battle, "")
-        self.assertEqual(
-            4, self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
-        )
+        assert 4 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_decrementing_lightscreen_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.LIGHT_SCREEN] = 1
         upkeep(self.battle, "")
-        self.assertEqual(
-            3, self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
-        )
+        assert 3 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_decrements_auroraveil_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.AURORA_VEIL] = 5
         upkeep(self.battle, "")
-        self.assertEqual(4, self.battle.opponent.side_conditions[constants.AURORA_VEIL])
+        assert 4 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_decrementing_auroraveil_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.AURORA_VEIL] = 1
         upkeep(self.battle, "")
-        self.assertEqual(3, self.battle.opponent.side_conditions[constants.AURORA_VEIL])
+        assert 3 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_decrements_tailwind_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.TAILWIND] = 2
         upkeep(self.battle, "")
-        self.assertEqual(1, self.battle.opponent.side_conditions[constants.TAILWIND])
+        assert 1 == self.battle.opponent.side_conditions[constants.TAILWIND]
 
     def test_field_turns_remaining_is_decremented(self):
         self.battle.field_turns_remaining = 5
         self.battle.field = constants.GRASSY_TERRAIN
         upkeep(self.battle, "")
-        self.assertEqual(4, self.battle.field_turns_remaining)
+        assert 4 == self.battle.field_turns_remaining
 
     def test_0_turns_remaining_field_sets_turns_remaining_to_3(self):
         self.battle.field_turns_remaining = 1
         self.battle.field = constants.GRASSY_TERRAIN
         upkeep(self.battle, "")
-        self.assertEqual(3, self.battle.field_turns_remaining)
+        assert 3 == self.battle.field_turns_remaining
 
     def test_none_field_does_not_change_field_or_turns_remaining(self):
         self.battle.field_turns_remaining = 0
         self.battle.field = None
         upkeep(self.battle, "")
-        self.assertEqual(0, self.battle.field_turns_remaining)
+        assert 0 == self.battle.field_turns_remaining
 
     def test_resets_sleep_turns_to_zero_after_not_using_sleeptalk(self):
         self.battle.generation = "gen3"
@@ -4465,7 +4433,7 @@ class TestUpkeep(unittest.TestCase):
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
         upkeep(self.battle, "")
 
-        self.assertEqual(0, self.battle.user.active.gen_3_consecutive_sleep_talks)
+        assert 0 == self.battle.user.active.gen_3_consecutive_sleep_talks
 
     def test_does_not_reset_sleep_turns_when_sleeptalk_used(self):
         self.battle.generation = "gen3"
@@ -4477,115 +4445,107 @@ class TestUpkeep(unittest.TestCase):
         move(self.battle, ["", "move", "p1a: Weedle", "Tackle", "[from]Sleep Talk"])
         upkeep(self.battle, "")
 
-        self.assertEqual(2, self.battle.user.active.gen_3_consecutive_sleep_talks)
-        self.assertEqual("sleeptalk", self.battle.user.last_used_move.move)
+        assert 2 == self.battle.user.active.gen_3_consecutive_sleep_talks
+        assert "sleeptalk" == self.battle.user.last_used_move.move
 
     def test_increments_yawn_duration(self):
         self.battle.user.active.volatile_statuses.append(constants.YAWN)
         upkeep(self.battle, "")
-        self.assertEqual(
-            1, self.battle.user.active.volatile_status_durations[constants.YAWN]
-        )
+        assert 1 == self.battle.user.active.volatile_status_durations[constants.YAWN]
 
     def test_decrements_trickroom_in_upkeep(self):
         self.battle.trick_room = True
         self.battle.trick_room_turns_remaining = 5
         upkeep(self.battle, "")
-        self.assertEqual(4, self.battle.trick_room_turns_remaining)
+        assert 4 == self.battle.trick_room_turns_remaining
 
     def test_swaps_out_yawn_for_yawnSleepThisTurn_opponent(self):
         self.battle.opponent.active.volatile_statuses.append(constants.YAWN)
         self.battle.opponent.active.volatile_status_durations[constants.YAWN] = 0
         upkeep(self.battle, "")
-        self.assertIn(
-            constants.YAWN,
-            self.battle.opponent.active.volatile_statuses,
-        )
-        self.assertEqual(
-            1, self.battle.opponent.active.volatile_status_durations[constants.YAWN]
+        assert constants.YAWN in self.battle.opponent.active.volatile_statuses
+        assert (
+            1 == self.battle.opponent.active.volatile_status_durations[constants.YAWN]
         )
 
     def test_removes_yawnSleepNextTurn(self):
         self.battle.user.active.volatile_statuses.append(constants.YAWN)
         self.battle.user.active.volatile_status_durations[constants.YAWN] = 1
         upkeep(self.battle, "")
-        self.assertEqual(
-            0, self.battle.user.active.volatile_status_durations[constants.YAWN]
-        )
-        self.assertNotIn(constants.YAWN, self.battle.user.active.volatile_statuses)
+        assert 0 == self.battle.user.active.volatile_status_durations[constants.YAWN]
+        assert constants.YAWN not in self.battle.user.active.volatile_statuses
 
     def test_reduces_protect_for_bot(self):
         self.battle.user.side_conditions[constants.PROTECT] = 1
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.side_conditions[constants.PROTECT], 0)
+        assert self.battle.user.side_conditions[constants.PROTECT] == 0
 
     def test_does_not_reduce_protect_when_it_is_0(self):
         self.battle.user.side_conditions[constants.PROTECT] = 0
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.side_conditions[constants.PROTECT], 0)
+        assert self.battle.user.side_conditions[constants.PROTECT] == 0
 
     def test_reduces_wish_if_it_is_larger_than_0_for_the_opponent(self):
         self.battle.opponent.wish = (2, 100)
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.opponent.wish, (1, 100))
+        assert self.battle.opponent.wish == (1, 100)
 
     def test_reduces_wish_if_it_is_larger_than_0_for_the_bot(self):
         self.battle.user.wish = (2, 100)
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.wish, (1, 100))
+        assert self.battle.user.wish == (1, 100)
 
     def test_does_not_reduce_wish_if_it_is_0(self):
         self.battle.user.wish = (0, 100)
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.wish, (0, 100))
+        assert self.battle.user.wish == (0, 100)
 
     def test_reduces_future_sight_if_it_is_larger_than_0_for_the_bot(self):
         self.battle.user.future_sight = (2, "pokemon_name")
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.future_sight, (1, "pokemon_name"))
+        assert self.battle.user.future_sight == (1, "pokemon_name")
 
     def test_does_not_reduce_future_sight_if_it_is_0(self):
         self.battle.user.future_sight = (0, "pokemon_name")
 
         upkeep(self.battle, "")
 
-        self.assertEqual(self.battle.user.future_sight, (0, "pokemon_name"))
+        assert self.battle.user.future_sight == (0, "pokemon_name")
 
     def test_adds_leftovers_blacksludge_to_impossible_items_at_end_of_turn(self):
         self.battle.opponent.active.hp = 50
         upkeep(self.battle, "")
-        self.assertIn(constants.LEFTOVERS, self.battle.opponent.active.impossible_items)
-        self.assertIn(
-            constants.BLACK_SLUDGE, self.battle.opponent.active.impossible_items
-        )
+        assert constants.LEFTOVERS in self.battle.opponent.active.impossible_items
+        assert constants.BLACK_SLUDGE in self.battle.opponent.active.impossible_items
 
     def test_adds_flameorb_toxicorb_if_status_is_none_at_end_of_turn(self):
         self.battle.opponent.active.status = None
         upkeep(self.battle, "")
-        self.assertIn("flameorb", self.battle.opponent.active.impossible_items)
-        self.assertIn("toxicorb", self.battle.opponent.active.impossible_items)
+        assert "flameorb" in self.battle.opponent.active.impossible_items
+        assert "toxicorb" in self.battle.opponent.active.impossible_items
 
     def test_does_not_add_flameorb_toxicorb_if_status_exists_at_end_of_turn(self):
         self.battle.opponent.active.status = constants.FROZEN
         upkeep(self.battle, "")
-        self.assertNotIn("flameorb", self.battle.opponent.active.impossible_items)
-        self.assertNotIn("toxicorb", self.battle.opponent.active.impossible_items)
+        assert "flameorb" not in self.battle.opponent.active.impossible_items
+        assert "toxicorb" not in self.battle.opponent.active.impossible_items
 
 
-class TestCheckSpeedRanges(unittest.TestCase):
-    def setUp(self):
+class TestCheckSpeedRanges:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -4627,7 +4587,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|faint|p2a: Caterpie",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(300, self.battle.opponent.active.speed_range.min)  # unchanged
+        assert 300 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_recharging_makes_this_check_not_happen(self):
         self.battle.user.active.stats[constants.SPEED] = 150
@@ -4642,7 +4602,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)  # unchanged
+        assert 0 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_hit_self_in_confusion_makes_this_check_not_happen(self):
         self.battle.user.active.stats[constants.SPEED] = 150
@@ -4658,7 +4618,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)  # unchanged
+        assert 0 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_boosting_speed_after_opponent_does_not_mess_up_speed_range_check(self):
         self.battle.user.active.stats[constants.SPEED] = 150
@@ -4674,7 +4634,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(150, self.battle.opponent.active.speed_range.min)
+        assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_boosting_speed_before_opponent_does_not_mess_up_speed_range_check(self):
         self.battle.user.active.stats[constants.SPEED] = 150
@@ -4690,7 +4650,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(150, self.battle.opponent.active.speed_range.max)
+        assert 150 == self.battle.opponent.active.speed_range.max
 
     def test_opponent_knocking_out_user_sets_speed_range_if_bot_used_same_priority_move(
         self,
@@ -4707,7 +4667,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(150, self.battle.opponent.active.speed_range.min)
+        assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_user_knocking_out_opponent_does_nothing(
         self,
@@ -4724,7 +4684,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             "|turn|7",
         ]
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_suckerpunch_and_thunderclap_sets_speed_ranges(self):
         # opponent should have min speed equal to the bot's speed
@@ -4744,10 +4704,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            150,
-            self.battle.opponent.active.speed_range.min,
-        )
+        assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_sets_minspeed_when_opponent_goes_first(self):
         # opponent should have min speed equal to the bot's speed
@@ -4760,9 +4717,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED],
-            self.battle.opponent.active.speed_range.min,
+        assert (
+            self.battle.user.active.stats[constants.SPEED]
+            == self.battle.opponent.active.speed_range.min
         )
 
     def test_sets_maxspeed_when_opponent_goes_first_in_trickroom(self):
@@ -4777,9 +4734,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED],
-            self.battle.opponent.active.speed_range.max,
+        assert (
+            self.battle.user.active.stats[constants.SPEED]
+            == self.battle.opponent.active.speed_range.max
         )
 
     def test_nothing_happens_with_priority_move_in_trickroom(self):
@@ -4794,8 +4751,8 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(float("inf"), self.battle.opponent.active.speed_range.max)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert float("inf") == self.battle.opponent.active.speed_range.max
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_accounts_for_paralysis_when_calculating_speed_range(self):
         # opponent should have min speed equal to the bot's speed
@@ -4812,9 +4769,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         # bot_speed * 2 should be the minspeed it has b/c it went first with paralysis
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] * 2)
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_accounts_for_paralysis_on_bots_side_when_calculating_speed_range(self):
         # opponent should have min speed equal to the bot's speed
@@ -4831,9 +4786,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         # bot_speed / 2 should be the minspeed it has b/c it went first with paralysis
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] / 2)
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_accounts_for_tailwind_on_opponent_side_when_calculating_speed_ranges(self):
         # opponent should have min speed equal to the bot's speed
@@ -4850,9 +4803,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         # bot_speed / 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] / 2)
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_accounts_for_tailwind_on_bot_side_when_calculating_speed_ranges(self):
         # opponent should have min speed equal to the bot's speed
@@ -4869,9 +4820,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         # bot_speed * 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] * 2)
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_accounts_for_tailwind_on_both_side_when_calculating_speed_ranges(self):
         # opponent should have min speed equal to the bot's speed
@@ -4892,9 +4841,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         # bot_speed * 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(expected_min_speed * 2)
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_does_not_set_minspeed_when_opponent_could_have_unburden_activated(self):
         # opponent should have min speed equal to the bot's speed
@@ -4909,7 +4856,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_sets_maxspeed_when_bot_goes_first(self):
         # opponent should have max speed equal to the bot's speed
@@ -4922,9 +4869,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED],
-            self.battle.opponent.active.speed_range.max,
+        assert (
+            self.battle.user.active.stats[constants.SPEED]
+            == self.battle.opponent.active.speed_range.max
         )
 
     def test_minspeed_is_not_set_when_rain_is_up_and_opponent_can_have_swiftswim(self):
@@ -4940,7 +4887,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_minspeed_is_set_when_only_rain_is_up(self):
         # opponent should have max speed equal to the bot's speed
@@ -4954,9 +4901,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED],
-            self.battle.opponent.active.speed_range.min,
+        assert (
+            self.battle.user.active.stats[constants.SPEED]
+            == self.battle.opponent.active.speed_range.min
         )
 
     def test_minspeed_is_set_when_rain_is_not_up_but_opponent_could_have_swiftswim(
@@ -4973,9 +4920,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED],
-            self.battle.opponent.active.speed_range.min,
+        assert (
+            self.battle.user.active.stats[constants.SPEED]
+            == self.battle.opponent.active.speed_range.min
         )
 
     def test_minspeed_is_not_set_when_opponent_has_choicescarf(self):
@@ -4990,7 +4937,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_minspeed_is_correctly_set_when_bot_has_choicescarf(self):
         # opponent should have max speed equal to the bot's speed
@@ -5004,9 +4951,9 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(
-            self.battle.user.active.stats[constants.SPEED] * 1.5,
-            self.battle.opponent.active.speed_range.max,
+        assert (
+            self.battle.user.active.stats[constants.SPEED] * 1.5
+            == self.battle.opponent.active.speed_range.max
         )
 
     def test_minspeed_is_correctly_set_when_bot_has_choicescarf_and_opponent_is_boosted(
@@ -5031,7 +4978,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         expected_speed = int(self.battle.user.active.stats[constants.SPEED] / 1.5)
         expected_speed = int(expected_speed * 1.5)
 
-        self.assertEqual(expected_speed, self.battle.opponent.active.speed_range.min)
+        assert expected_speed == self.battle.opponent.active.speed_range.min
 
     def test_minspeed_interaction_with_boosted_speed(self):
         # opponent should have max speed equal to the bot's speed
@@ -5054,9 +5001,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_minspeed_interaction_with_bots_boosted_speed(self):
         # opponent should have max speed equal to the bot's speed
@@ -5080,9 +5025,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_minspeed_interaction_with_bot_and_opponents_boosted_speed(self):
         # opponent should have max speed equal to the bot's speed
@@ -5107,9 +5050,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_opponents_unknown_move_is_used_as_a_zero_priority_move(self):
         # opponent should have max speed equal to the bot's speed
@@ -5122,7 +5063,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(150, self.battle.opponent.active.speed_range.min)
+        assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_bots_unknown_move_is_used_as_a_zero_priority_move(self):
         # opponent should have max speed equal to the bot's speed
@@ -5135,7 +5076,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
 
-        self.assertEqual(150, self.battle.opponent.active.speed_range.max)
+        assert 150 == self.battle.opponent.active.speed_range.max
 
     def test_opponent_has_unknown_choicescarf_causing_it_to_be_faster(self):
         # Situation:
@@ -5157,9 +5098,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
 
         check_speed_ranges(self.battle, messages)
         expected_min_speed = 150
-        self.assertEqual(
-            expected_min_speed, self.battle.opponent.active.speed_range.min
-        )
+        assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
     def test_opponent_using_grassyglide_in_grassy_terrain_does_not_cause_minspeed_to_be_set(
         self,
@@ -5173,7 +5112,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         ]
 
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_bot_using_grassyglide_in_grassy_terrain_does_not_cause_maxspeed_to_be_set(
         self,
@@ -5187,7 +5126,7 @@ class TestCheckSpeedRanges(unittest.TestCase):
         ]
 
         check_speed_ranges(self.battle, messages)
-        self.assertEqual(float("inf"), self.battle.opponent.active.speed_range.max)
+        assert float("inf") == self.battle.opponent.active.speed_range.max
 
     def test_move_from_magicbounce_after_switching_does_not_set_speed_range(self):
         user_reserve_weedle = Pokemon("Weedle", 100)
@@ -5202,12 +5141,13 @@ class TestCheckSpeedRanges(unittest.TestCase):
         check_speed_ranges(self.battle, messages)
 
         # speed ranges should be unchanged because this was a switch-in
-        self.assertEqual(float("inf"), self.battle.opponent.active.speed_range.max)
-        self.assertEqual(0, self.battle.opponent.active.speed_range.min)
+        assert float("inf") == self.battle.opponent.active.speed_range.max
+        assert 0 == self.battle.opponent.active.speed_range.min
 
 
-class TestGuessChoiceScarf(unittest.TestCase):
-    def setUp(self):
+class TestGuessChoiceScarf:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -5252,7 +5192,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_guesses_choicescarf_when_opponent_should_always_be_slower(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5266,7 +5206,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_guesses_choicescarf_when_enemy_knocks_out_user(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5281,7 +5221,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_user_hits_self_in_confusion(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5298,7 +5238,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_opponent_knocks_out_user_with_priority_move(
         self,
@@ -5315,7 +5255,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_user_recharged(
         self,
@@ -5332,7 +5272,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_opponent_could_have_prankster(self):
         self.battle.opponent.active.name = "grimmsnarl"  # grimmsnarl could have prankster - it's non-damaging moves get +1 priority
@@ -5347,7 +5287,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_opponent_is_speed_boosted(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5362,7 +5302,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_opponent_uses_grassyglide_in_grassy_terrain(
         self,
@@ -5379,7 +5319,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_bot_is_speed_unboosted(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5394,7 +5334,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_scarf_in_trickroom(self):
         self.battle.trick_room = True
@@ -5409,7 +5349,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_scarf_under_trickroom_when_opponent_could_be_slower(self):
         self.battle.trick_room = True
@@ -5424,7 +5364,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_guesses_scarf_in_trickroom_when_opponent_cannot_be_slower(self):
         self.battle.trick_room = True
@@ -5439,7 +5379,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_unknown_moves_defaults_to_0_priority(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5453,7 +5393,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_priority_move_with_unknown_move_does_not_cause_guess(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5467,7 +5407,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_item_when_bot_moves_first(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5481,7 +5421,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_item_when_moves_are_different_priority(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5495,7 +5435,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_guess_item_when_opponent_can_be_faster(self):
         self.battle.user.active.stats[constants.SPEED] = (
@@ -5509,7 +5449,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_swiftswim_causing_opponent_to_be_faster_results_in_not_guessing_choicescarf(
         self,
@@ -5527,7 +5467,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_pokemon_possibly_having_swiftswim_in_rain_does_not_result_in_a_choicescarf_guess(
         self,
@@ -5545,7 +5485,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_seismitoad_choicescarf_is_guessed_when_ability_has_been_revealed(self):
         self.battle.opponent.active.name = (
@@ -5564,7 +5504,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_possible_surgesurfer_does_not_result_in_scarf_inferral(self):
         self.battle.opponent.active.name = (
@@ -5582,7 +5522,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_surgesurfer_pokemon_choice_item_is_guessed_if_ability_is_revealed_to_be_otherwise(
         self,
@@ -5603,7 +5543,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_pokemon_with_possible_quickfeet_does_not_have_choice_scarf_inferred(self):
         self.battle.opponent.active.name = (
@@ -5619,7 +5559,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_pokemon_with_possible_quickfeet_does_have_choice_scarf_inferred_if_ability_revealed_to_something_else(
         self,
@@ -5640,7 +5580,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_item_is_none(self):
         self.battle.opponent.active.item = None
@@ -5655,7 +5595,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(None, self.battle.opponent.active.item)
+        assert None is self.battle.opponent.active.item
 
     def test_does_not_guess_choicescarf_when_item_is_known(self):
         self.battle.opponent.active.item = "leftovers"
@@ -5670,7 +5610,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("leftovers", self.battle.opponent.active.item)
+        assert "leftovers" == self.battle.opponent.active.item
 
     def test_uses_randombattle_spread_when_guessing_for_randombattle(self):
         self.battle.mode = RandomBattleMode()
@@ -5691,7 +5631,7 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual("choicescarf", self.battle.opponent.active.item)
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_choicescarf_is_not_checked_when_switching_happens(self):
         self.battle.user.active.stats[constants.SPEED] = 210
@@ -5707,11 +5647,12 @@ class TestGuessChoiceScarf(unittest.TestCase):
 
         check_choicescarf(self.battle, messages)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
 
-class TestCheckHeavyDutyBoots(unittest.TestCase):
-    def setUp(self):
+class TestCheckHeavyDutyBoots:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -5757,7 +5698,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_parser_deals_with_empty_line(self):
         self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
@@ -5770,7 +5711,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_parser_deals_with_empty_line_with_toxicspikes(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -5784,7 +5725,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_having_an_item_bypasses_this_check(self):
         self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
@@ -5797,7 +5738,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         check_heavydutyboots(self.battle, messages)
 
-        self.assertEqual(None, self.battle.opponent.active.item)
+        assert None is self.battle.opponent.active.item
 
     def test_double_switch_where_other_side_takes_damage_does_not_set_hdb_for_the_first_side(
         self,
@@ -5811,7 +5752,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_basic_case_of_switching_in_and_taking_damage_does_not_set_heavydutyboots(
         self,
@@ -5826,7 +5767,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_basic_case_of_switching_in_and_taking_damage_sets_heavydutyboots_to_impossible(
         self,
@@ -5841,8 +5782,8 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertIn(
-            constants.HEAVY_DUTY_BOOTS, self.battle.opponent.active.impossible_items
+        assert (
+            constants.HEAVY_DUTY_BOOTS in self.battle.opponent.active.impossible_items
         )
 
     def test_not_taking_damage_from_spikes_sets_heavydutyboots(self):
@@ -5855,7 +5796,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_taking_damage_from_spikes_does_not_set_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
@@ -5867,7 +5808,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_taking_damage_from_spikes_sets_heavydutyboots_to_impossible(self):
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
@@ -5879,8 +5820,8 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertIn(
-            constants.HEAVY_DUTY_BOOTS, self.battle.opponent.active.impossible_items
+        assert (
+            constants.HEAVY_DUTY_BOOTS in self.battle.opponent.active.impossible_items
         )
 
     def test_not_getting_poisoned_by_toxicspikes_sets_heavydutyboots(self):
@@ -5894,7 +5835,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_not_getting_poisoned_by_toxicspikes_does_not_set_heavydutyboots_if_already_poisoned(
         self,
@@ -5911,7 +5852,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_infer_headydutyboots_if_levitate_is_possible_with_tspikes(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -5924,7 +5865,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_does_not_infer_headydutyboots_if_levitate_is_possible_with_spikes(self):
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
@@ -5937,7 +5878,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_getting_poisoned_by_two_layers_of_toxicspikes_does_not_set_heavydutyboots(
         self,
@@ -5953,7 +5894,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_getting_toxiced_by_toxic_afterwards_still_sets_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -5966,7 +5907,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_toxicorb_poisoning_at_the_end_of_the_turn_does_not_infer_heavydutyboots(
         self,
@@ -5981,7 +5922,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("toxicorb", self.battle.opponent.active.item)
+        assert "toxicorb" == self.battle.opponent.active.item
 
     def test_having_airballoon_does_notcause_a_heavydutyboost_inferral(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -5993,7 +5934,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("airballoon", self.battle.opponent.active.item)
+        assert "airballoon" == self.battle.opponent.active.item
 
     def test_flying_type_does_not_trigger_heavydutyboots_check_on_toxicspikes(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -6004,7 +5945,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_tera_flying_type_does_not_trigger_heavydutyboots_check_on_toxicspikes(
         self,
@@ -6022,7 +5963,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_tera_flying_type_does_not_trigger_heavydutyboots_check_on_spikes(
         self,
@@ -6040,7 +5981,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_tera_steel_type_does_not_trigger_heavydutyboots_check_on_toxicspikes(self):
         caterpie = Pokemon("caterpie", 100)
@@ -6056,7 +5997,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_getting_poisoned_by_toxicspikes_does_not_set_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
@@ -6070,7 +6011,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_nothing_is_set_when_there_are_no_hazards_on_the_field(self):
         self.battle.msg_list = [
@@ -6081,7 +6022,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_pokemon_that_could_have_magicguard_does_not_set_heavydutyboots_when_no_damage_is_taken(
         self,
@@ -6096,7 +6037,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_being_caught_in_stickyweb_does_not_set_set_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.STICKY_WEB] = 1
@@ -6109,7 +6050,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(constants.UNKNOWN_ITEM, self.battle.opponent.active.item)
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
     def test_being_caught_in_stickyweb_sets_heavydutyboots_to_impossible(self):
         self.battle.opponent.side_conditions[constants.STICKY_WEB] = 1
@@ -6122,8 +6063,8 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertIn(
-            constants.HEAVY_DUTY_BOOTS, self.battle.opponent.active.impossible_items
+        assert (
+            constants.HEAVY_DUTY_BOOTS in self.battle.opponent.active.impossible_items
         )
 
     def test_not_being_caught_in_stickyweb_sets_item_to_heavydutyboots(self):
@@ -6136,7 +6077,7 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual("heavydutyboots", self.battle.opponent.active.item)
+        assert "heavydutyboots" == self.battle.opponent.active.item
 
     def test_not_taking_spikes_with_possible_magicguard_does_not_set_heavydutyboots(
         self,
@@ -6151,12 +6092,13 @@ class TestCheckHeavyDutyBoots(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertNotEqual("heavydutyboots", self.battle.opponent.active.item)
-        self.assertNotIn("heavydutyboots", self.battle.opponent.active.impossible_items)
+        assert "heavydutyboots" != self.battle.opponent.active.item
+        assert "heavydutyboots" not in self.battle.opponent.active.impossible_items
 
 
-class TestRemoveItem(unittest.TestCase):
-    def setUp(self):
+class TestRemoveItem:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -6180,25 +6122,26 @@ class TestRemoveItem(unittest.TestCase):
         split_msg = ["", "-enditem", "p2a: Hawlucha", "Sitrus Berry"]
 
         remove_item(self.battle, split_msg)
-        self.assertIn("unburden", self.battle.opponent.active.volatile_statuses)
+        assert "unburden" in self.battle.opponent.active.volatile_statuses
 
     def test_basic_removes_item(self):
         self.battle.opponent.active.item = "airballoon"
         split_msg = ["", "-enditem", "p2a: Caterpie", "Air Balloon"]
 
         remove_item(self.battle, split_msg)
-        self.assertEqual(None, self.battle.opponent.active.item)
+        assert None is self.battle.opponent.active.item
 
     def test_sets_removed_item_when_item_ends(self):
         self.battle.opponent.active.item = "airballoon"
         split_msg = ["", "-enditem", "p2a: Caterpie", "Air Balloon"]
 
         remove_item(self.battle, split_msg)
-        self.assertEqual("airballoon", self.battle.opponent.active.removed_item)
+        assert "airballoon" == self.battle.opponent.active.removed_item
 
 
-class TestImmune(unittest.TestCase):
-    def setUp(self):
+class TestImmune:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -6239,8 +6182,8 @@ class TestImmune(unittest.TestCase):
 
         # tera-type renders immune to electric-judgment
         # make sure no zoroark-hisui is inferred here thinking judgment is a normal type
-        self.assertEqual("enamorustherian", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "enamorustherian" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_randbats_infer_zoroark_from_immunity_when_in_reserves(self):
         self.battle.mode = RandomBattleMode()
@@ -6265,25 +6208,23 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("zoroarkhisui", self.battle.opponent.active.name)
-        self.assertNotEqual(100, self.battle.opponent.active.level)
+        assert "zoroarkhisui" == self.battle.opponent.active.name
+        assert 100 != self.battle.opponent.active.level
 
         # nastyplot was previously revealed on zoroarkhisui
         # terablast was used by gyarados since switching in, but should be re-associated with zoroarkhisui
-        self.assertEqual(
-            [Move("nastyplot"), Move("terablast")],
-            self.battle.opponent.active.moves,
-        )
+        assert [
+            Move("nastyplot"),
+            Move("terablast"),
+        ] == self.battle.opponent.active.moves
         # the boosts that existed on gyarados should be on the active zoroarkhisui now
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual(1, len(self.battle.opponent.reserve))
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
+        assert 1 == len(self.battle.opponent.reserve)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
         # terablast was used by gyarados since switching in so it should be dis-associated with gyarados
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_randbats_infer_zoroarkhisui_from_immunity_when_not_in_reserves(self):
         self.battle.mode = RandomBattleMode()
@@ -6306,21 +6247,16 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("zoroarkhisui", self.battle.opponent.active.name)
-        self.assertNotEqual(100, self.battle.opponent.active.level)
+        assert "zoroarkhisui" == self.battle.opponent.active.name
+        assert 100 != self.battle.opponent.active.level
 
-        self.assertEqual(
-            [Move("terablast")],
-            self.battle.opponent.active.moves,
-        )
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert [Move("terablast")] == self.battle.opponent.active.moves
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual(1, len(self.battle.opponent.reserve))
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert 1 == len(self.battle.opponent.reserve)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_randbats_infer_zoroark_from_immunity_when_not_in_reserves(self):
         self.battle.mode = RandomBattleMode()
@@ -6343,21 +6279,16 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("zoroark", self.battle.opponent.active.name)
-        self.assertNotEqual(100, self.battle.opponent.active.level)
+        assert "zoroark" == self.battle.opponent.active.name
+        assert 100 != self.battle.opponent.active.level
 
-        self.assertEqual(
-            [Move("terablast")],
-            self.battle.opponent.active.moves,
-        )
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert [Move("terablast")] == self.battle.opponent.active.moves
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual(1, len(self.battle.opponent.reserve))
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert 1 == len(self.battle.opponent.reserve)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_gen4_does_not_infer_zoroark(self):
         self.battle.mode = RandomBattleMode()
@@ -6378,8 +6309,8 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("gyarados", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "gyarados" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_gen5_does_not_infer_zoroark_hisui(self):
         self.battle.mode = RandomBattleMode()
@@ -6400,8 +6331,8 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("gyarados", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "gyarados" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_does_not_infer_zoroark_if_pkmn_terastallized_to_gain_immunity(self):
         self.battle.mode = RandomBattleMode()
@@ -6423,8 +6354,8 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("gyarados", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "gyarados" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_does_not_infer_zoroark_if_pkmn_naturally_immune(self):
         self.battle.mode = RandomBattleMode()
@@ -6444,8 +6375,8 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("urshifu", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "urshifu" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_does_not_infer_zoroark_if_futuresight_ending(self):
         self.battle.mode = RandomBattleMode()
@@ -6466,8 +6397,8 @@ class TestImmune(unittest.TestCase):
         ]
         immune(self.battle, split_msg)
 
-        self.assertEqual("urshifu", self.battle.opponent.active.name)
-        self.assertEqual(0, len(self.battle.opponent.reserve))
+        assert "urshifu" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
 
     def test_infers_zoroark_from_immunity_that_pkmn_does_not_have(self):
         self.battle.mode = BattleFactoryMode()
@@ -6494,23 +6425,21 @@ class TestImmune(unittest.TestCase):
         ]  # Gyarados is not immune to shadowball
         immune(self.battle, split_msg)
 
-        self.assertEqual("zoroarkhisui", self.battle.opponent.active.name)
+        assert "zoroarkhisui" == self.battle.opponent.active.name
 
         # nastyplot was previously revealed on zoroarkhisui
         # terablast was used by gyarados since switching in, but should be re-associated with zoroarkhisui
-        self.assertEqual(
-            [Move("nastyplot"), Move("terablast")],
-            self.battle.opponent.active.moves,
-        )
+        assert [
+            Move("nastyplot"),
+            Move("terablast"),
+        ] == self.battle.opponent.active.moves
         # the boosts that existed on gyarados should be on the active zoroarkhisui now
-        self.assertEqual(
-            {constants.SPECIAL_ATTACK: 2}, dict(self.battle.opponent.active.boosts)
-        )
+        assert {constants.SPECIAL_ATTACK: 2} == dict(self.battle.opponent.active.boosts)
 
-        self.assertEqual("gyarados", self.battle.opponent.reserve[0].name)
+        assert "gyarados" == self.battle.opponent.reserve[0].name
         # terablast was used by gyarados since switching in so it should be dis-associated with gyarados
-        self.assertEqual([], self.battle.opponent.reserve[0].moves)
-        self.assertEqual({}, dict(self.battle.opponent.reserve[0].boosts))
+        assert [] == self.battle.opponent.reserve[0].moves
+        assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
     def test_does_not_infer_zoroark_when_tera_type_renders_it_immune(self):
         self.battle.mode = BattleFactoryMode()
@@ -6536,8 +6465,8 @@ class TestImmune(unittest.TestCase):
         immune(self.battle, split_msg)
 
         # nothing changed
-        self.assertEqual("gyarados", self.battle.opponent.active.name)
-        self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
+        assert "gyarados" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
 
     def test_does_not_infer_zoroark_when_pkmn_is_actually_immune(self):
         self.battle.mode = BattleFactoryMode()
@@ -6560,8 +6489,8 @@ class TestImmune(unittest.TestCase):
         immune(self.battle, split_msg)
 
         # did not change
-        self.assertEqual("maushold", self.battle.opponent.active.name)
-        self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
+        assert "maushold" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
 
     def test_does_not_infer_zoroark_when_the_zoroark_is_not_immune(self):
         self.battle.mode = BattleFactoryMode()
@@ -6584,8 +6513,8 @@ class TestImmune(unittest.TestCase):
         immune(self.battle, split_msg)
 
         # did not change
-        self.assertEqual("salamence", self.battle.opponent.active.name)
-        self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
+        assert "salamence" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
 
     def test_does_not_infer_zoroark_when_ability_renders_immune(self):
         self.battle.mode = BattleFactoryMode()
@@ -6609,8 +6538,8 @@ class TestImmune(unittest.TestCase):
         immune(self.battle, split_msg)
 
         # did not change
-        self.assertEqual("rotomheat", self.battle.opponent.active.name)
-        self.assertEqual("zoroarkhisui", self.battle.opponent.reserve[0].name)
+        assert "rotomheat" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
 
     def test_sets_ability_for_opponent(self):
         split_msg = ["", "-immune", "p2a: Caterpie", "[from] ability: Volt Absorb"]
@@ -6618,7 +6547,7 @@ class TestImmune(unittest.TestCase):
 
         expected_ability = "voltabsorb"
 
-        self.assertEqual(expected_ability, self.battle.opponent.active.ability)
+        assert expected_ability == self.battle.opponent.active.ability
 
     def test_sets_ability_for_bot(self):
         split_msg = ["", "-immune", "p1a: Caterpie", "[from] ability: Volt Absorb"]
@@ -6626,11 +6555,12 @@ class TestImmune(unittest.TestCase):
 
         expected_ability = "voltabsorb"
 
-        self.assertEqual(expected_ability, self.battle.user.active.ability)
+        assert expected_ability == self.battle.user.active.ability
 
 
-class TestInactive(unittest.TestCase):
-    def setUp(self):
+class TestInactive:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -6652,38 +6582,39 @@ class TestInactive(unittest.TestCase):
         split_msg = ["", "inactive", "Time left: 135 sec this turn", "135 sec total"]
         inactive(self.battle, split_msg)
 
-        self.assertEqual(135, self.battle.time_remaining)
+        assert 135 == self.battle.time_remaining
 
     def test_sets_to_60_seconds(self):
         split_msg = ["", "inactive", "Time left: 60 sec this turn", "60 sec total"]
         inactive(self.battle, split_msg)
 
-        self.assertEqual(60, self.battle.time_remaining)
+        assert 60 == self.battle.time_remaining
 
     def test_capture_group_failing(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "some random message"]
         inactive(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.time_remaining)
+        assert 1 == self.battle.time_remaining
 
     def test_capture_group_failing_but_message_starts_with_username(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "Time left: some random message"]
         inactive(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.time_remaining)
+        assert 1 == self.battle.time_remaining
 
     def test_different_inactive_message_does_not_change_time(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "Some Other Person has 10 seconds left"]
         inactive(self.battle, split_msg)
 
-        self.assertEqual(1, self.battle.time_remaining)
+        assert 1 == self.battle.time_remaining
 
 
-class TestInactiveOff(unittest.TestCase):
-    def setUp(self):
+class TestInactiveOff:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -6726,11 +6657,12 @@ class TestInactiveOff(unittest.TestCase):
             "|turn|4",
         ]
         process_battle_updates(self.battle)
-        self.assertIsNone(self.battle.time_remaining)
+        assert self.battle.time_remaining is None
 
 
-class TestGetDamageDealt(unittest.TestCase):
-    def setUp(self):
+class TestGetDamageDealt:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -6764,7 +6696,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.20,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_assigns_damage_when_bots_pokemon_has_no_last_used_move(self):
         self.battle.user.active.max_hp = 250
@@ -6789,7 +6721,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.20,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_supereffective_damage_is_captured(self):
         self.battle.user.active.max_hp = 250
@@ -6815,7 +6747,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.60,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_crit_sets_crit_flag(self):
         self.battle.user.active.max_hp = 250
@@ -6841,7 +6773,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.60,
             crit=True,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_stop_after_the_end_of_this_move(self):
         self.battle.user.active.max_hp = 250
@@ -6866,7 +6798,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.20,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_does_not_assign_anything_when_move_does_no_damage(self):
         self.battle.user.active.max_hp = 250
@@ -6880,7 +6812,7 @@ class TestGetDamageDealt(unittest.TestCase):
         split_msg = messages[0].split("|")
 
         damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
-        self.assertIsNone(damage_dealt)
+        assert damage_dealt is None
 
     def test_does_not_catch_second_moves_damage_after_a_heal(self):
         self.battle.user.active.max_hp = 250
@@ -6896,7 +6828,7 @@ class TestGetDamageDealt(unittest.TestCase):
         split_msg = messages[0].split("|")
 
         damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
-        self.assertIsNone(damage_dealt)
+        assert damage_dealt is None
 
     def test_does_not_set_damage_when_status_move_occurs(self):
         self.battle.user.active.max_hp = 250
@@ -6910,7 +6842,7 @@ class TestGetDamageDealt(unittest.TestCase):
         split_msg = messages[0].split("|")
 
         damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
-        self.assertIsNone(damage_dealt)
+        assert damage_dealt is None
 
     def test_assigns_damage_from_move_that_causes_status_as_secondary(self):
         self.battle.user.active.max_hp = 250
@@ -6933,7 +6865,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.20,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_assigns_damage_to_bot_on_faint(self):
         self.battle.user.active.max_hp = 250
@@ -6958,7 +6890,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=1 / 250,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_assigns_damage_to_opponent_on_faint(self):
         self.battle.opponent.active.max_hp = 250
@@ -6981,7 +6913,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.01,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_assigns_damage_to_opponent_on_faint_from_1_hp(self):
         self.battle.opponent.active.max_hp = 250
@@ -7006,7 +6938,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=1 / 250,
             crit=False,
         )
-        self.assertEqual(expected_damage_amount_dealt, damage_dealt)
+        assert expected_damage_amount_dealt == damage_dealt
 
     def test_assigns_nothing_on_substitute(self):
         self.battle.user.active.max_hp = 100
@@ -7024,7 +6956,7 @@ class TestGetDamageDealt(unittest.TestCase):
         split_msg = messages[0].split("|")
 
         damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
-        self.assertIsNone(damage_dealt)
+        assert damage_dealt is None
 
     def test_lifeorb_does_not_assign_damage(self):
         self.battle.user.active.max_hp = 250
@@ -7047,7 +6979,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.20,
             crit=False,
         )
-        self.assertEqual(damage_dealt, expected_damage_dealt)
+        assert damage_dealt == expected_damage_dealt
 
     def test_doing_damage_to_opponent_gets_correct_percentage(self):
         # start at 100% health
@@ -7070,7 +7002,7 @@ class TestGetDamageDealt(unittest.TestCase):
             percent_damage=0.15,
             crit=False,
         )
-        self.assertEqual(expected_damage_dealt, damage_dealt)
+        assert expected_damage_dealt == damage_dealt
 
     def test_entire_message_finishing(self):
         # start at 100% health
@@ -7088,11 +7020,12 @@ class TestGetDamageDealt(unittest.TestCase):
 
         damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
 
-        self.assertIsNone(damage_dealt)
+        assert damage_dealt is None
 
 
-class TestNoInit(unittest.TestCase):
-    def setUp(self):
+class TestNoInit:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
         self.battle.mode = StandardBattleMode()
@@ -7111,4 +7044,4 @@ class TestNoInit(unittest.TestCase):
 
         process_battle_updates(self.battle)
 
-        self.assertEqual(self.battle.battle_tag, new_battle_tag)
+        assert self.battle.battle_tag == new_battle_tag

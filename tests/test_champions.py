@@ -1,4 +1,4 @@
-import unittest
+import pytest
 
 from fp.battle.protocol import switch_or_drag
 from fp.battle.state import Battle, Move, Pokemon
@@ -35,36 +35,37 @@ def gen9_randombattle_battle():
     return battle
 
 
-class TestChampionsIsAGeneration(unittest.TestCase):
+class TestChampionsIsAGeneration:
     def test_format_parses_as_randombattle_with_champions_generation(self):
         spec = FormatSpec.from_format_string(CHAMPIONS_FORMAT)
-        self.assertEqual(BattleType.RANDOM_BATTLE, spec.battle_type)
-        self.assertEqual("gen9champions", spec.generation)
-        self.assertEqual(9, spec.gen_number)
+        assert BattleType.RANDOM_BATTLE == spec.battle_type
+        assert "gen9champions" == spec.generation
+        assert 9 == spec.gen_number
 
     def test_champions_battle_resolves_champions_mechanics(self):
         battle = champions_battle()
-        self.assertIs(GENERATIONS["gen9champions"], battle.gen)
+        assert GENERATIONS["gen9champions"] is battle.gen
 
     def test_champions_battle_uses_the_same_mode_as_randombattles(self):
         # champions is a generation, not a battle type: the mode is plain randombattle
         battle = champions_battle()
-        self.assertIsInstance(battle.mode, RandomBattleMode)
+        assert isinstance(battle.mode, RandomBattleMode)
 
 
-class TestChampionsMechanics(unittest.TestCase):
-    def setUp(self):
+class TestChampionsMechanics:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         FoulPlayConfig.pokemon_format = CHAMPIONS_FORMAT
 
     def test_max_pp_formula(self):
         # tackle has 35pp: champions gives (35/5 + 1) * 4 = 32 rather than 35 * 1.6 = 56
-        self.assertEqual(32, Move("tackle").max_pp)
+        assert 32 == Move("tackle").max_pp
 
     def test_randombattle_evs(self):
-        self.assertEqual((11,) * 6, random_battles_evs())
+        assert (11,) * 6 == random_battles_evs()
 
     def test_maximum_ev(self):
-        self.assertEqual(32, maximum_ev())
+        assert 32 == maximum_ev()
 
     def test_stat_calculation_converts_stat_points_to_evs(self):
         base_stats = {
@@ -79,9 +80,7 @@ class TestChampionsMechanics(unittest.TestCase):
 
         # 11 champions stat points are worth 8 * 11 - 4 = 84 EVs
         FoulPlayConfig.pokemon_format = "gen9randombattle"
-        self.assertEqual(
-            calculate_stats(base_stats, 100, evs=(84,) * 6), champions_stats
-        )
+        assert calculate_stats(base_stats, 100, evs=(84,) * 6) == champions_stats
 
     def test_randombattle_sets_get_champions_evs(self):
         datasets = RandomBattleTeamDatasets()
@@ -90,10 +89,10 @@ class TestChampionsMechanics(unittest.TestCase):
             "pikachu": {"81,lightball,static,volttackle,surf,irontail,fakeout": 1}
         }
         datasets._initialize_pkmn_sets()
-        self.assertEqual((11,) * 6, datasets.pkmn_sets["pikachu"][0].pkmn_set.evs)
+        assert (11,) * 6 == datasets.pkmn_sets["pikachu"][0].pkmn_set.evs
 
 
-class TestChampionsRegenerator(unittest.TestCase):
+class TestChampionsRegenerator:
     def _switch_out_regenerator_pkmn(self, battle):
         outgoing = Pokemon("slowbro", 100)
         outgoing.ability = "regenerator"
@@ -110,15 +109,15 @@ class TestChampionsRegenerator(unittest.TestCase):
     def test_regenerator_does_not_heal_in_champions(self):
         FoulPlayConfig.pokemon_format = CHAMPIONS_FORMAT
         outgoing = self._switch_out_regenerator_pkmn(champions_battle())
-        self.assertEqual(30, outgoing.hp)
+        assert 30 == outgoing.hp
 
     def test_regenerator_heals_in_gen9_randombattle(self):
         FoulPlayConfig.pokemon_format = "gen9randombattle"
         outgoing = self._switch_out_regenerator_pkmn(gen9_randombattle_battle())
-        self.assertEqual(30 + int(100 / 3), outgoing.hp)
+        assert 30 + int(100 / 3) == outgoing.hp
 
 
-class TestChampionsSpeedCheckSpread(unittest.TestCase):
+class TestChampionsSpeedCheckSpread:
     def test_speed_check_assumes_champions_evs(self):
         FoulPlayConfig.pokemon_format = CHAMPIONS_FORMAT
         battle = champions_battle()
@@ -127,14 +126,14 @@ class TestChampionsSpeedCheckSpread(unittest.TestCase):
         battle_copy.opponent.active = Pokemon("pikachu", 100)
 
         battle.mode.assume_spread_for_speed_check(battle, battle_copy)
-        self.assertEqual([11] * 6, battle_copy.opponent.active.evs)
+        assert [11] * 6 == battle_copy.opponent.active.evs
 
 
-class TestChampionsDoesNotLeakIntoOtherGens(unittest.TestCase):
+class TestChampionsDoesNotLeakIntoOtherGens:
     def test_gen9_randombattle_is_unaffected(self):
-        self.assertEqual((85,) * 6, random_battles_evs())
-        self.assertEqual(252, maximum_ev())
-        self.assertEqual(56, Move("tackle").max_pp)
+        assert (85,) * 6 == random_battles_evs()
+        assert 252 == maximum_ev()
+        assert 56 == Move("tackle").max_pp
         battle = gen9_randombattle_battle()
-        self.assertIs(GENERATIONS["gen9"], battle.gen)
-        self.assertTrue(battle.gen.regenerator_heals_on_switch_out)
+        assert GENERATIONS["gen9"] is battle.gen
+        assert battle.gen.regenerator_heals_on_switch_out

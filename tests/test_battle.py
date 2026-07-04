@@ -1,4 +1,4 @@
-import unittest
+import pytest
 
 from fp.battle.state import LastUsedMove
 from fp.battle.state import Battler
@@ -6,29 +6,29 @@ from fp.battle.state import Pokemon
 from fp.battle.state import Move
 
 
-class TestPokemon(unittest.TestCase):
+class TestPokemon:
     def test_alternate_pokemon_name_initializes(self):
         name = "florgeswhite"
         Pokemon(name, 100)
 
     def test_get_mega_formes_one_mega(self):
-        self.assertEqual(
-            Pokemon("venusaur", 100).get_mega_pkmn_info(),
-            [("venusaurmega", "venusaurite")],
-        )
+        assert Pokemon("venusaur", 100).get_mega_pkmn_info() == [
+            ("venusaurmega", "venusaurite")
+        ]
 
     def test_get_mega_formes_two_mega(self):
-        self.assertEqual(
-            Pokemon("charizard", 100).get_mega_pkmn_info(),
-            [("charizardmegax", "charizarditex"), ("charizardmegay", "charizarditey")],
-        )
+        assert Pokemon("charizard", 100).get_mega_pkmn_info() == [
+            ("charizardmegax", "charizarditex"),
+            ("charizardmegay", "charizarditey"),
+        ]
 
     def test_get_mega_formes_none(self):
-        self.assertEqual(Pokemon("umbreon", 100).get_mega_pkmn_info(), [])
+        assert Pokemon("umbreon", 100).get_mega_pkmn_info() == []
 
 
-class TestBattlerActiveLockedIntoMove(unittest.TestCase):
-    def setUp(self):
+class TestBattlerActiveLockedIntoMove:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battler = Battler()
         self.battler.active = Pokemon("pikachu", 100)
         self.battler.active.moves = [
@@ -46,11 +46,11 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("volttackle").disabled)
+        assert not self.battler.active.get_move("volttackle").disabled
 
-        self.assertTrue(self.battler.active.get_move("thunderbolt").disabled)
-        self.assertTrue(self.battler.active.get_move("agility").disabled)
-        self.assertTrue(self.battler.active.get_move("doubleteam").disabled)
+        assert self.battler.active.get_move("thunderbolt").disabled
+        assert self.battler.active.get_move("agility").disabled
+        assert self.battler.active.get_move("doubleteam").disabled
 
     def test_firstimpression_gets_locked_when_last_used_move_was_by_the_active_pokemon(
         self,
@@ -64,7 +64,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertTrue(self.battler.active.get_move("firstimpression").disabled)
+        assert self.battler.active.get_move("firstimpression").disabled
 
     def test_taunt_locks_status_move(self):
         self.battler.active.moves.append(Move("calmmind"))
@@ -72,7 +72,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertTrue(self.battler.active.get_move("calmmind").disabled)
+        assert self.battler.active.get_move("calmmind").disabled
 
     def test_taunt_does_not_lock_physical_move(self):
         self.battler.active.moves.append(Move("tackle"))
@@ -80,7 +80,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("tackle").disabled)
+        assert not self.battler.active.get_move("tackle").disabled
 
     def test_taunt_does_not_lock_special_move(self):
         self.battler.active.moves.append(Move("watergun"))
@@ -88,7 +88,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("watergun").disabled)
+        assert not self.battler.active.get_move("watergun").disabled
 
     def test_taunt_with_multiple_moves(self):
         self.battler.active.moves.append(Move("watergun"))
@@ -98,9 +98,9 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("watergun").disabled)
-        self.assertFalse(self.battler.active.get_move("tackle").disabled)
-        self.assertTrue(self.battler.active.get_move("calmmind").disabled)
+        assert not self.battler.active.get_move("watergun").disabled
+        assert not self.battler.active.get_move("tackle").disabled
+        assert self.battler.active.get_move("calmmind").disabled
 
     def test_calmmind_gets_locked_when_user_has_assaultvest(self):
         self.battler.active.moves.append(Move("calmmind"))
@@ -108,7 +108,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertTrue(self.battler.active.get_move("calmmind").disabled)
+        assert self.battler.active.get_move("calmmind").disabled
 
     def test_tackle_is_not_disabled_when_user_has_assaultvest(self):
         self.battler.active.moves.append(Move("tackle"))
@@ -116,7 +116,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("tackle").disabled)
+        assert not self.battler.active.get_move("tackle").disabled
 
     def test_fakeout_gets_locked_when_last_used_move_was_by_the_active_pokemon(self):
         self.battler.active.moves.append(Move("fakeout"))
@@ -128,7 +128,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertTrue(self.battler.active.get_move("fakeout").disabled)
+        assert self.battler.active.get_move("fakeout").disabled
 
     def test_firstimpression_is_not_disabled_when_the_last_used_move_was_a_switch(self):
         self.battler.active.moves.append(Move("firstimpression"))
@@ -138,7 +138,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("firstimpression").disabled)
+        assert not self.battler.active.get_move("firstimpression").disabled
 
     def test_fakeout_is_not_disabled_when_the_last_used_move_was_a_switch(self):
         self.battler.active.moves.append(Move("fakeout"))
@@ -148,7 +148,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
 
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("fakeout").disabled)
+        assert not self.battler.active.get_move("fakeout").disabled
 
     def test_choice_item_with_previous_move_being_a_switch_returns_false(self):
         self.battler.active.item = "choicescarf"
@@ -157,10 +157,10 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
         )
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("volttackle").disabled)
-        self.assertFalse(self.battler.active.get_move("thunderbolt").disabled)
-        self.assertFalse(self.battler.active.get_move("agility").disabled)
-        self.assertFalse(self.battler.active.get_move("doubleteam").disabled)
+        assert not self.battler.active.get_move("volttackle").disabled
+        assert not self.battler.active.get_move("thunderbolt").disabled
+        assert not self.battler.active.get_move("agility").disabled
+        assert not self.battler.active.get_move("doubleteam").disabled
 
     def test_non_choice_item_possession_returns_false(self):
         self.battler.active.item = ""
@@ -169,7 +169,7 @@ class TestBattlerActiveLockedIntoMove(unittest.TestCase):
         )
         self.battler.lock_moves()
 
-        self.assertFalse(self.battler.active.get_move("volttackle").disabled)
-        self.assertFalse(self.battler.active.get_move("thunderbolt").disabled)
-        self.assertFalse(self.battler.active.get_move("agility").disabled)
-        self.assertFalse(self.battler.active.get_move("doubleteam").disabled)
+        assert not self.battler.active.get_move("volttackle").disabled
+        assert not self.battler.active.get_move("thunderbolt").disabled
+        assert not self.battler.active.get_move("agility").disabled
+        assert not self.battler.active.get_move("doubleteam").disabled
