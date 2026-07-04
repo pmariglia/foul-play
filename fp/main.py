@@ -42,7 +42,7 @@ def check_dictionaries_are_unmodified(original_pokedex, original_move_json):
 async def run_foul_play():
     FoulPlayConfig.configure()
     init_logging(FoulPlayConfig.log_level, FoulPlayConfig.log_to_file)
-    apply_mods(FoulPlayConfig.pokemon_format)
+    apply_mods(FoulPlayConfig.format_spec)
 
     original_pokedex = deepcopy(pokedex)
     original_move_json = deepcopy(all_move_json)

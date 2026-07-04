@@ -15,9 +15,11 @@ from typing import Optional
 
 
 from fp import constants
+from fp.constants import BattleType
 from fp.data import all_move_json, pokedex
 from fp.battle.helpers import calculate_stats, random_battles_evs
 from fp.battle.helpers import normalize_name
+from fp.format_spec import FormatSpec
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 SMOGON_CACHE_DIR = os.path.join(PWD, "smogon_stats_cache")
@@ -371,8 +373,9 @@ class _RandomBattleSets(PokemonSets):
         self.pkmn_mode = "uninitialized"
 
     def _load_raw_sets(self, pokemon_battle_mode):
-        if pokemon_battle_mode.endswith("blitz"):
-            pokemon_battle_mode = pokemon_battle_mode[:-5]
+        pokemon_battle_mode = FormatSpec.from_format_string(
+            pokemon_battle_mode
+        ).base_name
         self.raw_pkmn_sets = get_randbats_sets_file(pokemon_battle_mode)
 
     def _initialize_pkmn_sets(self):
@@ -558,14 +561,11 @@ class _TeamDatasets(PokemonSets):
         self.raw_pkmn_sets = {}
         self.pkmn_sets = {}
         self.pkmn_mode = pkmn_mode
-        get_all_pkmn = any(
-            g in pkmn_mode
-            for g in [
-                "gen1",
-                "gen2",
-                "gen3",
-                "gen4",
-            ]
+        get_all_pkmn = FormatSpec.from_format_string(pkmn_mode).gen_number in (
+            1,
+            2,
+            3,
+            4,
         )
         if battle_factory_tier_name:
             self._load_battle_factory_team_datasets(
@@ -604,7 +604,11 @@ class _TeamDatasets(PokemonSets):
                 remaining_sets.append(pkmn_set)
 
         # do not do this extra check for TeamDatasets unless in battlefactory mode
-        if not remaining_sets and self.pkmn_mode.endswith("battlefactory"):
+        if (
+            not remaining_sets
+            and FormatSpec.from_format_string(self.pkmn_mode).battle_type
+            == BattleType.BATTLE_FACTORY
+        ):
             for pkmn_set in self.get_pkmn_sets_from_pkmn_name(pkmn):
                 if pkmn_set.full_set_pkmn_can_have_set(
                     pkmn,
@@ -819,8 +823,7 @@ class _SmogonSets(PokemonSets):
         Uses the previous-month's statistics
         """
 
-        if game_mode.endswith("blitz"):
-            game_mode = game_mode[:-5]
+        game_mode = FormatSpec.from_format_string(game_mode).base_name
 
         # always use the `-0` file - the higher ladder is for noobs
         smogon_url = "https://www.smogon.com/stats/{}-{}/chaos/{}-0.json"

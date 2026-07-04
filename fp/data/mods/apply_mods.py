@@ -8,6 +8,7 @@ from fp.battle.helpers import (
     DAMAGE_MULTIPICATION_ARRAY,
     POKEMON_TYPE_INDICES,
 )
+from fp.format_spec import FormatSpec
 
 logger = logging.getLogger(__name__)
 
@@ -156,22 +157,22 @@ def undo_physical_special_split():
                 pass
 
 
-def apply_mods(game_mode):
-    if "gen1" in game_mode:
-        apply_gen_1_mods()
-    if "gen2" in game_mode:
-        apply_gen_2_mods()
-    if "gen3" in game_mode:
-        apply_gen_3_mods()
-    if "gen4" in game_mode:
-        apply_gen_4_mods()
-    elif "gen5" in game_mode:
-        apply_gen_5_mods()
-    elif "gen6" in game_mode:
-        apply_gen_6_mods()
-    elif "gen7" in game_mode:
-        apply_gen_7_mods()
-    elif "gen8" in game_mode:
-        apply_gen_8_mods()
-    elif "gen9champions" in game_mode:
+def apply_mods(format_spec: FormatSpec):
+    if format_spec.generation == "gen9champions":
         apply_gen9_champions_mods()
+    elif format_spec.gen_number == 1:
+        apply_gen_1_mods()
+    elif format_spec.gen_number == 2:
+        apply_gen_2_mods()
+    elif format_spec.gen_number == 3:
+        apply_gen_3_mods()
+    elif format_spec.gen_number == 4:
+        apply_gen_4_mods()
+    elif format_spec.gen_number == 5:
+        apply_gen_5_mods()
+    elif format_spec.gen_number == 6:
+        apply_gen_6_mods()
+    elif format_spec.gen_number == 7:
+        apply_gen_7_mods()
+    elif format_spec.gen_number == 8:
+        apply_gen_8_mods()

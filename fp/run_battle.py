@@ -12,6 +12,7 @@ from fp.config import FoulPlayConfig, SaveReplay
 from fp.battle.state import LastUsedMove, Pokemon, Battle
 from fp.battle.protocol import async_update_battle, process_battle_updates
 from fp.battle.helpers import normalize_name
+from fp.format_spec import FormatSpec
 from fp.search.main import find_best_move
 
 from fp.websocket_client import PSWebsocketClient
@@ -149,7 +150,8 @@ async def start_battle_common(
     battle = Battle(battle_tag)
     battle.opponent.account_name = opponent_name
     battle.pokemon_format = pokemon_battle_type
-    battle.generation = pokemon_battle_type[:4]
+    battle.generation = battle.format_spec.gen_string
+    battle.battle_type = battle.format_spec.battle_type
 
     # wait until the opponent's identifier is received. This will be `p1` or `p2`.
     #
@@ -184,7 +186,6 @@ async def start_random_battle(
     ps_websocket_client: PSWebsocketClient, pokemon_battle_type
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
-    battle.battle_type = BattleType.RANDOM_BATTLE
     RandomBattleTeamDatasets.initialize(pokemon_battle_type)
 
     while True:
@@ -218,10 +219,6 @@ async def start_standard_battle(
 ):
     battle, msg = await start_battle_common(ps_websocket_client, pokemon_battle_type)
     battle.user.team_dict = team_dict
-    if "battlefactory" in pokemon_battle_type:
-        battle.battle_type = BattleType.BATTLE_FACTORY
-    else:
-        battle.battle_type = BattleType.STANDARD_BATTLE
 
     if battle.generation in constants.NO_TEAM_PREVIEW_GENS:
         while True:
@@ -282,7 +279,6 @@ async def start_standard_battle(
         )
 
         if battle.battle_type == BattleType.BATTLE_FACTORY:
-            battle.battle_type = BattleType.BATTLE_FACTORY
             tier_name = extract_battle_factory_tier_from_msg(msg)
             logger.info("Battle Factory Tier: {}".format(tier_name))
             TeamDatasets.initialize(
@@ -291,7 +287,6 @@ async def start_standard_battle(
                 battle_factory_tier_name=tier_name,
             )
         else:
-            battle.battle_type = BattleType.STANDARD_BATTLE
             SmogonSets.initialize(
                 FoulPlayConfig.smogon_stats or pokemon_battle_type, unique_pkmn_names
             )
@@ -303,7 +298,8 @@ async def start_standard_battle(
 
 
 async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
-    if "random" in pokemon_battle_type:
+    format_spec = FormatSpec.from_format_string(pokemon_battle_type)
+    if format_spec.battle_type == BattleType.RANDOM_BATTLE:
         battle = await start_random_battle(ps_websocket_client, pokemon_battle_type)
     else:
         battle = await start_standard_battle(

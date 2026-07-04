@@ -15,6 +15,7 @@ from fp.battle.helpers import (
 )
 from fp.battle.helpers import normalize_name
 from fp.battle.helpers import calculate_stats
+from fp.format_spec import FormatSpec
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,10 @@ class Battle:
         self.request_json = None
         self.msg_list = []
 
+    @property
+    def format_spec(self) -> FormatSpec:
+        return FormatSpec.from_format_string(self.pokemon_format)
+
     def initialize_team_preview(self, opponent_pokemon, battle_type):
         self.user.reserve.insert(0, self.user.active)
         self.user.active = None
@@ -130,9 +135,9 @@ class Battle:
 
     def mega_evolve_possible(self):
         return (
-            any(g in self.generation for g in constants.MEGA_EVOLVE_GENERATIONS)
-            or "nationaldex" in self.pokemon_format
-            or "champions" in self.pokemon_format
+            self.format_spec.gen_string in constants.MEGA_EVOLVE_GENERATIONS
+            or self.format_spec.national_dex
+            or self.format_spec.champions
         )
 
     def get_effective_speed(self, battler):
@@ -776,7 +781,7 @@ class Move:
 
         if move_json[constants.PP] == 1:
             self.max_pp = 1
-        elif "champions" in FoulPlayConfig.pokemon_format:
+        elif FoulPlayConfig.format_spec.champions:
             self.max_pp = int(int(move_json[constants.PP] / 5 + 1) * 4)
         else:
             self.max_pp = int(move_json.get(constants.PP) * 1.6)

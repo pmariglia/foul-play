@@ -302,7 +302,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
         # if the side is alive and has regenerator, give it back 1/3 of it's maxhp
         if (
-            "champions" not in battle.pokemon_format
+            not battle.format_spec.champions
             and side.active.hp > 0
             and not side.active.fainted
             and side.active.ability == "regenerator"
@@ -388,7 +388,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 for a in pokedex[pkmn.name][constants.ABILITIES].values()
             ]
             and pkmn.ability is None
-            and "champions" not in battle.pokemon_format
+            and not battle.format_spec.champions
         ):
             logger.info(
                 "{} switched out with {}% HP but now has {}% HP, setting its ability to regenerator".format(

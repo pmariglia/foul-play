@@ -32,14 +32,14 @@ natures = {
 
 
 def random_battles_evs() -> tuple[int, int, int, int, int, int]:
-    if "champions" in FoulPlayConfig.pokemon_format:
+    if FoulPlayConfig.format_spec.champions:
         return (11,) * 6
     else:
         return (85,) * 6
 
 
 def maximum_ev() -> int:
-    if "champions" in FoulPlayConfig.pokemon_format:
+    if FoulPlayConfig.format_spec.champions:
         return 32
     else:
         return 252
@@ -181,9 +181,9 @@ def _calculate_stats(base_stats, level, ivs, evs, nature):
 
 
 def calculate_stats(base_stats, level, ivs=(31,) * 6, evs=(85,) * 6, nature="serious"):
-    if any(g in FoulPlayConfig.pokemon_format for g in ["gen1", "gen2"]):
+    if FoulPlayConfig.format_spec.gen_number in (1, 2):
         return _calculate_stats_gen_1_2(base_stats, level)
-    elif "champions" in FoulPlayConfig.pokemon_format:
+    elif FoulPlayConfig.format_spec.champions:
         evs = [champions_stat_point_to_effective_ev(ev) for ev in evs]
         return _calculate_stats(base_stats, level, ivs, evs, nature)
     else:
