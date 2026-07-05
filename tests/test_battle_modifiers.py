@@ -1,5 +1,6 @@
 import pytest
 
+import asyncio
 import json
 from collections import defaultdict
 
@@ -68,6 +69,15 @@ from fp.battle.protocol import transform
 from fp.battle.protocol import process_battle_updates
 from fp.battle.protocol import upkeep
 from fp.battle.protocol import inactive
+from fp.battle.protocol import sethp
+from fp.battle.protocol import faint
+from fp.battle.protocol import anim
+from fp.battle.protocol import cureteam
+from fp.battle.protocol import sideend
+from fp.battle.protocol import mustrecharge
+from fp.battle.protocol import mega
+from fp.battle.protocol import update_battle
+from fp.battle.protocol import async_update_battle
 
 
 class TestRequestMessage:
@@ -7045,3 +7055,286 @@ class TestNoInit:
         process_battle_updates(self.battle)
 
         assert self.battle.battle_tag == new_battle_tag
+
+
+class TestSetHp:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+
+    def test_sets_opponent_hp_from_percentage(self):
+        self.battle.opponent.active.max_hp = 250
+        split_msg = ["", "-sethp", "p2a: Pikachu", "50/100", "[from] move: Pain Split"]
+        sethp(self.battle, split_msg)
+
+        assert 125 == self.battle.opponent.active.hp
+
+    def test_sets_user_hp_and_maxhp_from_raw_values(self):
+        split_msg = [
+            "",
+            "-sethp",
+            "p1a: Caterpie",
+            "317/403",
+            "[from] move: Pain Split",
+            "[silent]",
+        ]
+        sethp(self.battle, split_msg)
+
+        assert 317 == self.battle.user.active.hp
+        assert 403 == self.battle.user.active.max_hp
+
+    def test_user_condition_with_status_suffix(self):
+        split_msg = ["", "-sethp", "p1a: Caterpie", "150/301 par", "[silent]"]
+        sethp(self.battle, split_msg)
+
+        assert 150 == self.battle.user.active.hp
+        assert 301 == self.battle.user.active.max_hp
+
+
+class TestFaint:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+
+    def test_sets_opponent_active_hp_to_zero(self):
+        split_msg = ["", "faint", "p2a: Pikachu"]
+        faint(self.battle, split_msg)
+
+        assert 0 == self.battle.opponent.active.hp
+
+    def test_sets_user_active_hp_to_zero(self):
+        split_msg = ["", "faint", "p1a: Caterpie"]
+        faint(self.battle, split_msg)
+
+        assert 0 == self.battle.user.active.hp
+
+
+class TestAnim:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("dragapult", 100)
+
+    def test_removes_matching_volatile_status(self):
+        self.battle.opponent.active.volatile_statuses = ["phantomforce"]
+        split_msg = ["", "-anim", "p2a: Dragapult", "Phantom Force", "p1a: Caterpie"]
+        anim(self.battle, split_msg)
+
+        assert "phantomforce" not in self.battle.opponent.active.volatile_statuses
+
+    def test_does_nothing_when_volatile_not_present(self):
+        self.battle.opponent.active.volatile_statuses = ["substitute"]
+        split_msg = ["", "-anim", "p2a: Dragapult", "Phantom Force", "p1a: Caterpie"]
+        anim(self.battle, split_msg)
+
+        assert ["substitute"] == self.battle.opponent.active.volatile_statuses
+
+
+class TestCureTeam:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.opponent_active = Pokemon("pikachu", 100)
+        self.opponent_reserve = Pokemon("spinarak", 100)
+        self.battle.opponent.active = self.opponent_active
+        self.battle.opponent.reserve = [self.opponent_reserve]
+
+    def test_cures_status_of_active_and_reserve_pokemon(self):
+        self.opponent_active.status = constants.Status.BURN
+        self.opponent_reserve.status = constants.Status.SLEEP
+        self.opponent_reserve.rest_turns = 2
+        self.opponent_reserve.sleep_turns = 1
+
+        split_msg = ["", "-cureteam", "p2a: Pikachu", "[from] move: Heal Bell"]
+        cureteam(self.battle, split_msg)
+
+        assert None is self.opponent_active.status
+        assert None is self.opponent_reserve.status
+        assert 0 == self.opponent_reserve.rest_turns
+        assert 0 == self.opponent_reserve.sleep_turns
+
+
+class TestSideEnd:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+
+    def test_resets_side_condition_for_opponent(self):
+        self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
+        split_msg = ["", "-sideend", "p2", "move: Stealth Rock"]
+        sideend(self.battle, split_msg)
+
+        assert 0 == self.battle.opponent.side_conditions[constants.STEALTH_ROCK]
+
+    def test_resets_side_condition_for_user(self):
+        self.battle.user.side_conditions[constants.TOXIC_SPIKES] = 2
+        split_msg = ["", "-sideend", "p1", "move: Toxic Spikes"]
+        sideend(self.battle, split_msg)
+
+        assert 0 == self.battle.user.side_conditions[constants.TOXIC_SPIKES]
+
+
+class TestMustRecharge:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("tauros", 100)
+
+    def test_opponent_gets_mustrecharge_volatile(self):
+        split_msg = ["", "-mustrecharge", "p2a: Tauros"]
+        mustrecharge(self.battle, split_msg)
+
+        assert "mustrecharge" in self.battle.opponent.active.volatile_statuses
+
+    def test_user_does_not_get_mustrecharge_volatile(self):
+        split_msg = ["", "-mustrecharge", "p1a: Caterpie"]
+        mustrecharge(self.battle, split_msg)
+
+        assert "mustrecharge" not in self.battle.user.active.volatile_statuses
+
+    def test_removes_truant_volatile_when_present(self):
+        self.battle.opponent.active.volatile_statuses = ["truant"]
+        split_msg = ["", "-mustrecharge", "p2a: Tauros"]
+        mustrecharge(self.battle, split_msg)
+
+        assert "truant" not in self.battle.opponent.active.volatile_statuses
+        assert "mustrecharge" in self.battle.opponent.active.volatile_statuses
+
+
+class TestMega:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen6"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("gyaradosmega", 100)
+
+    def test_sets_is_mega_and_forced_ability(self):
+        split_msg = ["", "-mega", "p2a: Gyarados", "Gyarados", "Gyaradosite"]
+        mega(self.battle, split_msg)
+
+        assert True is self.battle.opponent.active.is_mega
+        assert "moldbreaker" == self.battle.opponent.active.ability
+
+
+class TestUpdateBattle:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+
+    def test_non_request_messages_are_queued_and_false_is_returned(self):
+        msg = "|move|p1a: Caterpie|Tackle|p2a: Pikachu\n|-damage|p2a: Pikachu|85/100"
+        result = update_battle(self.battle, msg)
+
+        assert False is result
+        assert [
+            "|move|p1a: Caterpie|Tackle|p2a: Pikachu",
+            "|-damage|p2a: Pikachu|85/100",
+        ] == self.battle.msg_list
+
+    def test_request_message_processes_queued_lines_and_returns_true(self):
+        msg = "|faint|p2a: Pikachu\n|request|{}".format(json.dumps({"rqid": 2}))
+        result = update_battle(self.battle, msg)
+
+        assert True is result
+        assert 0 == self.battle.opponent.active.hp
+        assert [] == self.battle.msg_list
+
+    def test_request_with_wait_returns_false(self):
+        msg = "|request|{}".format(json.dumps({"rqid": 2, "wait": True}))
+        result = update_battle(self.battle, msg)
+
+        assert False is result
+        assert True is self.battle.wait
+
+    def test_lines_without_an_action_are_ignored(self):
+        msg = "battle-gen9ou-12345"
+        result = update_battle(self.battle, msg)
+
+        assert False is result
+        assert [] == self.battle.msg_list
+
+
+class TestAsyncUpdateBattle:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+
+    def test_returns_false_and_queues_line_for_non_request_message(self):
+        result = asyncio.run(async_update_battle(self.battle, "|faint|p2a: Pikachu"))
+
+        assert False is result
+        assert ["|faint|p2a: Pikachu"] == self.battle.msg_list
+
+    def test_returns_true_for_request_message_requiring_action(self):
+        msg = "|request|{}".format(json.dumps({"rqid": 2}))
+        result = asyncio.run(async_update_battle(self.battle, msg))
+
+        assert True is result
+        assert 2 == self.battle.rqid
