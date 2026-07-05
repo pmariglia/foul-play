@@ -299,6 +299,6 @@ moves_dict["jumpkick"]["crash"] = [1, 2]
 moves_dict["highjumpkick"]["crash"] = [1, 2]
 moves_dict["axekick"]["crash"] = [1, 2]
 
-with open("data/new_moves.json", "w") as f:
+with open("fp/data/new_moves.json", "w") as f:
     json.dump(moves_dict, f, indent=4, sort_keys=True)
 a = 5

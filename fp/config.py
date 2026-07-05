@@ -141,7 +141,7 @@ class _FoulPlayConfig:
         parser.add_argument(
             "--team-name",
             default=None,
-            help="Which team to use. Can be a filename or a foldername relative to ./teams/teams/. "
+            help="Which team to use. Can be a filename or a foldername relative to ./fp/teams/teams/. "
             "If a foldername, a random team from that folder will be chosen each battle. "
             "If not set, defaults to the --pokemon-format value.",
         )
