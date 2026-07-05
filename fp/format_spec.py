@@ -4,7 +4,9 @@ from functools import lru_cache
 
 from fp.constants import BattleType
 
-_GEN_REGEX = re.compile(r"gen(\d+)")
+# a hard-coded list of generations might just be simpler..
+# gen11v1 ? like cmon
+_GEN_REGEX = re.compile(r"gen([1-9]0?)")
 
 
 @dataclass(frozen=True)

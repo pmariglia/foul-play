@@ -53,6 +53,21 @@ class TestFormatSpecParsing:
         assert 1 == spec.gen_number
         assert "gen1" == spec.generation
 
+    def test_digit_leading_format_names_do_not_extend_the_generation(self):
+        assert 9 == FormatSpec.from_format_string("gen91v1").gen_number
+        assert 9 == FormatSpec.from_format_string("gen92v2doubles").gen_number
+        assert 9 == FormatSpec.from_format_string("gen9350cup").gen_number
+
+    def test_two_digit_generation(self):
+        spec = FormatSpec.from_format_string("gen10randombattle")
+        assert 10 == spec.gen_number
+        assert "gen10" == spec.generation
+        assert BattleType.RANDOM_BATTLE == spec.battle_type
+
+    def test_two_digit_generation_with_digit_leading_format_name(self):
+        assert 10 == FormatSpec.from_format_string("gen101v1").gen_number
+        assert 10 == FormatSpec.from_format_string("gen10350cup").gen_number
+
     def test_empty_string_parses(self):
         spec = FormatSpec.from_format_string("")
         assert 0 == spec.gen_number
