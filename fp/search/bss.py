@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from fp.battle.state import Battle, Battler
 from fp.config import FoulPlayConfig
+from fp.search.helpers import sample_mega_evolution
 from fp.search.main import get_result_from_mcts, select_move_from_mcts_results
 from fp.search.standard_battles import (
     prepare_battles,
@@ -31,52 +32,6 @@ def calculate_opponent_team_preview_preferences(
                 pkmn_scores[pkmn_name] += side_result.visits / search_iterations
 
     return dict(pkmn_scores)
-
-
-def sample_mega_evolution(battler: Battler, index: int, smogon_sets):
-    def mega_lower_usage_than_non_mega(pkmn_name: str, pkmn_mega_name: str) -> bool:
-        non_mega_raw_count = smogon_sets.get_raw_count(pkmn_name)
-        mega_raw_count = smogon_sets.get_raw_count(pkmn_mega_name)
-        if non_mega_raw_count is not None and mega_raw_count is not None:
-            return mega_raw_count < non_mega_raw_count
-        return False
-
-    if battler.mega_revealed():
-        logger.info("Mega evolution already revealed for {}".format(battler.name))
-        return
-
-    mega_formes = (
-        battler.possible_mega_evolutions(must_be_revealed=True)
-        or battler.possible_mega_evolutions()
-    )
-
-    mega_formes_to_select_from = []
-    for pkmn, possible_mega_evos in mega_formes.items():
-        for mega_info in possible_mega_evos:
-            if not mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
-                mega_formes_to_select_from.append((pkmn, mega_info))
-
-    if not mega_formes_to_select_from:
-        logger.info("No possible mega evolutions for {}".format(battler.name))
-        return
-
-    selected_mega, (mega_pkmn_name, mega_item) = random.choice(
-        list(mega_formes_to_select_from)
-    )
-
-    if battler.active.name == selected_mega:
-        pkmn = battler.active
-    else:
-        pkmn = battler.find_pokemon_in_reserves(selected_mega)
-
-    logger.info(
-        "Sampled mega evolution {}->{} with item {} for battle {}".format(
-            selected_mega, mega_pkmn_name, mega_item, index
-        )
-    )
-    pkmn.item = mega_item
-    pkmn.mega_name = mega_pkmn_name
-    pkmn.revealed = True
 
 
 def sample_pkmn_to_remove(battler: Battler, affinities: dict[str, float]):

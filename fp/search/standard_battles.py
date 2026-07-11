@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from fp import constants
 from fp.data import all_move_json, pokedex
-from fp.search.helpers import populate_pkmn_from_set
+from fp.search.helpers import populate_pkmn_from_set, sample_mega_evolution
 from fp.battle.helpers import natures, normalize_name
 from fp.battle.state import Pokemon, Battle, Battler
 from fp.generations import current_generation_mechanics
@@ -454,39 +454,13 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
-def sample_mega_evolution_standardbattle(battler: Battler, index: int):
-    if battler.mega_revealed():
-        logger.info("Mega evolution already revealed for {}".format(battler.name))
-        return
-    mega_formes = battler.possible_mega_evolutions()
-    if not mega_formes:
-        logger.info("No possible mega evolutions for {}".format(battler.name))
-        return
-    selected_mega = random.choice(list(mega_formes.keys()))
-    mega_pkmn_name, mega_item = random.choice(mega_formes[selected_mega])
-
-    if battler.active.name == selected_mega:
-        pkmn = battler.active
-    else:
-        pkmn = battler.find_pokemon_in_reserves(selected_mega)
-
-    logger.info(
-        "Sampled mega evolution {}->{} with item {} for battle {}".format(
-            selected_mega, mega_pkmn_name, mega_item, index
-        )
-    )
-    pkmn.item = mega_item
-    pkmn.mega_name = mega_pkmn_name
-    pkmn.revealed = True
-
-
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
         if battle_copy.mega_evolve_possible():
-            sample_mega_evolution_standardbattle(battle_copy.opponent, index)
+            sample_mega_evolution(battle_copy.opponent, index, battle.mode.smogon_sets)
 
         sample_pokemon(battle_copy.opponent.active, battle.mode)
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):

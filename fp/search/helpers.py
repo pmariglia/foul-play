@@ -1,8 +1,9 @@
 import logging
+import random
 
 from fp import constants
 from fp.data.sets import PredictedPokemonSet
-from fp.battle.state import Pokemon
+from fp.battle.state import Pokemon, Battler
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +72,49 @@ def populate_pkmn_from_set(
             elif mv.name == known_move.name:
                 mv.current_pp = known_move.current_pp
                 break
+
+
+def sample_mega_evolution(battler: Battler, index: int, smogon_sets):
+    def mega_lower_usage_than_non_mega(pkmn_name: str, pkmn_mega_name: str) -> bool:
+        non_mega_raw_count = smogon_sets.get_raw_count(pkmn_name)
+        mega_raw_count = smogon_sets.get_raw_count(pkmn_mega_name)
+        if non_mega_raw_count is not None and mega_raw_count is not None:
+            return mega_raw_count < non_mega_raw_count
+        return False
+
+    if battler.mega_revealed():
+        logger.info("Mega evolution already revealed for {}".format(battler.name))
+        return
+
+    mega_formes = (
+        battler.possible_mega_evolutions(must_be_revealed=True)
+        or battler.possible_mega_evolutions()
+    )
+
+    mega_formes_to_select_from = []
+    for pkmn, possible_mega_evos in mega_formes.items():
+        for mega_info in possible_mega_evos:
+            if not mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
+                mega_formes_to_select_from.append((pkmn, mega_info))
+
+    if not mega_formes_to_select_from:
+        logger.info("No possible mega evolutions for {}".format(battler.name))
+        return
+
+    selected_mega, (mega_pkmn_name, mega_item) = random.choice(
+        list(mega_formes_to_select_from)
+    )
+
+    if battler.active.name == selected_mega:
+        pkmn = battler.active
+    else:
+        pkmn = battler.find_pokemon_in_reserves(selected_mega)
+
+    logger.info(
+        "Sampled mega evolution {}->{} with item {} for battle {}".format(
+            selected_mega, mega_pkmn_name, mega_item, index
+        )
+    )
+    pkmn.item = mega_item
+    pkmn.mega_name = mega_pkmn_name
+    pkmn.revealed = True

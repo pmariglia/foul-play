@@ -147,7 +147,9 @@ class PokemonSet:
         level_check=False,
         match_tera=True,
     ):
-        ability_check = not match_ability or self.ability_check(pkmn)
+        ability_check = (
+            bool(pkmn.mega_name) or not match_ability or self.ability_check(pkmn)
+        )
         item_check = not match_item or self.item_check(pkmn)
         level_check = not level_check or pkmn.level == self.level
         speed_check = not speed_check or self.speed_check(pkmn)
@@ -267,8 +269,12 @@ class PokemonSets(ABC):
 
         return ret
 
-    def get_raw_pkmn_sets_from_pkmn_name(self, pkmn_name: str, pkmn_base_name: str):
-        if pkmn_name in self.raw_pkmn_sets:
+    def get_raw_pkmn_sets_from_pkmn_name(
+        self, pkmn_name: str, pkmn_base_name: str, pkmn_mega_name: str
+    ):
+        if pkmn_mega_name in self.raw_pkmn_sets:
+            return self.raw_pkmn_sets[pkmn_mega_name]
+        elif pkmn_name in self.raw_pkmn_sets:
             return self.raw_pkmn_sets[pkmn_name]
         elif pkmn_base_name in self.raw_pkmn_sets:
             return self.raw_pkmn_sets[pkmn_base_name]
