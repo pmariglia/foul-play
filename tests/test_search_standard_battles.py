@@ -24,7 +24,7 @@ from fp.search.standard_battles import (
     populate_standardbattle_unrevealed_pkmn,
     predict_team_likelihood,
     prepare_battles,
-    sample_mega_evolution,
+    sample_mega_evolution_standardbattle,
     sample_pokemon_moveset_with_known_pkmn_set,
     set_most_likely_hidden_power,
     smogon_set_makes_sense,
@@ -638,7 +638,7 @@ class TestSampleMegaEvolution:
         battler.active.is_mega = True
         battler.reserve = [Pokemon("charizard", 100)]
 
-        sample_mega_evolution(battler, 0)
+        sample_mega_evolution_standardbattle(battler, 0)
         assert battler.reserve[0].mega_name is None
         assert battler.reserve[0].item == constants.UNKNOWN_ITEM
 
@@ -646,7 +646,7 @@ class TestSampleMegaEvolution:
         battler = Battler()
         battler.active = Pokemon("pikachu", 100)
 
-        sample_mega_evolution(battler, 0)
+        sample_mega_evolution_standardbattle(battler, 0)
         assert battler.active.mega_name is None
         assert battler.active.item == constants.UNKNOWN_ITEM
 
@@ -655,7 +655,7 @@ class TestSampleMegaEvolution:
         battler.active = Pokemon("charizard", 100)
 
         random.seed(0)
-        sample_mega_evolution(battler, 0)
+        sample_mega_evolution_standardbattle(battler, 0)
         assert (battler.active.mega_name, battler.active.item) in [
             ("charizardmegax", "charizarditex"),
             ("charizardmegay", "charizarditey"),

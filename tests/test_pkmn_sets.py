@@ -113,6 +113,18 @@ class TestSmogonDatasets:
         self.smogon_sets.add_new_pokemon("azelf")
         assert len_after_pop == len(self.smogon_sets.pkmn_sets["dragonite"])
 
+    def test_get_raw_count_returns_none_for_unknown_pokemon(self):
+        self.smogon_sets.initialize(
+            FormatSpec.from_format_string("gen4ou"), {"dragonite"}
+        )
+        assert self.smogon_sets.get_raw_count("not_a_real_pokemon") is None
+
+    def test_get_raw_count_returns_count_for_known_pokemon(self):
+        self.smogon_sets.initialize(
+            FormatSpec.from_format_string("gen4ou"), {"dragonite"}
+        )
+        assert isinstance(self.smogon_sets.get_raw_count("dragonite"), int)
+
 
 class TestPredictSet:
     def test_omits_impossible_ability_when_predicting_set(self):

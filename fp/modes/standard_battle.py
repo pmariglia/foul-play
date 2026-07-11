@@ -12,7 +12,6 @@ from fp.modes.base import (
     _switch_active_with_zoroark_from_reserves,
     async_pick_move,
     get_first_request_json,
-    handle_team_preview,
 )
 from fp.search import standard_battles
 from fp.websocket_client import PSWebsocketClient
@@ -104,7 +103,7 @@ class StandardBattleMode(BattleMode):
                 pokemon_battle_type, unique_pkmn_names, msg
             )
 
-            await handle_team_preview(battle, ps_websocket_client)
+            await self.handle_team_preview(battle, ps_websocket_client)
 
         return battle
 

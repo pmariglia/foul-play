@@ -84,6 +84,9 @@ class BattleMode:
 
         return battle, msg
 
+    async def handle_team_preview(self, battle, ps_websocket_client):
+        await handle_team_preview(battle, ps_websocket_client)
+
 
 def format_decision(battle, decision):
     # Formats a decision for communication with Pokemon-Showdown

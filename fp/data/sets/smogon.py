@@ -12,6 +12,7 @@ from dateutil import relativedelta
 
 from fp import constants
 from fp.battle.helpers import normalize_name
+from fp.data import pokedex
 from fp.data.sets.base import (
     DATA_DIR,
     PokemonSet,
@@ -91,10 +92,14 @@ class SmogonSets(PokemonSets):
                     normalize_name(teammate_name)
                 ] = teammate_count
 
+            pokedex_info = pokedex[normalized_name]
             # if `pkmn_names` is provided, only find data on pkmn in that list
             if (
                 pkmn_names
                 and normalized_name not in pkmn_names
+                and normalize_name(pokedex_info.get("battleOnly", "")) not in pkmn_names
+                and normalize_name(pokedex_info.get("baseSpecies", ""))
+                not in pkmn_names
                 and not self._pokemon_is_similar(normalized_name, pkmn_names)
             ):
                 continue
@@ -284,3 +289,9 @@ class SmogonSets(PokemonSets):
         return self.get_raw_pkmn_sets_from_pkmn_name(pkmn.name, pkmn.base_name).get(
             MOVES_STRING, []
         )
+
+    def get_raw_count(self, pkmn_name) -> int | None:
+        if pkmn_name not in self.all_pkmn_counts:
+            return None
+
+        return self.all_pkmn_counts[pkmn_name][RAW_COUNT]

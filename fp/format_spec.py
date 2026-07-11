@@ -51,6 +51,8 @@ def _parse_format_string(format_string: str) -> FormatSpec:
         battle_type = BattleType.RANDOM_BATTLE
     elif "battlefactory" in format_string:
         battle_type = BattleType.BATTLE_FACTORY
+    elif "bss" in format_string:
+        battle_type = BattleType.BSS
     else:
         battle_type = BattleType.STANDARD_BATTLE
     return FormatSpec(

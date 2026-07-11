@@ -11,6 +11,7 @@ from fp.modes.battle_factory import (
     BattleFactoryMode,
     extract_battle_factory_tier_from_msg,
 )
+from fp.modes.bss import BSSMode
 from fp.modes.random_battle import RandomBattleMode
 from fp.modes.standard_battle import StandardBattleMode
 from fp.run_battle import battle_is_finished
@@ -214,14 +215,15 @@ class TestModeRegistry:
         assert isinstance(battle_mode(BattleType.RANDOM_BATTLE), RandomBattleMode)
         assert isinstance(battle_mode(BattleType.STANDARD_BATTLE), StandardBattleMode)
         assert isinstance(battle_mode(BattleType.BATTLE_FACTORY), BattleFactoryMode)
+        assert isinstance(battle_mode(BattleType.BSS), BSSMode)
 
     def test_battle_modes_are_module_level_singletons(self):
         assert battle_mode(BattleType.RANDOM_BATTLE) is battle_mode(
             BattleType.RANDOM_BATTLE
         )
 
-    def test_registry_has_exactly_three_entries(self):
-        assert 3 == len(BATTLE_MODES)
+    def test_registry_has_exactly_four_entries(self):
+        assert 4 == len(BATTLE_MODES)
 
     def test_battle_factory_mode_is_a_standard_battle_mode(self):
         assert issubclass(BattleFactoryMode, StandardBattleMode)

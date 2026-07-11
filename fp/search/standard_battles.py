@@ -321,10 +321,10 @@ def sample_pokemon(pkmn: Pokemon, mode):
 
     # the ability of a mega pokemon that has not yet mega-evolved
     # needs to be sampled from its non-mega version
-    pkmn_without_mega = deepcopy(pkmn)
-    pkmn_without_mega.mega_name = None
-    _sample_pokemon(pkmn_without_mega, mode)
-    pkmn.ability = pkmn_without_mega.ability
+    # just choose randomly because this mostly doesn't matter
+    pokedex_info = pokedex[pkmn.name]
+    ability = random.choice(list(pokedex_info[constants.ABILITIES].values()))
+    pkmn.ability = normalize_name(ability)
     _sample_pokemon(pkmn, mode)
 
 
@@ -454,7 +454,7 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
-def sample_mega_evolution(battler: Battler, index: int):
+def sample_mega_evolution_standardbattle(battler: Battler, index: int):
     if battler.mega_revealed():
         logger.info("Mega evolution already revealed for {}".format(battler.name))
         return
@@ -477,6 +477,7 @@ def sample_mega_evolution(battler: Battler, index: int):
     )
     pkmn.item = mega_item
     pkmn.mega_name = mega_pkmn_name
+    pkmn.revealed = True
 
 
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
@@ -485,7 +486,7 @@ def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
         if battle_copy.mega_evolve_possible():
-            sample_mega_evolution(battle_copy.opponent, index)
+            sample_mega_evolution_standardbattle(battle_copy.opponent, index)
 
         sample_pokemon(battle_copy.opponent.active, battle.mode)
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):

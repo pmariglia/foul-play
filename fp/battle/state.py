@@ -98,6 +98,7 @@ class Battle:
 
         self.request_json = None
         self.msg_list = []
+        self.opponent_team_preview_affinities = None
 
     @property
     def format_spec(self) -> FormatSpec:
@@ -227,9 +228,11 @@ class Battler:
         self.last_selected_move = LastUsedMove("", "", 0)
         self.last_used_move = LastUsedMove("", "", 0)
 
-    def possible_mega_evolutions(self):
+    def possible_mega_evolutions(self, must_be_revealed=False):
         result = {}
         for pkmn in self.reserve + [self.active]:
+            if must_be_revealed and not pkmn.revealed:
+                continue
             megas_possible = pkmn.get_mega_pkmn_info()
             for m in megas_possible:
                 if pkmn.hp and (
@@ -257,7 +260,7 @@ class Battler:
                 return reserve_pkmn
             if pkmn_name in [
                 normalize_name(n)
-                for n in pokedex[reserve_pkmn.name].get("otherFormes", [])
+                for n in pokedex.get(reserve_pkmn.name, {}).get("otherFormes", [])
             ]:
                 return reserve_pkmn
         return None
@@ -585,6 +588,8 @@ class Pokemon:
         self.name = normalize_name(name)
         self.nickname = None
         self.base_name = self.name
+        self.index = None
+        self.revealed = False
         self.level = level
         self.nature = nature
         self.evs = evs

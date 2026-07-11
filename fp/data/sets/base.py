@@ -258,11 +258,12 @@ class PokemonSets(ABC):
             pkmn.name, pkmn.base_name, pkmn.mega_name, self.pkmn_sets
         )
 
-        pkmn_mega_info = pkmn.get_mega_pkmn_info()
-        for pkmn_mega_name, _ in pkmn_mega_info:
-            ret += self.get_key_in_dict_from_pkmn_name(
-                pkmn_mega_name, pkmn_mega_name, None, self.pkmn_sets
-            )
+        if not pkmn.mega_name:
+            pkmn_mega_info = pkmn.get_mega_pkmn_info()
+            for pkmn_mega_name, _ in pkmn_mega_info:
+                ret += self.get_key_in_dict_from_pkmn_name(
+                    pkmn_mega_name, pkmn_mega_name, None, self.pkmn_sets
+                )
 
         return ret
 

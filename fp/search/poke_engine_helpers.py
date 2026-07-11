@@ -41,6 +41,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
     nature,volatiles,m0,m1,m2,m3
     """
 
+    # the pkmn is not part of the battle, use the default empty pokemon
+    if pkmn.name == "none" and pkmn.hp == 0:
+        return PokeEnginePokemon(id="none", hp=0)
+
     # Gen 3/4 don't remove items if knocked off
     # but the item is not active, so lets remove it
     if pkmn.knocked_off or pkmn.item == "" or pkmn.item is None:

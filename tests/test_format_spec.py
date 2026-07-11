@@ -48,6 +48,19 @@ class TestFormatSpecParsing:
         assert spec.national_dex
         assert BattleType.STANDARD_BATTLE == spec.battle_type
 
+    def test_bss(self):
+        spec = FormatSpec.from_format_string("gen9bssregi")
+        assert BattleType.BSS == spec.battle_type
+        assert "gen9" == spec.generation
+        assert 9 == spec.gen_number
+
+    def test_champions_bss_is_bss_battle_type_and_champions_generation(self):
+        spec = FormatSpec.from_format_string("gen9championsbssregmb")
+        assert BattleType.BSS == spec.battle_type
+        assert spec.champions
+        assert "gen9champions" == spec.generation
+        assert 9 == spec.gen_number
+
     def test_old_generation(self):
         spec = FormatSpec.from_format_string("gen1randombattle")
         assert 1 == spec.gen_number
