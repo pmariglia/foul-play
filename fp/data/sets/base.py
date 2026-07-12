@@ -256,28 +256,6 @@ class PokemonSets(ABC):
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
         return copy(self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets))
 
-    def get_raw_pkmn_sets_from_pkmn_name(
-        self, pkmn_name: str, pkmn_base_name: str, pkmn_mega_name: str
-    ):
-        if pkmn_mega_name in self.raw_pkmn_sets:
-            return self.raw_pkmn_sets[pkmn_mega_name]
-        elif pkmn_name in self.raw_pkmn_sets:
-            return self.raw_pkmn_sets[pkmn_name]
-        elif pkmn_base_name in self.raw_pkmn_sets:
-            return self.raw_pkmn_sets[pkmn_base_name]
-
-        if pkmn_name in pokedex and "baseSpecies" in pokedex[pkmn_name]:
-            pkmn_base_species = normalize_name(pokedex[pkmn_name]["baseSpecies"])
-            if pkmn_base_species in self.raw_pkmn_sets:
-                return self.raw_pkmn_sets[pkmn_base_species]
-
-        if pkmn_name in pokedex and "name" in pokedex[pkmn_name]:
-            pkmn_non_cosmetic_name = normalize_name(pokedex[pkmn_name]["name"])
-            if pkmn_non_cosmetic_name in self.raw_pkmn_sets:
-                return self.raw_pkmn_sets[pkmn_non_cosmetic_name]
-
-        return {}
-
 
 class FullSetDatasets(PokemonSets):
     # datasets whose entries are complete sets: a trait combination
