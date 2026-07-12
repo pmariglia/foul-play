@@ -4,7 +4,7 @@ import random
 import pytest
 
 from fp import constants
-from fp.battle.state import Battle, Battler, LastUsedMove, Pokemon
+from fp.battle.state import Battle, LastUsedMove, Pokemon
 from fp.data.sets import (
     MOVES_STRING,
     PokemonMoveset,
@@ -24,7 +24,6 @@ from fp.search.standard_battles import (
     populate_standardbattle_unrevealed_pkmn,
     predict_team_likelihood,
     prepare_battles,
-    sample_mega_evolution_standardbattle,
     sample_pokemon_moveset_with_known_pkmn_set,
     set_most_likely_hidden_power,
     smogon_set_makes_sense,
@@ -629,37 +628,6 @@ class TestPopulateStandardBattleUnrevealedPkmn:
 
         populate_standardbattle_unrevealed_pkmn(self.battle)
         assert len(self.battle.opponent.reserve) == 5
-
-
-class TestSampleMegaEvolution:
-    def test_no_op_when_mega_already_revealed(self):
-        battler = Battler()
-        battler.active = Pokemon("gengar", 100)
-        battler.active.is_mega = True
-        battler.reserve = [Pokemon("charizard", 100)]
-
-        sample_mega_evolution_standardbattle(battler, 0)
-        assert battler.reserve[0].mega_name is None
-        assert battler.reserve[0].item == constants.UNKNOWN_ITEM
-
-    def test_no_op_when_no_mega_candidates(self):
-        battler = Battler()
-        battler.active = Pokemon("pikachu", 100)
-
-        sample_mega_evolution_standardbattle(battler, 0)
-        assert battler.active.mega_name is None
-        assert battler.active.item == constants.UNKNOWN_ITEM
-
-    def test_candidate_gets_mega_name_and_item(self):
-        battler = Battler()
-        battler.active = Pokemon("charizard", 100)
-
-        random.seed(0)
-        sample_mega_evolution_standardbattle(battler, 0)
-        assert (battler.active.mega_name, battler.active.item) in [
-            ("charizardmegax", "charizarditex"),
-            ("charizardmegay", "charizarditey"),
-        ]
 
 
 class TestPrepareBattles:

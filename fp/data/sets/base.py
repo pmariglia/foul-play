@@ -5,6 +5,7 @@ import logging
 import os
 import typing
 from abc import ABC, abstractmethod
+from copy import copy
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -232,42 +233,28 @@ class PokemonSets(ABC):
         pass
 
     @staticmethod
-    def get_key_in_dict_from_pkmn_name(
-        pkmn_name: str, pkmn_base_name: str, pkmn_mega_name: str | None, d: dict
-    ):
-        if pkmn_mega_name in d:
-            return d[pkmn_mega_name]
-        elif pkmn_name in d:
-            return d[pkmn_name]
-        elif pkmn_base_name in d:
-            return d[pkmn_base_name]
+    def get_pkmn_by_name_in_dict(pkmn: Pokemon, d: dict):
+        if pkmn.mega_name in d:
+            return d[pkmn.mega_name]
+        elif pkmn.name in d:
+            return d[pkmn.name]
+        elif pkmn.base_name in d:
+            return d[pkmn.base_name]
 
-        if pkmn_name in pokedex and "baseSpecies" in pokedex[pkmn_name]:
-            pkmn_base_species = normalize_name(pokedex[pkmn_name]["baseSpecies"])
+        if pkmn.name in pokedex and "baseSpecies" in pokedex[pkmn.name]:
+            pkmn_base_species = normalize_name(pokedex[pkmn.name]["baseSpecies"])
             if pkmn_base_species in d:
                 return d[pkmn_base_species]
 
-        if pkmn_name in pokedex and "name" in pokedex[pkmn_name]:
-            pkmn_non_cosmetic_name = normalize_name(pokedex[pkmn_name]["name"])
+        if pkmn.name in pokedex and "name" in pokedex[pkmn.name]:
+            pkmn_non_cosmetic_name = normalize_name(pokedex[pkmn.name]["name"])
             if pkmn_non_cosmetic_name in d:
                 return d[pkmn_non_cosmetic_name]
 
         return []
 
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
-        ret = []
-        ret += self.get_key_in_dict_from_pkmn_name(
-            pkmn.name, pkmn.base_name, pkmn.mega_name, self.pkmn_sets
-        )
-
-        if not pkmn.mega_name:
-            pkmn_mega_info = pkmn.get_mega_pkmn_info()
-            for pkmn_mega_name, _ in pkmn_mega_info:
-                ret += self.get_key_in_dict_from_pkmn_name(
-                    pkmn_mega_name, pkmn_mega_name, None, self.pkmn_sets
-                )
-
-        return ret
+        return copy(self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets))
 
     def get_raw_pkmn_sets_from_pkmn_name(
         self, pkmn_name: str, pkmn_base_name: str, pkmn_mega_name: str

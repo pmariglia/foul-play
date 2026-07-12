@@ -190,9 +190,7 @@ class TeamDatasets(FullSetDatasets):
 
     def get_all_possible_move_combinations(self, pkmn: Pokemon, pkmn_set: PokemonSet):
         valid_movesets = []
-        for pkmn_moveset in self.get_key_in_dict_from_pkmn_name(
-            pkmn.name, pkmn.base_name, pkmn.mega_name, self.raw_pkmn_moves
-        ):
+        for pkmn_moveset in self.get_pkmn_by_name_in_dict(pkmn, self.raw_pkmn_moves):
             if PredictedPokemonSet(
                 pkmn_set=pkmn_set, pkmn_moveset=pkmn_moveset
             ).full_set_pkmn_can_have_set(pkmn):

@@ -6,7 +6,7 @@ from fp import constants
 from fp.data import all_move_json, pokedex
 from fp.search.helpers import populate_pkmn_from_set, sample_mega_evolution
 from fp.battle.helpers import natures, normalize_name
-from fp.battle.state import Pokemon, Battle, Battler
+from fp.battle.state import Pokemon, Battle
 from fp.generations import current_generation_mechanics
 from fp.data.sets import (
     PokemonMoveset,

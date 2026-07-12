@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import typing
+from copy import deepcopy
 
 from fp.battle.helpers import random_battles_evs
 from fp.data.sets.base import (
@@ -121,6 +122,21 @@ class RandomBattleTeamDatasets(FullSetDatasets):
                     remaining_sets.append(pkmn_set)
 
         return remaining_sets
+
+    def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
+        ret = []
+        ret += self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets)
+
+        # for randbats there is no outer layer that sets `pkmn.mega_name`.
+        # so instead: explicitly check if the mega is in the sets
+        if not pkmn.mega_name:
+            pkmn_mega_info = pkmn.get_mega_pkmn_info()
+            for pkmn_mega_name, _ in pkmn_mega_info:
+                new_pkmn = deepcopy(pkmn)
+                new_pkmn.name = pkmn_mega_name
+                ret += self.get_pkmn_by_name_in_dict(new_pkmn, self.pkmn_sets)
+
+        return ret
 
     def get_all_possible_moves(self, pkmn: Pokemon):
         if not self.pkmn_sets:
