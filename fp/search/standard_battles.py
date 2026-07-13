@@ -160,7 +160,8 @@ def sample_pokemon(pkmn: Pokemon, mode):
     # just choose randomly because this mostly doesn't matter
     pokedex_info = pokedex[pkmn.name]
     ability = random.choice(list(pokedex_info[constants.ABILITIES].values()))
-    pkmn.ability = normalize_name(ability)
+    if pkmn.ability is None:
+        pkmn.ability = normalize_name(ability)
     _sample_pokemon(pkmn, mode)
 
 
