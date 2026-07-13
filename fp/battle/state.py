@@ -228,6 +228,9 @@ class Battler:
         self.last_selected_move = LastUsedMove("", "", 0)
         self.last_used_move = LastUsedMove("", "", 0)
 
+    def num_revealed_pkmn(self) -> int:
+        return len([p for p in [self.active] + self.reserve if p.revealed])
+
     def possible_mega_evolutions(self, must_be_revealed=False):
         result = {}
         for pkmn in self.reserve + [self.active]:
@@ -656,8 +659,6 @@ class Pokemon:
         return normalize_name(pokedex_data.get("baseSpecies", self.name))
 
     def get_mega_pkmn_info(self) -> list[tuple[str, str]]:
-        # For avoiding Legends ZA megas: omit mega pokemon in the pokedex that have "gen": 9
-        # Come back and undo this when Legends ZA megas are available in standard formats
         mega_names = []
         if self.name == "rayquaza":
             return [("rayquaza", "none")]

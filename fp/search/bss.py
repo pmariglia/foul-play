@@ -54,9 +54,10 @@ def prepare_post_team_preview_bss_battles(
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
-        # for later: right here we should force-keep at least 1 mega evolution
-        # and so some other intelligent sampling
-        if battle_copy.mega_evolve_possible():
+        if (
+            battle_copy.opponent.num_revealed_pkmn() < 3
+            and battle_copy.mega_evolve_possible()
+        ):
             sample_mega_evolution(battle_copy.opponent, index, battle.mode.smogon_sets)
 
         while len(battle_copy.opponent.reserve) > 2:
@@ -82,7 +83,7 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
         battle.opponent.active = battle.opponent.reserve.pop(0)
 
     num_battles = FoulPlayConfig.parallelism * 2
-    search_time_per_battle = FoulPlayConfig.search_time_ms
+    search_time_per_battle = FoulPlayConfig.search_time_ms * 2
 
     battles = prepare_battles(battle, num_battles, sample_all_megas=True)
 
