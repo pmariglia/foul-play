@@ -12,8 +12,8 @@ from typing import Optional, Tuple
 import requests
 
 from fp import constants
-from fp.battle.helpers import calculate_stats
-from fp.data import pokedex
+from fp.battle.helpers import calculate_stats, natures
+from fp.data import pokedex, all_move_json
 from fp.battle.helpers import normalize_name
 from fp.format_spec import FormatSpec
 from fp.generations import current_generation_mechanics
@@ -62,8 +62,8 @@ def spreads_are_alike(s1, s2):
 
     diff = [abs(i - j) for i, j in zip(s1, s2)]
 
-    # 24 is arbitrarily chosen as the threshold for EVs to be "alike"
-    return all(v <= 48 for v in diff)
+    evs_within = current_generation_mechanics().max_ev / 4
+    return all(v <= evs_within for v in diff)
 
 
 @dataclass
@@ -71,6 +71,11 @@ class PredictedPokemonSet:
     pkmn_set: PokemonSet
     pkmn_moveset: PokemonMoveset
 
+    # Can the pokemon _ever_ have the set?
+    # Returns False only if some observation renders this an invalid set.
+    # e.g. you used to different moves but this set has a choice item
+    # does NOT concern itself with "is this set logical?"
+    # e.g. swordsdance with choiceband does not cause this to return False
     def full_set_pkmn_can_have_set(
         self,
         pkmn: Pokemon,
@@ -87,7 +92,174 @@ class PredictedPokemonSet:
             speed_check=speed_check,
             level_check=level_check,
             match_tera=tera_check,
-        ) and self.pkmn_moveset.full_set_pkmn_can_have_moves(pkmn)
+        ) and self.pkmn_moveset.makes_sense_on_pkmn(pkmn)
+
+    # Is this set logical?
+    # e.g. swordsdance with choiceband should return False
+    def set_makes_logical_sense(self) -> bool:
+        trickable_items = {
+            "choicespecs",
+            "choicescarf",
+            "choiceband",
+            "assaultvest",
+            "blacksludge",
+            "stickybarb",
+            "flameorb",
+            "toxicorb",
+        }
+
+        match self.pkmn_set.item:
+            case "toxicorb":
+                if self.pkmn_set.ability not in [
+                    "poisonheal",
+                    "quickfeet",
+                    "magicguard",
+                    "marvelscale",
+                    "guts",
+                    "toxicboost",
+                ]:
+                    return False
+
+            case "flameorb":
+                if self.pkmn_set.ability not in [
+                    "quickfeet",
+                    "magicguard",
+                    "guts",
+                    "flareboost",
+                ]:
+                    return False
+
+            case "choiceband" | "choicespecs" | "choicescarf":
+                if not self.choice_item_logical():
+                    return False
+
+            case "assaultvest":
+                if self.pkmn_set.ability != "klutz" and any(
+                    all_move_json[mv][constants.CATEGORY]
+                    == constants.MoveCategory.STATUS
+                    for mv in self.pkmn_moveset.moves
+                ):
+                    return False
+
+        match self.pkmn_set.ability:
+            case "poisonheal":
+                if self.pkmn_set.item != "toxicorb":
+                    return False
+
+        for mv in self.pkmn_moveset.moves:
+            match mv:
+                case "protect":
+                    if self.pkmn_set.item in constants.CHOICE_ITEMS:
+                        return False
+
+                case (
+                    "swordsdance"
+                    | "dragondance"
+                    | "tidyup"
+                    | "sharpen"
+                    | "meditate"
+                    | "honeclaws"
+                    | "bellydrum"
+                    | "howl"
+                    | "shiftgear"
+                ):
+                    if not self.physical_boosting_move_logical(mv):
+                        return False
+
+                case "nastyplot" | "tailglow":
+                    if not self.special_boosting_move_logical(mv):
+                        return False
+
+                case "bulkup" | "curse":
+                    if self.pkmn_set.item in constants.CHOICE_ITEMS:
+                        return False
+                    if self.pkmn_set.evs[3] > 0:
+                        return False
+                    if (
+                        natures[self.pkmn_set.nature]["plus"]
+                        == constants.SPECIAL_ATTACK
+                    ):
+                        return False
+
+                case "calmmind":
+                    if self.pkmn_set.item in constants.CHOICE_ITEMS:
+                        return False
+                    if self.pkmn_set.evs[1] > 0:
+                        return False
+                    if natures[self.pkmn_set.nature]["plus"] == constants.ATTACK:
+                        return False
+
+                case "trick" | "switcheroo":
+                    if self.pkmn_set.item not in trickable_items:
+                        return False
+
+        return True
+
+    def choice_item_logical(self):
+        item = self.pkmn_set.item
+        match item:
+            case "choiceband":
+                logical_moves = [constants.MoveCategory.PHYSICAL]
+            case "choicespecs":
+                logical_moves = [constants.MoveCategory.SPECIAL]
+            case "choicescarf":
+                logical_moves = [
+                    constants.MoveCategory.PHYSICAL,
+                    constants.MoveCategory.SPECIAL,
+                ]
+            case _:
+                raise ValueError("Invalid choice item: {}".format(item))
+
+        num_illogical_moves = 0
+        for mv in self.pkmn_moveset.moves:
+            if all_move_json[mv][
+                constants.CATEGORY
+            ] not in logical_moves and mv not in [
+                "trick",
+                "switcheroo",
+                "flipturn",
+                "uturn",
+                "voltswitch",
+            ]:
+                num_illogical_moves += 1
+
+        return num_illogical_moves <= 1
+
+    def physical_boosting_move_logical(self, mv: str) -> bool:
+        if self.pkmn_set.item in constants.CHOICE_ITEMS:
+            return False
+
+        # do not allow more than 1 non-physical move, excluding the boosting move
+        if (
+            sum(
+                m != mv
+                and all_move_json[m][constants.CATEGORY]
+                != constants.MoveCategory.PHYSICAL
+                for m in self.pkmn_moveset.moves
+            )
+            > 1
+        ):
+            return False
+
+        return True
+
+    def special_boosting_move_logical(self, mv: str) -> bool:
+        if self.pkmn_set.item in constants.CHOICE_ITEMS:
+            return False
+
+        # do not allow more than 1 non-special move, excluding the boosting move
+        if (
+            sum(
+                m != mv
+                and all_move_json[m][constants.CATEGORY]
+                != constants.MoveCategory.SPECIAL
+                for m in self.pkmn_moveset.moves
+            )
+            > 1
+        ):
+            return False
+
+        return True
 
 
 @dataclass
@@ -185,7 +357,7 @@ class PokemonMoveset:
 
         self.moves = tuple(new_moves)
 
-    def full_set_pkmn_can_have_moves(self, pkmn: Pokemon) -> bool:
+    def makes_sense_on_pkmn(self, pkmn: Pokemon) -> bool:
         for mv in pkmn.moves:
             if mv.name == constants.HIDDEN_POWER:
                 hidden_power_possibilities = [

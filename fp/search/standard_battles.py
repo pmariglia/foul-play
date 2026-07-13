@@ -3,9 +3,9 @@ import random
 from copy import deepcopy
 
 from fp import constants
-from fp.data import all_move_json, pokedex
+from fp.data import pokedex
 from fp.search.helpers import populate_pkmn_from_set, sample_mega_evolution
-from fp.battle.helpers import natures, normalize_name
+from fp.battle.helpers import normalize_name
 from fp.battle.state import Pokemon, Battle
 from fp.generations import current_generation_mechanics
 from fp.data.sets import (
@@ -17,174 +17,6 @@ from fp.data.sets import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-TRICKABLE_ITEMS = {
-    "choicespecs",
-    "choicescarf",
-    "choiceband",
-    "assaultvest",
-    "blacksludge",
-    "stickybarb",
-    "flameorb",
-    "toxicorb",
-}
-
-
-def physical_boosting_move(mv: str, predicted_pkmn_set: PredictedPokemonSet) -> bool:
-    if predicted_pkmn_set.pkmn_set.item in constants.CHOICE_ITEMS:
-        return False
-
-    # do not allow more than 1 non-physical move, excluding the boosting move
-    if (
-        sum(
-            m != mv
-            and all_move_json[m][constants.CATEGORY] != constants.MoveCategory.PHYSICAL
-            for m in predicted_pkmn_set.pkmn_moveset.moves
-        )
-        > 1
-    ):
-        return False
-
-    return True
-
-
-def special_boosting_move(mv: str, predicted_pkmn_set: PredictedPokemonSet) -> bool:
-    if predicted_pkmn_set.pkmn_set.item in constants.CHOICE_ITEMS:
-        return False
-
-    # do not allow more than 1 non-special move, excluding the boosting move
-    if (
-        sum(
-            m != mv
-            and all_move_json[m][constants.CATEGORY] != constants.MoveCategory.SPECIAL
-            for m in predicted_pkmn_set.pkmn_moveset.moves
-        )
-        > 1
-    ):
-        return False
-
-    return True
-
-
-def choice_item(predicted_pkmn_set: PredictedPokemonSet):
-    item = predicted_pkmn_set.pkmn_set.item
-    match item:
-        case "choiceband":
-            logical_moves = [constants.MoveCategory.PHYSICAL]
-        case "choicespecs":
-            logical_moves = [constants.MoveCategory.SPECIAL]
-        case "choicescarf":
-            logical_moves = [
-                constants.MoveCategory.PHYSICAL,
-                constants.MoveCategory.SPECIAL,
-            ]
-        case _:
-            raise ValueError("Invalid choice item: {}".format(item))
-
-    num_illogical_moves = 0
-    for mv in predicted_pkmn_set.pkmn_moveset.moves:
-        if all_move_json[mv][constants.CATEGORY] not in logical_moves and mv not in [
-            "trick",
-            "switcheroo",
-            "flipturn",
-            "uturn",
-            "voltswitch",
-        ]:
-            num_illogical_moves += 1
-
-    return num_illogical_moves <= 1
-
-
-def smogon_set_makes_sense(predicted_pkmn_set: PredictedPokemonSet):
-    match predicted_pkmn_set.pkmn_set.item:
-        case "toxicorb":
-            if predicted_pkmn_set.pkmn_set.ability not in [
-                "poisonheal",
-                "quickfeet",
-                "magicguard",
-                "marvelscale",
-                "guts",
-                "toxicboost",
-            ]:
-                return False
-
-        case "flameorb":
-            if predicted_pkmn_set.pkmn_set.ability not in [
-                "quickfeet",
-                "magicguard",
-                "guts",
-                "flareboost",
-            ]:
-                return False
-
-        case "choiceband" | "choicespecs" | "choicescarf":
-            if not choice_item(predicted_pkmn_set):
-                return False
-
-        case "assaultvest":
-            if predicted_pkmn_set.pkmn_set.ability != "klutz" and any(
-                all_move_json[mv][constants.CATEGORY] == constants.MoveCategory.STATUS
-                for mv in predicted_pkmn_set.pkmn_moveset.moves
-            ):
-                return False
-
-    match predicted_pkmn_set.pkmn_set.ability:
-        case "poisonheal":
-            if predicted_pkmn_set.pkmn_set.item != "toxicorb":
-                return False
-
-    for mv in predicted_pkmn_set.pkmn_moveset.moves:
-        match mv:
-            case "protect":
-                if predicted_pkmn_set.pkmn_set.item in constants.CHOICE_ITEMS:
-                    return False
-
-            case (
-                "swordsdance"
-                | "dragondance"
-                | "tidyup"
-                | "sharpen"
-                | "meditate"
-                | "honeclaws"
-                | "bellydrum"
-                | "howl"
-                | "shiftgear"
-            ):
-                if not physical_boosting_move(mv, predicted_pkmn_set):
-                    return False
-
-            case "nastyplot" | "tailglow":
-                if not special_boosting_move(mv, predicted_pkmn_set):
-                    return False
-
-            case "bulkup" | "curse":
-                if predicted_pkmn_set.pkmn_set.item in constants.CHOICE_ITEMS:
-                    return False
-                if predicted_pkmn_set.pkmn_set.evs[3] > 0:
-                    return False
-                if (
-                    natures[predicted_pkmn_set.pkmn_set.nature]["plus"]
-                    == constants.SPECIAL_ATTACK
-                ):
-                    return False
-
-            case "calmmind":
-                if predicted_pkmn_set.pkmn_set.item in constants.CHOICE_ITEMS:
-                    return False
-                if predicted_pkmn_set.pkmn_set.evs[1] > 0:
-                    return False
-                if (
-                    natures[predicted_pkmn_set.pkmn_set.nature]["plus"]
-                    == constants.ATTACK
-                ):
-                    return False
-
-            case "trick" | "switcheroo":
-                if predicted_pkmn_set.pkmn_set.item not in TRICKABLE_ITEMS:
-                    return False
-
-    return True
 
 
 def adjust_probabilities_for_sampling(move_rates, num_moves=4):
@@ -203,12 +35,10 @@ def get_filtered_sets(
 ) -> list[PokemonSet]:
     filtered_sets = []
     for pkmn_set in remaining_sets:
-        if smogon_set_makes_sense(
-            PredictedPokemonSet(
-                pkmn_set=pkmn_set,
-                pkmn_moveset=PokemonMoveset(moves=tuple(m.name for m in pkmn.moves)),
-            )
-        ):
+        if PredictedPokemonSet(
+            pkmn_set=pkmn_set,
+            pkmn_moveset=PokemonMoveset(moves=tuple(m.name for m in pkmn.moves)),
+        ).set_makes_logical_sense():
             filtered_sets.append(pkmn_set)
 
     return filtered_sets
@@ -227,12 +57,10 @@ def sample_pokemon_moveset_with_known_pkmn_set(
     for pkmn_moveset in mode.team_datasets.get_all_possible_move_combinations(
         pkmn, pkmn_set
     ):
-        if not smogon_set_makes_sense(
-            PredictedPokemonSet(
-                pkmn_set=pkmn_set,
-                pkmn_moveset=pkmn_moveset,
-            )
-        ):
+        if not PredictedPokemonSet(
+            pkmn_set=pkmn_set,
+            pkmn_moveset=pkmn_moveset,
+        ).set_makes_logical_sense():
             continue
         num_pkmn_moves = len(pkmn_moveset)
 
@@ -274,12 +102,10 @@ def sample_pokemon_moveset_with_known_pkmn_set(
         mv, chance = moves_adjusted_probabilities[index]
         if random.random() < chance:
             pkmn_known_moves.append(mv)
-            if not smogon_set_makes_sense(
-                PredictedPokemonSet(
-                    pkmn_set=pkmn_set,
-                    pkmn_moveset=PokemonMoveset(moves=pkmn_known_moves),
-                )
-            ):
+            if not PredictedPokemonSet(
+                pkmn_set=pkmn_set,
+                pkmn_moveset=PokemonMoveset(moves=pkmn_known_moves),
+            ).set_makes_logical_sense():
                 pkmn_known_moves.pop()
 
             moves_adjusted_probabilities.pop(index)
@@ -348,7 +174,7 @@ def _sample_pokemon(pkmn: Pokemon, mode):
     remaining_team_sets = [
         s
         for s in mode.team_datasets.get_pkmn_sets_from_pkmn_name(pkmn)
-        if s.pkmn_set.set_makes_sense(pkmn) and smogon_set_makes_sense(s)
+        if s.pkmn_set.set_makes_sense(pkmn) and s.set_makes_logical_sense()
     ]
     if remaining_team_sets:
         sampled_set = deepcopy(random.choice(remaining_team_sets).pkmn_set)

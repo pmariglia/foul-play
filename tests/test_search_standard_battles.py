@@ -17,17 +17,13 @@ from fp.modes.standard_battle import StandardBattleMode
 from fp.search.standard_battles import (
     _sample_pokemon,
     adjust_probabilities_for_sampling,
-    choice_item,
     get_filtered_sets,
-    physical_boosting_move,
     pokemon_guaranteed_move,
     populate_standardbattle_unrevealed_pkmn,
     predict_team_likelihood,
     prepare_battles,
     sample_pokemon_moveset_with_known_pkmn_set,
     set_most_likely_hidden_power,
-    smogon_set_makes_sense,
-    special_boosting_move,
 )
 
 
@@ -70,20 +66,20 @@ class TestPhysicalBoostingMove:
         pkmn_set = make_predicted_set(
             ["swordsdance", "earthquake", "stoneedge", "recover"]
         )
-        assert physical_boosting_move("swordsdance", pkmn_set)
+        assert pkmn_set.physical_boosting_move_logical("swordsdance")
 
     def test_rejects_swordsdance_with_more_than_one_other_non_physical_move(self):
         pkmn_set = make_predicted_set(
             ["swordsdance", "protect", "recover", "earthquake"]
         )
-        assert not physical_boosting_move("swordsdance", pkmn_set)
+        assert not pkmn_set.physical_boosting_move_logical("swordsdance")
 
     def test_rejects_boosting_move_with_choice_item(self):
         pkmn_set = make_predicted_set(
             ["swordsdance", "earthquake", "stoneedge", "outrage"],
             item="choiceband",
         )
-        assert not physical_boosting_move("swordsdance", pkmn_set)
+        assert not pkmn_set.physical_boosting_move_logical("swordsdance")
 
 
 class TestSpecialBoostingMove:
@@ -91,18 +87,18 @@ class TestSpecialBoostingMove:
         pkmn_set = make_predicted_set(
             ["nastyplot", "shadowball", "thunderbolt", "recover"]
         )
-        assert special_boosting_move("nastyplot", pkmn_set)
+        assert pkmn_set.special_boosting_move_logical("nastyplot")
 
     def test_rejects_nastyplot_with_more_than_one_other_non_special_move(self):
         pkmn_set = make_predicted_set(["nastyplot", "protect", "recover", "surf"])
-        assert not special_boosting_move("nastyplot", pkmn_set)
+        assert not pkmn_set.special_boosting_move_logical("nastyplot")
 
     def test_rejects_nastyplot_with_choice_item(self):
         pkmn_set = make_predicted_set(
             ["nastyplot", "shadowball", "thunderbolt", "surf"],
             item="choicespecs",
         )
-        assert not special_boosting_move("nastyplot", pkmn_set)
+        assert not pkmn_set.special_boosting_move_logical("nastyplot")
 
 
 class TestChoiceItem:
@@ -110,131 +106,131 @@ class TestChoiceItem:
         all_physical = make_predicted_set(
             ["earthquake", "stoneedge", "outrage", "dragonclaw"], item="choiceband"
         )
-        assert choice_item(all_physical)
+        assert all_physical.choice_item_logical()
 
         one_status = make_predicted_set(
             ["earthquake", "stoneedge", "outrage", "toxic"], item="choiceband"
         )
-        assert choice_item(one_status)
+        assert one_status.choice_item_logical()
 
         two_status = make_predicted_set(
             ["earthquake", "stoneedge", "toxic", "protect"], item="choiceband"
         )
-        assert not choice_item(two_status)
+        assert not two_status.choice_item_logical()
 
     def test_choicespecs_counts_physical_moves_as_illogical(self):
         pkmn_set = make_predicted_set(
             ["shadowball", "thunderbolt", "earthquake", "stoneedge"],
             item="choicespecs",
         )
-        assert not choice_item(pkmn_set)
+        assert not pkmn_set.choice_item_logical()
 
     def test_choicescarf_allows_both_attacking_categories(self):
         pkmn_set = make_predicted_set(
             ["shadowball", "earthquake", "thunderbolt", "stoneedge"],
             item="choicescarf",
         )
-        assert choice_item(pkmn_set)
+        assert pkmn_set.choice_item_logical()
 
     def test_pivot_and_trick_moves_are_never_illogical(self):
         # uturn is physical and trick is status but both are whitelisted on specs
         pkmn_set = make_predicted_set(
             ["trick", "uturn", "shadowball", "thunderbolt"], item="choicespecs"
         )
-        assert choice_item(pkmn_set)
+        assert pkmn_set.choice_item_logical()
 
     def test_non_choice_item_raises_valueerror(self):
         pkmn_set = make_predicted_set(["tackle"], item="leftovers")
         with pytest.raises(ValueError):
-            choice_item(pkmn_set)
+            pkmn_set.choice_item_logical()
 
 
 class TestSmogonSetMakesSense:
     def test_toxicorb_requires_a_synergistic_ability(self):
         bad = make_predicted_set(["earthquake"], item="toxicorb", ability="intimidate")
-        assert not smogon_set_makes_sense(bad)
+        assert not bad.set_makes_logical_sense()
 
         good = make_predicted_set(["earthquake"], item="toxicorb", ability="poisonheal")
-        assert smogon_set_makes_sense(good)
+        assert good.set_makes_logical_sense()
 
     def test_poisonheal_requires_toxicorb(self):
         pkmn_set = make_predicted_set(
             ["earthquake"], item="leftovers", ability="poisonheal"
         )
-        assert not smogon_set_makes_sense(pkmn_set)
+        assert not pkmn_set.set_makes_logical_sense()
 
     def test_flameorb_requires_a_synergistic_ability(self):
         bad = make_predicted_set(["facade"], item="flameorb", ability="intimidate")
-        assert not smogon_set_makes_sense(bad)
+        assert not bad.set_makes_logical_sense()
 
         good = make_predicted_set(["facade"], item="flameorb", ability="guts")
-        assert smogon_set_makes_sense(good)
+        assert good.set_makes_logical_sense()
 
     def test_assaultvest_rejects_status_moves_unless_klutz(self):
         bad = make_predicted_set(
             ["earthquake", "toxic"], item="assaultvest", ability="intimidate"
         )
-        assert not smogon_set_makes_sense(bad)
+        assert not bad.set_makes_logical_sense()
 
         klutz = make_predicted_set(
             ["earthquake", "toxic"], item="assaultvest", ability="klutz"
         )
-        assert smogon_set_makes_sense(klutz)
+        assert klutz.set_makes_logical_sense()
 
     def test_protect_with_choice_item_is_rejected(self):
         pkmn_set = make_predicted_set(
             ["protect", "earthquake", "stoneedge", "outrage"], item="choiceband"
         )
-        assert not smogon_set_makes_sense(pkmn_set)
+        assert not pkmn_set.set_makes_logical_sense()
 
     def test_bulkup_rejects_choice_item_spa_evs_and_spa_boosting_nature(self):
         choice = make_predicted_set(
             ["bulkup", "earthquake", "stoneedge", "outrage"], item="choiceband"
         )
-        assert not smogon_set_makes_sense(choice)
+        assert not choice.set_makes_logical_sense()
 
         spa_evs = make_predicted_set(
             ["bulkup", "earthquake"], evs=(252, 0, 0, 4, 0, 252)
         )
-        assert not smogon_set_makes_sense(spa_evs)
+        assert not spa_evs.set_makes_logical_sense()
 
         spa_nature = make_predicted_set(["bulkup", "earthquake"], nature="modest")
-        assert not smogon_set_makes_sense(spa_nature)
+        assert not spa_nature.set_makes_logical_sense()
 
         good = make_predicted_set(
             ["bulkup", "earthquake"], nature="adamant", evs=(252, 252, 0, 0, 4, 0)
         )
-        assert smogon_set_makes_sense(good)
+        assert good.set_makes_logical_sense()
 
     def test_calmmind_rejects_choice_item_atk_evs_and_atk_boosting_nature(self):
         choice = make_predicted_set(
             ["calmmind", "shadowball", "thunderbolt", "surf"], item="choicespecs"
         )
-        assert not smogon_set_makes_sense(choice)
+        assert not choice.set_makes_logical_sense()
 
         atk_evs = make_predicted_set(
             ["calmmind", "shadowball"], evs=(252, 4, 0, 0, 0, 252)
         )
-        assert not smogon_set_makes_sense(atk_evs)
+        assert not atk_evs.set_makes_logical_sense()
 
         atk_nature = make_predicted_set(["calmmind", "shadowball"], nature="adamant")
-        assert not smogon_set_makes_sense(atk_nature)
+        assert not atk_nature.set_makes_logical_sense()
 
         good = make_predicted_set(
             ["calmmind", "shadowball"], nature="modest", evs=(252, 0, 0, 252, 4, 0)
         )
-        assert smogon_set_makes_sense(good)
+        assert good.set_makes_logical_sense()
 
     def test_trick_requires_a_trickable_item(self):
         bad = make_predicted_set(
             ["trick", "shadowball", "thunderbolt", "surf"], item="leftovers"
         )
-        assert not smogon_set_makes_sense(bad)
+        assert not bad.set_makes_logical_sense()
 
         good = make_predicted_set(
             ["trick", "shadowball", "thunderbolt", "surf"], item="choicescarf"
         )
-        assert smogon_set_makes_sense(good)
+        assert good.set_makes_logical_sense()
 
 
 class TestAdjustProbabilitiesForSampling:
@@ -346,10 +342,21 @@ class TestSamplePokemonMovesetWithKnownPkmnSet:
                 ),
             ]
         }
+        self.mode.smogon_sets.raw_pkmn_sets = {
+            "azelf": {
+                MOVES_STRING: [
+                    ("psychic", 0.8),
+                    ("stealthrock", 0.8),
+                    ("explosion", 0.5),
+                    ("flamethrower", 0.5),
+                    ("grassknot", 0.5),
+                ]
+            }
+        }
 
         random.seed(0)
-        four_move_count = 0
-        two_move_count = 0
+        has_explosion = 0
+        not_has_explosion = 0
         for _ in range(200):
             pkmn = Pokemon("azelf", 100)
             pkmn.add_move("psychic")
@@ -357,13 +364,12 @@ class TestSamplePokemonMovesetWithKnownPkmnSet:
                 pkmn, make_pkmn_set(), self.mode
             )
             if "explosion" in moves:
-                four_move_count += 1
+                has_explosion += 1
             else:
-                assert moves == ["psychic", "grassknot"]
-                two_move_count += 1
+                not_has_explosion += 1
 
-        assert two_move_count > 0
-        assert four_move_count > two_move_count
+        assert not_has_explosion > 0
+        assert has_explosion > not_has_explosion
 
     def test_smogon_move_that_invalidates_set_is_discarded(self):
         # protect can never coexist with a choice item so it gets popped after sampling
