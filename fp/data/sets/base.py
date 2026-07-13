@@ -500,7 +500,7 @@ class PokemonSets(ABC):
         return []
 
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
-        return copy(self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets))
+        return self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets)
 
 
 class FullSetDatasets(PokemonSets):

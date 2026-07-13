@@ -489,6 +489,7 @@ def _do_check(
         )
 
         if check_type == "damage_received":
+            constant_hp_errror_allowance = battle_copy.opponent.active.level / 20
             actual_damage_dealt = (
                 damage_dealt.percent_damage * battle_copy.opponent.active.max_hp
             )
@@ -502,6 +503,7 @@ def _do_check(
                 battle_copy, damage_dealt.move, opponent_move, bot_went_first
             )
         elif check_type == "damage_dealt":
+            constant_hp_errror_allowance = battle_copy.user.active.level / 20
             _, damage = poke_engine_get_damage_rolls(
                 battle_copy,
                 battle_copy.user.last_selected_move.move,
@@ -518,9 +520,11 @@ def _do_check(
 
         damage = [max_damage * 0.85, max_damage]
         lower_bound_violated = check_lower_bound and (
-            actual_damage_dealt < (damage[0] * 0.975 - 5)
+            actual_damage_dealt < (damage[0] * 0.975 - constant_hp_errror_allowance)
         )
-        upper_bound_violated = actual_damage_dealt > (damage[1] * 1.025 + 5)
+        upper_bound_violated = actual_damage_dealt > (
+            damage[1] * 1.025 + constant_hp_errror_allowance
+        )
         if lower_bound_violated or upper_bound_violated:
             logger.debug(
                 "{} is invalid based on reverse damage calc. damage_dealt={}, lower={}, upper={}".format(
