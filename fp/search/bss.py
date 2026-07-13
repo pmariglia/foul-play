@@ -108,5 +108,8 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
         [(i[0].total_visits, i[0].side_two) for i in mcts_results]
     )
     choice = select_move_from_mcts_results(mcts_results)
-    logger.info("Choice: {}".format(choice))
+    logger.info("Team Preview Affinities")
+    for k, v in opponent_team_preview_affinities.items():
+        logger.info(f"\t{k.rjust(15)}: {round(v, 2)}")
+    logger.info(f"Choice: {choice}")
     return choice, opponent_team_preview_affinities
