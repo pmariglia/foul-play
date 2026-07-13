@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 import requests
 
 from fp import constants
-from fp.battle.helpers import calculate_stats, natures
+from fp.battle.helpers import calculate_stats, natures, maximum_ev
 from fp.data import pokedex, all_move_json
 from fp.battle.helpers import normalize_name
 from fp.format_spec import FormatSpec
@@ -66,16 +66,35 @@ def spreads_are_alike(s1, s2):
     return all(v <= evs_within for v in diff)
 
 
+# checks if a damaging move, be it physical or special, is "utility"
+# a bit of an arbitrary way to categorize, but this informs whether
+# is allowed to be guessed on sets that have EVs in the other stat
+# the most basic example is: physical pivot moves can be on special sets
+def damaging_move_is_utility(move_data: dict) -> bool:
+    if move_data[constants.ID] in {
+        "uturn",
+        "voltswitch",
+        "flipturn",
+        "nuzzle",
+        "selfdestruct",
+        "explosion",
+        "knockoff",
+    }:
+        return True
+
+    if move_data[constants.PRIORITY] > 0:
+        return True
+
+    return False
+
+
 @dataclass
 class PredictedPokemonSet:
     pkmn_set: PokemonSet
     pkmn_moveset: PokemonMoveset
 
-    # Can the pokemon _ever_ have the set?
-    # Returns False only if some observation renders this an invalid set.
+    # Returns False if some observation in the Pokemon renders this an illogical set.
     # e.g. you used to different moves but this set has a choice item
-    # does NOT concern itself with "is this set logical?"
-    # e.g. swordsdance with choiceband does not cause this to return False
     def full_set_pkmn_can_have_set(
         self,
         pkmn: Pokemon,
@@ -94,7 +113,7 @@ class PredictedPokemonSet:
             match_tera=tera_check,
         ) and self.pkmn_moveset.makes_sense_on_pkmn(pkmn)
 
-    # Is this set logical?
+    # Is this set on its own logical?
     # e.g. swordsdance with choiceband should return False
     def set_makes_logical_sense(self) -> bool:
         trickable_items = {
@@ -109,6 +128,15 @@ class PredictedPokemonSet:
         }
 
         match self.pkmn_set.item:
+            case "lightclay":
+                has_screen = False
+                screens = {"reflect", "lightscreen", "auroraveil"}
+                for mv in self.pkmn_moveset.moves:
+                    if mv in screens:
+                        has_screen = True
+                if not has_screen:
+                    return False
+
             case "toxicorb":
                 if self.pkmn_set.ability not in [
                     "poisonheal",
@@ -147,6 +175,20 @@ class PredictedPokemonSet:
                     return False
 
         for mv in self.pkmn_moveset.moves:
+            move_data = all_move_json[mv]
+            if not damaging_move_is_utility(move_data):
+                match move_data[constants.CATEGORY]:
+                    case constants.MoveCategory.PHYSICAL:
+                        if self.pkmn_set.evs[3] > 0:
+                            return False
+
+                    case constants.MoveCategory.SPECIAL:
+                        if self.pkmn_set.evs[1] > 0:
+                            return False
+
+                    case constants.MoveCategory.STATUS:
+                        ...
+
             match mv:
                 case "protect":
                     if self.pkmn_set.item in constants.CHOICE_ITEMS:
@@ -191,6 +233,18 @@ class PredictedPokemonSet:
 
                 case "trick" | "switcheroo":
                     if self.pkmn_set.item not in trickable_items:
+                        return False
+
+                case "batonpass":
+                    has_boosting_move = False
+                    for mv in self.pkmn_moveset.moves:
+                        move_data = all_move_json[mv]
+                        if (
+                            constants.BOOSTS in move_data
+                            and move_data[constants.TARGET] == constants.MoveTarget.SELF
+                        ):
+                            has_boosting_move = True
+                    if not has_boosting_move:
                         return False
 
         return True
@@ -241,6 +295,16 @@ class PredictedPokemonSet:
         ):
             return False
 
+        minimum_offensive_ev = maximum_ev() / 4
+        if self.pkmn_set.evs[1] < minimum_offensive_ev:
+            return False
+
+        if (
+            natures[self.pkmn_set.nature]["plus"] == constants.SPECIAL_ATTACK
+            or natures[self.pkmn_set.nature]["minus"] == constants.ATTACK
+        ):
+            return False
+
         return True
 
     def special_boosting_move_logical(self, mv: str) -> bool:
@@ -256,6 +320,16 @@ class PredictedPokemonSet:
                 for m in self.pkmn_moveset.moves
             )
             > 1
+        ):
+            return False
+
+        minimum_offensive_ev = maximum_ev() / 4
+        if self.pkmn_set.evs[3] < minimum_offensive_ev:
+            return False
+
+        if (
+            natures[self.pkmn_set.nature]["plus"] == constants.ATTACK
+            or natures[self.pkmn_set.nature]["minus"] == constants.SPECIAL_ATTACK
         ):
             return False
 

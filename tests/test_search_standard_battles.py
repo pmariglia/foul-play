@@ -4,7 +4,9 @@ import random
 import pytest
 
 from fp import constants
+from fp.battle.helpers import maximum_ev
 from fp.battle.state import Battle, LastUsedMove, Pokemon
+from fp.data import all_move_json
 from fp.data.sets import (
     MOVES_STRING,
     PokemonMoveset,
@@ -17,7 +19,7 @@ from fp.modes.standard_battle import StandardBattleMode
 from fp.search.standard_battles import (
     _sample_pokemon,
     adjust_probabilities_for_sampling,
-    get_filtered_sets,
+    get_filtered_smogon_sets,
     pokemon_guaranteed_move,
     populate_standardbattle_unrevealed_pkmn,
     predict_team_likelihood,
@@ -64,7 +66,8 @@ class TestPhysicalBoostingMove:
     def test_allows_swordsdance_with_mostly_physical_moves(self):
         # recover is the single allowed non-physical move besides the boosting move
         pkmn_set = make_predicted_set(
-            ["swordsdance", "earthquake", "stoneedge", "recover"]
+            moves=["swordsdance", "earthquake", "stoneedge", "recover"],
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
         )
         assert pkmn_set.physical_boosting_move_logical("swordsdance")
 
@@ -85,7 +88,8 @@ class TestPhysicalBoostingMove:
 class TestSpecialBoostingMove:
     def test_allows_nastyplot_with_mostly_special_moves(self):
         pkmn_set = make_predicted_set(
-            ["nastyplot", "shadowball", "thunderbolt", "recover"]
+            moves=["nastyplot", "shadowball", "thunderbolt", "recover"],
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
         )
         assert pkmn_set.special_boosting_move_logical("nastyplot")
 
@@ -145,7 +149,116 @@ class TestChoiceItem:
             pkmn_set.choice_item_logical()
 
 
-class TestSmogonSetMakesSense:
+class TestPredictedSetMakesLogicalSense:
+    # hex + status move? Should that be required?
+
+    def test_max_special_evs_requires_special_move(self):
+        bad = make_predicted_set(
+            moves=["willowisp", "thunderwave", "dragondarts", "uturn"],
+            item="focussash",
+            ability="clearbody",
+            nature="timid",
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
+        )
+        good = make_predicted_set(
+            moves=["willowisp", "thunderwave", "shadowball", "uturn"],
+            item="focussash",
+            ability="clearbody",
+            nature="timid",
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
+        )
+        assert not bad.set_makes_logical_sense()
+
+    def test_lightclay_requires_screen(self):
+        bad = make_predicted_set(
+            moves=["dragondance", "dragondarts", "phantomforce", "uturn"],
+            item="lightclay",
+            ability="clearbody",
+            nature="jolly",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        good = make_predicted_set(
+            moves=["uturn", "shadowball", "lightscreen", "reflect"],
+            item="lightclay",
+            ability="clearbody",
+            nature="jolly",
+            evs=(maximum_ev(), 0, 0, 0, 0, maximum_ev()),
+        )
+        assert not bad.set_makes_logical_sense()
+        assert good.set_makes_logical_sense()
+
+    def test_batonpass_requires_a_boosting_move(self):
+        bad = make_predicted_set(
+            ["batonpass"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="jolly",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        good = make_predicted_set(
+            ["batonpass", "dragondance"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="jolly",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        assert not bad.set_makes_logical_sense()
+        assert good.set_makes_logical_sense()
+
+    def test_special_set_with_phantomforce_rejected(self):
+        physical_set = make_predicted_set(
+            ["phantomforce"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="jolly",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        special_set = make_predicted_set(
+            ["phantomforce"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="modest",
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
+        )
+        assert not special_set.set_makes_logical_sense()
+        assert physical_set.set_makes_logical_sense()
+
+    def test_special_set_allows_uturn(self):
+        physical_set = make_predicted_set(
+            ["shadowball", "uturn"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="modest",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        special_set = make_predicted_set(
+            ["shadowball", "uturn"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="modest",
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
+        )
+        assert special_set.set_makes_logical_sense()
+        assert not physical_set.set_makes_logical_sense()
+
+    def test_physical_set_with_shadowball_rejected(self):
+        physical_set = make_predicted_set(
+            ["shadowball"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="modest",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+        special_set = make_predicted_set(
+            ["shadowball"],
+            item="lifeorb",
+            ability="clearbody",
+            nature="modest",
+            evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
+        )
+        assert special_set.set_makes_logical_sense()
+        assert not physical_set.set_makes_logical_sense()
+
     def test_toxicorb_requires_a_synergistic_ability(self):
         bad = make_predicted_set(["earthquake"], item="toxicorb", ability="intimidate")
         assert not bad.set_makes_logical_sense()
@@ -190,7 +303,7 @@ class TestSmogonSetMakesSense:
         assert not choice.set_makes_logical_sense()
 
         spa_evs = make_predicted_set(
-            ["bulkup", "earthquake"], evs=(252, 0, 0, 4, 0, 252)
+            ["bulkup", "earthquake"], evs=(maximum_ev(), 0, 0, 4, 0, maximum_ev())
         )
         assert not spa_evs.set_makes_logical_sense()
 
@@ -198,7 +311,9 @@ class TestSmogonSetMakesSense:
         assert not spa_nature.set_makes_logical_sense()
 
         good = make_predicted_set(
-            ["bulkup", "earthquake"], nature="adamant", evs=(252, 252, 0, 0, 4, 0)
+            ["bulkup", "earthquake"],
+            nature="adamant",
+            evs=(maximum_ev(), maximum_ev(), 0, 0, 4, 0),
         )
         assert good.set_makes_logical_sense()
 
@@ -209,7 +324,7 @@ class TestSmogonSetMakesSense:
         assert not choice.set_makes_logical_sense()
 
         atk_evs = make_predicted_set(
-            ["calmmind", "shadowball"], evs=(252, 4, 0, 0, 0, 252)
+            ["calmmind", "shadowball"], evs=(maximum_ev(), 4, 0, 0, 0, maximum_ev())
         )
         assert not atk_evs.set_makes_logical_sense()
 
@@ -217,7 +332,9 @@ class TestSmogonSetMakesSense:
         assert not atk_nature.set_makes_logical_sense()
 
         good = make_predicted_set(
-            ["calmmind", "shadowball"], nature="modest", evs=(252, 0, 0, 252, 4, 0)
+            ["calmmind", "shadowball"],
+            nature="modest",
+            evs=(maximum_ev(), 0, 0, maximum_ev(), 4, 0),
         )
         assert good.set_makes_logical_sense()
 
@@ -290,19 +407,77 @@ class TestGetFilteredSets:
         choice_set = make_pkmn_set(item="choicespecs")
         leftovers_set = make_pkmn_set(item="leftovers")
 
-        filtered = get_filtered_sets(pkmn, [choice_set, leftovers_set])
+        filtered = get_filtered_smogon_sets(pkmn, [choice_set, leftovers_set])
         assert filtered == [leftovers_set]
 
     def test_all_sets_kept_when_no_moves_are_revealed(self):
         pkmn = Pokemon("gengar", 100)
         remaining = [make_pkmn_set(item="choicespecs"), make_pkmn_set()]
-        assert get_filtered_sets(pkmn, remaining) == remaining
+        assert get_filtered_smogon_sets(pkmn, remaining) == remaining
 
 
 class TestSamplePokemonMovesetWithKnownPkmnSet:
     @pytest.fixture(autouse=True)
     def _setup(self):
         self.mode = StandardBattleMode()
+
+    def test_pre_existing_physical_move_biases_physical_moves(self):
+        self.mode.smogon_sets.raw_pkmn_sets = {
+            "dragapult": {
+                MOVES_STRING: [
+                    ("shadowball", 1.0),
+                    ("dracometeor", 1.0),
+                    ("uturn", 1.0),
+                    ("phantomforce", 1.0),
+                    ("dragondance", 1.0),
+                ]
+            }
+        }
+
+        pkmn = Pokemon("dragapult", 100)
+        pkmn.add_move("phantomforce")
+
+        pkmn_set = make_pkmn_set(
+            ability="infiltrator",
+            item="lifeorb",
+            nature="serious",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+
+        moves = sample_pokemon_moveset_with_known_pkmn_set(pkmn, pkmn_set, self.mode)
+        for mv in moves:
+            assert (
+                all_move_json[mv][constants.CATEGORY] != constants.MoveCategory.SPECIAL
+            )
+
+    def test_pre_existing_dragondance_biases_physical_moves(self):
+        self.mode.smogon_sets.raw_pkmn_sets = {
+            "dragapult": {
+                MOVES_STRING: [
+                    ("shadowball", 1.0),
+                    ("dracometeor", 1.0),
+                    ("uturn", 1.0),
+                    ("phantomforce", 1.0),
+                    ("dragondance", 1.0),
+                ]
+            }
+        }
+
+        pkmn = Pokemon("dragapult", 100)
+        pkmn.add_move("dragondance")
+
+        pkmn_set = make_pkmn_set(
+            ability="infiltrator",
+            item="lifeorb",
+            nature="serious",
+            evs=(0, maximum_ev(), 0, 0, 0, maximum_ev()),
+        )
+
+        moves = sample_pokemon_moveset_with_known_pkmn_set(pkmn, pkmn_set, self.mode)
+        for mv in moves:
+            assert (
+                all_move_json[mv][constants.CATEGORY] != constants.MoveCategory.SPECIAL
+            )
 
     def test_four_known_moves_short_circuits(self):
         pkmn = Pokemon("azelf", 100)
@@ -386,7 +561,9 @@ class TestSamplePokemonMovesetWithKnownPkmnSet:
         }
         pkmn = Pokemon("garchomp", 100)
         pkmn_set = make_pkmn_set(
-            item="choiceband", nature="adamant", evs=(0, 252, 0, 0, 4, 252)
+            item="choiceband",
+            nature="adamant",
+            evs=(0, maximum_ev(), 0, 0, 4, maximum_ev()),
         )
 
         random.seed(0)
@@ -466,7 +643,7 @@ class TestSamplePokemonCascade:
                     ability="cursedbody",
                     item="lifeorb",
                     nature="timid",
-                    evs=(0, 0, 0, 252, 4, 252),
+                    evs=(0, 0, 0, maximum_ev(), 4, maximum_ev()),
                     tera_type="ghost",
                 )
             ]
@@ -485,7 +662,7 @@ class TestSamplePokemonCascade:
         assert pkmn.ability == "cursedbody"
         assert pkmn.item == "lifeorb"
         assert pkmn.nature == "timid"
-        assert pkmn.evs == [0, 0, 0, 252, 4, 252]
+        assert pkmn.evs == [0, 0, 0, maximum_ev(), 4, maximum_ev()]
         assert pkmn.tera_type == "ghost"
 
     def test_invalidated_team_moveset_falls_back_to_partial_path(self):
@@ -498,7 +675,7 @@ class TestSamplePokemonCascade:
                     ability="levitate",
                     item="focussash",
                     nature="jolly",
-                    evs=(0, 252, 0, 0, 4, 252),
+                    evs=(0, 0, 0, maximum_ev(), 4, maximum_ev()),
                 )
             ]
         }
@@ -531,7 +708,7 @@ class TestSamplePokemonCascade:
                     ability="flashfire",
                     item="leftovers",
                     nature="calm",
-                    evs=(252, 0, 0, 0, 208, 48),
+                    evs=(maximum_ev(), 0, 0, 0, maximum_ev(), 0),
                     count=10,
                     tera_type="grass",
                 )
@@ -649,7 +826,7 @@ class TestPrepareBattles:
                     ability="cursedbody",
                     item="choicescarf",
                     nature="timid",
-                    evs=(0, 0, 0, 252, 4, 252),
+                    evs=(0, 0, 0, maximum_ev(), 4, maximum_ev()),
                 )
             ],
             "azelf": [
@@ -658,7 +835,7 @@ class TestPrepareBattles:
                     ability="levitate",
                     item="focussash",
                     nature="jolly",
-                    evs=(0, 252, 0, 0, 4, 252),
+                    evs=(0, maximum_ev(), 0, 0, 4, maximum_ev()),
                 )
             ],
         }

@@ -107,7 +107,14 @@ class MoveCategory(StrEnum):
     STATUS = "status"
 
 
+class MoveTarget(StrEnum):
+    SELF = "self"
+    NORMAL = "normal"
+
+
+BASE_POWER = "basePower"
 CATEGORY = "category"
+TARGET = "target"
 
 DAMAGING_CATEGORIES = [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]
 

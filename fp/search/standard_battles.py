@@ -1,6 +1,6 @@
 import logging
 import random
-from copy import deepcopy
+from copy import deepcopy, copy
 
 from fp import constants
 from fp.data import pokedex
@@ -30,7 +30,7 @@ def adjust_probabilities_for_sampling(move_rates, num_moves=4):
     return adjusted_rates
 
 
-def get_filtered_sets(
+def get_filtered_smogon_sets(
     pkmn: Pokemon, remaining_sets: list[PokemonSet]
 ) -> list[PokemonSet]:
     filtered_sets = []
@@ -40,6 +40,16 @@ def get_filtered_sets(
             pkmn_moveset=PokemonMoveset(moves=tuple(m.name for m in pkmn.moves)),
         ).set_makes_logical_sense():
             filtered_sets.append(pkmn_set)
+
+    # emptying smogon sets at this point would lead to no set being guessed
+    # If no sets make logical sense warn because something is probably wrong, and return everything
+    if not filtered_sets:
+        logger.info(
+            f"Would filter out all sets for {pkmn.name}, returning all sets instead"
+        )
+        for s in remaining_sets:
+            logger.debug(f"{s=}")
+        filtered_sets = copy(remaining_sets)
 
     return filtered_sets
 
@@ -171,6 +181,8 @@ def _sample_pokemon(pkmn: Pokemon, mode):
 
     # 2: TeamDatasets has at least 1 set in it that hasn't been invalidated,
     # but `get_all_remaining_sets` returned no sets because the accompanying movesets are invalid
+    # In this case, we sample the set from TeamDatasets, where "set" means the ability/item/natures/evs
+    # The moveset is then sampled separately
     remaining_team_sets = [
         s
         for s in mode.team_datasets.get_pkmn_sets_from_pkmn_name(pkmn)
@@ -189,7 +201,7 @@ def _sample_pokemon(pkmn: Pokemon, mode):
     # 3: Try to sample from SmogonSets including moves
     # Sample a SmogonSet and then repeat the same process as in 2 to get a moveset
     remaining_smogon_sets = mode.smogon_sets.get_all_remaining_trait_combinations(pkmn)
-    remaining_smogon_sets = get_filtered_sets(pkmn, remaining_smogon_sets)
+    remaining_smogon_sets = get_filtered_smogon_sets(pkmn, remaining_smogon_sets)
     if remaining_smogon_sets:
         sampled_smogon_set = deepcopy(
             random.choices(
