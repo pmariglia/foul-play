@@ -280,13 +280,20 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
-def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
+def prepare_battles(
+    battle: Battle, num_battles: int, sample_all_megas=False
+) -> list[(Battle, float)]:
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
         if battle_copy.mega_evolve_possible():
-            sample_mega_evolution(battle_copy.opponent, index, battle.mode.smogon_sets)
+            sample_mega_evolution(
+                battle_copy.opponent,
+                index,
+                battle.mode.smogon_sets,
+                sample_all=sample_all_megas,
+            )
 
         sample_pokemon(battle_copy.opponent.active, battle.mode)
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):

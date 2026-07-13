@@ -74,7 +74,7 @@ def populate_pkmn_from_set(
                 break
 
 
-def sample_mega_evolution(battler: Battler, index: int, smogon_sets):
+def sample_mega_evolution(battler: Battler, index: int, smogon_sets, sample_all=False):
     def mega_lower_usage_than_non_mega(pkmn_name: str, pkmn_mega_name: str) -> bool:
         non_mega_raw_count = smogon_sets.get_raw_count(pkmn_name)
         mega_raw_count = smogon_sets.get_raw_count(pkmn_mega_name)
@@ -95,26 +95,38 @@ def sample_mega_evolution(battler: Battler, index: int, smogon_sets):
     for pkmn, possible_mega_evos in mega_formes.items():
         for mega_info in possible_mega_evos:
             if not mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
-                mega_formes_to_select_from.append((pkmn, mega_info))
+                mega_usage_rate = smogon_sets.get_raw_count(mega_info[0])
+                mega_formes_to_select_from.append((pkmn, mega_info, mega_usage_rate))
 
     if not mega_formes_to_select_from:
         logger.info("No possible mega evolutions for {}".format(battler.name))
         return
 
-    selected_mega, (mega_pkmn_name, mega_item) = random.choice(
-        list(mega_formes_to_select_from)
-    )
-
-    if battler.active.name == selected_mega:
-        pkmn = battler.active
+    if sample_all:
+        to_mega = mega_formes_to_select_from
     else:
-        pkmn = battler.find_pokemon_in_reserves(selected_mega)
-
-    logger.info(
-        "Sampled mega evolution {}->{} with item {} for battle {}".format(
-            selected_mega, mega_pkmn_name, mega_item, index
+        to_mega = random.choices(
+            mega_formes_to_select_from,
+            weights=[i[2] for i in mega_formes_to_select_from],
         )
-    )
-    pkmn.item = mega_item
-    pkmn.mega_name = mega_pkmn_name
-    pkmn.revealed = True
+
+    mega_applied = {}
+    for selected_mega, (mega_pkmn_name, mega_item), count in to_mega:
+        # if a pokemon can mega-evolve into multiple formes, only get the most likely one
+        if mega_applied.get(selected_mega, -1) > count:
+            continue
+
+        if battler.active.name == selected_mega:
+            pkmn = battler.active
+        else:
+            pkmn = battler.find_pokemon_in_reserves(selected_mega)
+
+        pkmn.item = mega_item
+        pkmn.mega_name = mega_pkmn_name
+        pkmn.revealed = True
+        logger.info(
+            "Sampled mega evolution {}->{} with item {} for battle {}".format(
+                selected_mega, mega_pkmn_name, mega_item, index
+            )
+        )
+        mega_applied[selected_mega] = count
