@@ -168,6 +168,7 @@ class TestPredictedSetMakesLogicalSense:
             evs=(0, 0, 0, maximum_ev(), 0, maximum_ev()),
         )
         assert not bad.set_makes_logical_sense()
+        assert good.set_makes_logical_sense()
 
     def test_lightclay_requires_screen(self):
         bad = make_predicted_set(

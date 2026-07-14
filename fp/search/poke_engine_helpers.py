@@ -101,6 +101,7 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         moves=pkmn_moves,
         tera_type=pkmn.tera_type or "typeless",
         terastallized=pkmn.terastallized,
+        mega_evolved=pkmn.is_mega,
     )
 
 
