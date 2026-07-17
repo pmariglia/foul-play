@@ -11,7 +11,7 @@ import requests
 from dateutil import relativedelta
 
 from fp import constants
-from fp.battle.helpers import normalize_name
+from fp.battle.helpers import normalize_name, maximum_ev
 from fp.data import pokedex
 from fp.data.sets.base import (
     DATA_DIR,
@@ -200,16 +200,17 @@ class SmogonSets(PokemonSets):
 
     def _pokemon_set_makes_sense(self, pkmn_set: PokemonSet):
         # Without a large amount in the supporting stat choice items don't make sense
-        if pkmn_set.item == "choiceband" and pkmn_set.evs[1] < 204:
+        if pkmn_set.item == "choiceband" and pkmn_set.evs[1] < int(maximum_ev() * 0.5):
             return False
-        if pkmn_set.item == "choicespecs" and pkmn_set.evs[3] < 204:
+        if pkmn_set.item == "choicespecs" and pkmn_set.evs[3] < int(maximum_ev() * 0.5):
             return False
-        if pkmn_set.item == "choicescarf" and pkmn_set.evs[5] < 204:
+        if pkmn_set.item == "choicescarf" and pkmn_set.evs[5] < int(maximum_ev() * 0.8):
             return False
 
-        # without a large amount in an offensive stat life orb and expert belt don't make sense
+        # without a fair amount in an offensive stat life orb and expert belt don't make sense
         if pkmn_set.item in ["lifeorb", "expertbelt"] and (
-            pkmn_set.evs[1] < 200 and pkmn_set.evs[3] < 200
+            pkmn_set.evs[1] < int(maximum_ev() * 0.5)
+            and pkmn_set.evs[3] < int(maximum_ev() * 0.5)
         ):
             return False
 
