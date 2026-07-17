@@ -6,7 +6,6 @@ from copy import deepcopy
 
 from fp.battle.state import Battle, Battler
 from fp.config import FoulPlayConfig
-from fp.search.helpers import sample_mega_evolution
 from fp.search.main import get_result_from_mcts, select_move_from_mcts_results
 from fp.search.standard_battles import (
     prepare_battles,
@@ -54,11 +53,7 @@ def prepare_post_team_preview_bss_battles(
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
-        if (
-            battle_copy.opponent.num_revealed_pkmn() < 3
-            and battle_copy.mega_evolve_possible()
-        ):
-            sample_mega_evolution(battle_copy.opponent, index, battle.mode.smogon_sets)
+        battle.mode.sample_mega_evolution(battle_copy, index, battle.mode.smogon_sets)
 
         while len(battle_copy.opponent.reserve) > 2:
             pkmn = sample_pkmn_to_remove(

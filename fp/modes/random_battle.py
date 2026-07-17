@@ -6,6 +6,7 @@ from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import random_battles_evs, type_effectiveness_modifier
 from fp.battle.state import Pokemon
 from fp.config import FoulPlayConfig
+from fp.constants import BattleType
 from fp.data import all_move_json
 from fp.data.sets import RandomBattleTeamDatasets
 from fp.modes.base import (
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class RandomBattleMode(BattleMode):
+    name = BattleType.RANDOM_BATTLE
     requires_team = False
 
     def __init__(self):

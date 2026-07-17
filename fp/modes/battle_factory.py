@@ -2,6 +2,7 @@ import logging
 
 from fp import constants
 from fp.battle.helpers import normalize_name, type_effectiveness_modifier
+from fp.constants import BattleType
 from fp.data import all_move_json
 from fp.data.sets import BattleFactoryTeamDatasets
 from fp.format_spec import FormatSpec
@@ -21,6 +22,7 @@ def extract_battle_factory_tier_from_msg(msg):
 
 
 class BattleFactoryMode(StandardBattleMode):
+    name = BattleType.BATTLE_FACTORY
     requires_team = False
 
     def __init__(self):

@@ -5,6 +5,7 @@ from fp.battle.inference import is_opponent
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
 from fp.config import FoulPlayConfig
+from fp.constants import BattleType
 from fp.data.sets import SmogonSets, TeamDatasets
 from fp.format_spec import FormatSpec
 from fp.modes.base import (
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class StandardBattleMode(BattleMode):
+    name = BattleType.STANDARD_BATTLE
     requires_team = True
 
     def __init__(self):

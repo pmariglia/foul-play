@@ -2,11 +2,14 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import random
 from copy import copy, deepcopy
 
 from fp import constants
 from fp.battle.state import Battle, Battler, LastUsedMove, Pokemon
 from fp.config import FoulPlayConfig
+from fp.constants import BattleType
+from fp.data.sets import SmogonSets
 from fp.search.main import find_best_move
 from fp.websocket_client import PSWebsocketClient
 
@@ -14,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class BattleMode:
+    name: str
     requires_team: bool
 
     def __deepcopy__(self, memo):
@@ -31,6 +35,67 @@ class BattleMode:
 
     def prepare_battles(self, battle, num_battles) -> list[tuple[Battle, float]]:
         raise NotImplementedError
+
+    def opponent_possible_mega_evolutions(
+        self, battle: Battle, smogon_sets: SmogonSets
+    ) -> list:
+        mega_formes = battle.opponent.possible_mega_evolutions()
+        mega_formes_to_select_from = []
+        for pkmn, possible_mega_evos in mega_formes.items():
+            for mega_info in possible_mega_evos:
+                if not smogon_sets.mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
+                    mega_usage_rate = smogon_sets.get_raw_count(mega_info[0])
+                    mega_formes_to_select_from.append(
+                        (pkmn, mega_info, mega_usage_rate)
+                    )
+
+        return mega_formes_to_select_from
+
+    def sample_mega_evolution(
+        self, battle: Battle, index: int, smogon_sets: SmogonSets
+    ):
+        battler = battle.opponent
+        if battler.mega_revealed():
+            logger.info("Mega evolution already revealed for {}".format(battler.name))
+            return
+
+        mega_formes_to_select_from = self.opponent_possible_mega_evolutions(
+            battle, smogon_sets
+        )
+        if not mega_formes_to_select_from:
+            logger.info("No possible mega evolutions for {}".format(battler.name))
+            return
+
+        # Sample every mega in BSS team preview because we are in a bring 6 pick 3 scenario
+        # It is likely that every possible mega does in fact have its mega stone
+        if battle.mode.name == BattleType.BSS and battle.team_preview:
+            to_mega = mega_formes_to_select_from
+        else:
+            to_mega = random.choices(
+                mega_formes_to_select_from,
+                weights=[i[2] for i in mega_formes_to_select_from],
+            )
+
+        mega_applied = {}
+        for selected_mega, (mega_pkmn_name, mega_item), count in to_mega:
+            # if a pokemon can mega-evolve into multiple formes, only get the most likely one
+            if mega_applied.get(selected_mega, -1) > count:
+                continue
+
+            if battler.active.name == selected_mega:
+                pkmn = battler.active
+            else:
+                pkmn = battler.find_pokemon_in_reserves(selected_mega)
+
+            pkmn.item = mega_item
+            pkmn.mega_name = mega_pkmn_name
+            pkmn.revealed = True
+            logger.info(
+                "Sampled mega evolution {}->{} with item {} for battle {}".format(
+                    selected_mega, mega_pkmn_name, mega_item, index
+                )
+            )
+            mega_applied[selected_mega] = count
 
     def get_all_remaining_sets(self, pkmn) -> list:
         raise ValueError("Only random battles are supported")

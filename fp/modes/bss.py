@@ -3,8 +3,10 @@ import concurrent.futures
 import logging
 from copy import deepcopy
 
-from fp.battle.state import LastUsedMove, Pokemon
+from fp.battle.state import LastUsedMove, Pokemon, Battle
 from fp.config import FoulPlayConfig
+from fp.constants import BattleType
+from fp.data.sets import SmogonSets
 from fp.modes.standard_battle import StandardBattleMode
 from fp.search import standard_battles
 from fp.search.bss import bss_team_preview, prepare_post_team_preview_bss_battles
@@ -13,6 +15,33 @@ logger = logging.getLogger(__name__)
 
 
 class BSSMode(StandardBattleMode):
+    name = BattleType.BSS
+
+    def opponent_possible_mega_evolutions(
+        self, battle: Battle, smogon_sets: SmogonSets
+    ):
+        # overwrites the base logic to first try to sample a mega from ONLY the revealed pkmn
+        # if that fails and there are not 3 pkmn revealed,
+        # we go back to the base logic where an unrevealed pkmn can be sampled too
+
+        battler = battle.opponent
+        mega_formes = battler.possible_mega_evolutions(must_be_revealed=True)
+        mega_formes_to_select_from = []
+        for pkmn, possible_mega_evos in mega_formes.items():
+            for mega_info in possible_mega_evos:
+                if not smogon_sets.mega_lower_usage_than_non_mega(pkmn, mega_info[0]):
+                    mega_usage_rate = smogon_sets.get_raw_count(mega_info[0])
+                    mega_formes_to_select_from.append(
+                        (pkmn, mega_info, mega_usage_rate)
+                    )
+
+        if not mega_formes_to_select_from and battler.num_revealed_pkmn() < 3:
+            mega_formes_to_select_from = super().opponent_possible_mega_evolutions(
+                battle, smogon_sets
+            )
+
+        return mega_formes_to_select_from
+
     async def handle_team_preview(self, battle, ps_websocket_client):
         battle_copy = deepcopy(battle)
         battle_copy.user.active = Pokemon.get_dummy()

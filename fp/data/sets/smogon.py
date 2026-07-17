@@ -295,3 +295,10 @@ class SmogonSets(PokemonSets):
             return None
 
         return self.all_pkmn_counts[pkmn_name][RAW_COUNT]
+
+    def mega_lower_usage_than_non_mega(self, pkmn_name, pkmn_mega_name) -> bool:
+        non_mega_raw_count = self.get_raw_count(pkmn_name)
+        mega_raw_count = self.get_raw_count(pkmn_mega_name)
+        if non_mega_raw_count is not None and mega_raw_count is not None:
+            return mega_raw_count < non_mega_raw_count
+        return False

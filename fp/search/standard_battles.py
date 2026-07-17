@@ -4,7 +4,7 @@ from copy import deepcopy, copy
 
 from fp import constants
 from fp.data import pokedex
-from fp.search.helpers import populate_pkmn_from_set, sample_mega_evolution
+from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import normalize_name
 from fp.battle.state import Pokemon, Battle
 from fp.generations import current_generation_mechanics
@@ -301,11 +301,10 @@ def prepare_battles(
         logger.info("Sampling battle {}".format(index))
         battle_copy = deepcopy(battle)
         if battle_copy.mega_evolve_possible():
-            sample_mega_evolution(
-                battle_copy.opponent,
+            battle.mode.sample_mega_evolution(
+                battle_copy,
                 index,
                 battle.mode.smogon_sets,
-                sample_all=sample_all_megas,
             )
 
         sample_pokemon(battle_copy.opponent.active, battle.mode)
