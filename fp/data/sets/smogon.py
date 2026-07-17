@@ -60,6 +60,7 @@ class SmogonSets(PokemonSets):
         if os.path.exists(cache_file):
             with open(cache_file, "r") as f:
                 infos = json.load(f)
+            logger.info(f"Loaded from cache: {cache_file}")
         else:
             r = requests.get(smogon_stats_url)
             if r.status_code == 404:
@@ -72,6 +73,7 @@ class SmogonSets(PokemonSets):
             infos = r.json()["data"]
             with open(cache_file, "w") as f:
                 json.dump(infos, f)
+            logger.info(f"Downloaded and cached from remote: {smogon_stats_url}")
 
         return infos
 
