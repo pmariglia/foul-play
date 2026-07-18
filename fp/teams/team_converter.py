@@ -63,7 +63,7 @@ def single_pokemon_export_to_dict(pkmn_export_string):
             "spe": "",
         },
     }
-    pkmn_info = pkmn_export_string.split("\n")
+    pkmn_info = pkmn_export_string.strip().split("\n")
     name = pkmn_info[0].split("@")[0]
     if "(M)" in name:
         pkmn_dict["gender"] = "M"
