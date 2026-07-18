@@ -98,4 +98,4 @@ class BSSMode(StandardBattleMode):
     def search_params(self, battle):
         # even after team preview the opponent's brought 3 are partly hidden,
         # so sample more battles than a standard singles battle
-        return FoulPlayConfig.parallelism * 2, FoulPlayConfig.search_time_ms
+        return FoulPlayConfig.parallelism, FoulPlayConfig.search_time_ms
