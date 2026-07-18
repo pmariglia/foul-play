@@ -77,8 +77,8 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
         battle.user.active = battle.user.reserve.pop(0)
         battle.opponent.active = battle.opponent.reserve.pop(0)
 
-    num_battles = FoulPlayConfig.parallelism * 2
-    search_time_per_battle = FoulPlayConfig.search_time_ms * 2
+    num_battles = FoulPlayConfig.team_preview_search_parallelism * 2
+    search_time_per_battle = FoulPlayConfig.team_preview_search_time_ms
 
     battles = prepare_battles(battle, num_battles, sample_all_megas=True)
 
@@ -86,7 +86,9 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
     logger.info(
         "Sampling {} battles at {}ms each".format(num_battles, search_time_per_battle)
     )
-    with ProcessPoolExecutor(max_workers=FoulPlayConfig.parallelism) as executor:
+    with ProcessPoolExecutor(
+        max_workers=FoulPlayConfig.team_preview_search_parallelism
+    ) as executor:
         futures = []
         for index, (b, chance) in enumerate(battles):
             fut = executor.submit(
