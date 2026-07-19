@@ -80,7 +80,7 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
     num_battles = FoulPlayConfig.team_preview_search_parallelism * 2
     search_time_per_battle = FoulPlayConfig.team_preview_search_time_ms
 
-    battles = prepare_battles(battle, num_battles, sample_all_megas=True)
+    battles = prepare_battles(battle, num_battles)
 
     logger.info("Searching for a move using MCTS...")
     logger.info(
