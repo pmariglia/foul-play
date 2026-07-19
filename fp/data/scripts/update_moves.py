@@ -127,6 +127,9 @@ for k, v in moves_dict.copy().items():
     moves_dict[k].pop("selfdestruct", None)
     moves_dict[k].pop("nonGhostTarget", None)
     moves_dict[k].pop("isFutureMove", None)
+    moves_dict[k].pop("placeholderFor", None)
+    moves_dict[k].pop("chloroblastRecoil", None)
+    moves_dict[k].pop("tags", None)
 
     if k.startswith("hiddenpower") and k != "hiddenpower":
         hp_move = moves_dict.pop(k)
