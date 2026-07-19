@@ -293,9 +293,7 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
-def prepare_battles(
-    battle: Battle, num_battles: int, sample_all_megas=False
-) -> list[(Battle, float)]:
+def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))
