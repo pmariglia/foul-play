@@ -6,6 +6,8 @@ from enum import Enum, auto
 from logging.handlers import RotatingFileHandler
 from typing import Optional
 
+from fp.format_spec import FormatSpec
+
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -73,8 +75,10 @@ class _FoulPlayConfig:
     pokemon_format: str = ""
     smogon_stats: str = None
     search_time_ms: int
-    search_threads: int
     parallelism: int
+    team_preview_search_time_ms: int | None
+    team_preview_search_parallelism: int | None
+    search_threads: int
     run_count: int
     team_name: str
     team_list: str = None
@@ -116,13 +120,25 @@ class _FoulPlayConfig:
             "--search-time-ms",
             type=int,
             default=100,
-            help="Time to search per battle in milliseconds",
+            help="Time to search per state in milliseconds",
         )
         parser.add_argument(
             "--search-parallelism",
             type=int,
             default=1,
             help="Number of states to search in parallel",
+        )
+        parser.add_argument(
+            "--team-preview-search-parallelism",
+            type=int,
+            default=None,
+            help="Number of team-preview states to search in parallel",
+        )
+        parser.add_argument(
+            "--team-preview-search-time-ms",
+            type=int,
+            default=None,
+            help="Time to search per team-preview state in milliseconds",
         )
         parser.add_argument(
             "--search-threads",
@@ -139,7 +155,7 @@ class _FoulPlayConfig:
         parser.add_argument(
             "--team-name",
             default=None,
-            help="Which team to use. Can be a filename or a foldername relative to ./teams/teams/. "
+            help="Which team to use. Can be a filename or a foldername relative to ./fp/teams/teams/. "
             "If a foldername, a random team from that folder will be chosen each battle. "
             "If not set, defaults to the --pokemon-format value.",
         )
@@ -176,6 +192,12 @@ class _FoulPlayConfig:
         self.smogon_stats = args.smogon_stats_format
         self.search_time_ms = args.search_time_ms
         self.parallelism = args.search_parallelism
+        self.team_preview_search_time_ms = (
+            args.team_preview_search_time_ms or self.search_time_ms
+        )
+        self.team_preview_search_parallelism = (
+            args.team_preview_search_parallelism or self.parallelism
+        )
         self.search_threads = args.search_threads
         self.run_count = args.run_count
         self.team_name = args.team_name or self.pokemon_format
@@ -188,10 +210,9 @@ class _FoulPlayConfig:
 
         self.validate_config()
 
-    def requires_team(self) -> bool:
-        return not (
-            "random" in self.pokemon_format or "battlefactory" in self.pokemon_format
-        )
+    @property
+    def format_spec(self) -> FormatSpec:
+        return FormatSpec.from_format_string(self.pokemon_format)
 
     def validate_config(self):
         if self.bot_mode == BotModes.challenge_user:

@@ -1,13 +1,14 @@
 import os
 import json
 import logging
-import constants
-from data import all_move_json
-from data import pokedex
-from fp.helpers import (
+from fp import constants
+from fp.data import all_move_json
+from fp.data import pokedex
+from fp.battle.helpers import (
     DAMAGE_MULTIPICATION_ARRAY,
     POKEMON_TYPE_INDICES,
 )
+from fp.format_spec import FormatSpec
 
 logger = logging.getLogger(__name__)
 
@@ -16,23 +17,23 @@ PWD = os.path.dirname(os.path.abspath(__file__))
 
 
 PRE_PHYSICAL_SPECIAL_SPLIT_CATEGORY_LOOKUP = {
-    "normal": constants.PHYSICAL,
-    "fighting": constants.PHYSICAL,
-    "flying": constants.PHYSICAL,
-    "poison": constants.PHYSICAL,
-    "ground": constants.PHYSICAL,
-    "rock": constants.PHYSICAL,
-    "bug": constants.PHYSICAL,
-    "ghost": constants.PHYSICAL,
-    "steel": constants.PHYSICAL,
-    "fire": constants.SPECIAL,
-    "water": constants.SPECIAL,
-    "grass": constants.SPECIAL,
-    "electric": constants.SPECIAL,
-    "psychic": constants.SPECIAL,
-    "ice": constants.SPECIAL,
-    "dragon": constants.SPECIAL,
-    "dark": constants.SPECIAL,
+    "normal": constants.MoveCategory.PHYSICAL,
+    "fighting": constants.MoveCategory.PHYSICAL,
+    "flying": constants.MoveCategory.PHYSICAL,
+    "poison": constants.MoveCategory.PHYSICAL,
+    "ground": constants.MoveCategory.PHYSICAL,
+    "rock": constants.MoveCategory.PHYSICAL,
+    "bug": constants.MoveCategory.PHYSICAL,
+    "ghost": constants.MoveCategory.PHYSICAL,
+    "steel": constants.MoveCategory.PHYSICAL,
+    "fire": constants.MoveCategory.SPECIAL,
+    "water": constants.MoveCategory.SPECIAL,
+    "grass": constants.MoveCategory.SPECIAL,
+    "electric": constants.MoveCategory.SPECIAL,
+    "psychic": constants.MoveCategory.SPECIAL,
+    "ice": constants.MoveCategory.SPECIAL,
+    "dragon": constants.MoveCategory.SPECIAL,
+    "dark": constants.MoveCategory.SPECIAL,
 }
 
 
@@ -64,9 +65,6 @@ def apply_pokedex_mods(gen_number):
 
 
 def apply_gen_3_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(3)
     apply_pokedex_mods(4)  # no pokedex mods in gen3 so use gen4
     undo_physical_special_split()
@@ -99,25 +97,18 @@ def apply_gen_1_mods():
 
 
 def apply_gen_4_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(4)
     apply_pokedex_mods(4)
     _steel_resists_dark_and_ghost()
 
 
 def apply_gen_5_mods():
-    constants.HIDDEN_POWER_TYPE_STRING_INDEX = -2
-    constants.HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "70"
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(5)
     apply_pokedex_mods(5)
     _steel_resists_dark_and_ghost()
 
 
 def apply_gen_6_mods():
-    constants.REQUEST_DICT_ABILITY = "baseAbility"
     apply_move_mods(6)
     apply_pokedex_mods(6)
 
@@ -156,22 +147,22 @@ def undo_physical_special_split():
                 pass
 
 
-def apply_mods(game_mode):
-    if "gen1" in game_mode:
-        apply_gen_1_mods()
-    if "gen2" in game_mode:
-        apply_gen_2_mods()
-    if "gen3" in game_mode:
-        apply_gen_3_mods()
-    if "gen4" in game_mode:
-        apply_gen_4_mods()
-    elif "gen5" in game_mode:
-        apply_gen_5_mods()
-    elif "gen6" in game_mode:
-        apply_gen_6_mods()
-    elif "gen7" in game_mode:
-        apply_gen_7_mods()
-    elif "gen8" in game_mode:
-        apply_gen_8_mods()
-    elif "gen9champions" in game_mode:
+def apply_mods(format_spec: FormatSpec):
+    if format_spec.generation == "gen9champions":
         apply_gen9_champions_mods()
+    elif format_spec.gen_number == 1:
+        apply_gen_1_mods()
+    elif format_spec.gen_number == 2:
+        apply_gen_2_mods()
+    elif format_spec.gen_number == 3:
+        apply_gen_3_mods()
+    elif format_spec.gen_number == 4:
+        apply_gen_4_mods()
+    elif format_spec.gen_number == 5:
+        apply_gen_5_mods()
+    elif format_spec.gen_number == 6:
+        apply_gen_6_mods()
+    elif format_spec.gen_number == 7:
+        apply_gen_7_mods()
+    elif format_spec.gen_number == 8:
+        apply_gen_8_mods()

@@ -1,12 +1,13 @@
-import unittest
+import pytest
 
-import constants
-from fp.battle import Battler, Move, LastUsedMove
-from fp.battle import Pokemon
+from fp import constants
+from fp.battle.state import Battler, Move, LastUsedMove
+from fp.battle.state import Pokemon
 
 
-class TestUpdateFromRequestJson(unittest.TestCase):
-    def setUp(self):
+class TestUpdateFromRequestJson:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.battler = Battler()
 
     def test_basic_updating_attributes_for_active_pkmn(self):
@@ -82,32 +83,26 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertEqual(self.battler.active.nickname, "PikachuNickname")
-        self.assertEqual(self.battler.active.status, None)
-        self.assertEqual(self.battler.active.level, 84)
-        self.assertEqual(self.battler.active.hp, 152)
-        self.assertEqual(self.battler.active.max_hp, 335)
-        self.assertEqual(self.battler.active.ability, "static")
-        self.assertEqual(self.battler.active.item, "lightball")
-        self.assertEqual(
-            self.battler.active.stats,
-            {
-                "attack": 200,
-                "defense": 210,
-                "special-attack": 220,
-                "special-defense": 230,
-                "speed": 240,
-            },
-        )
-        self.assertEqual(
-            self.battler.active.moves,
-            [
-                Move("volttackle"),
-                Move("thunderbolt"),
-                Move("hiddenpowerice"),
-                Move("nastyplot"),
-            ],
-        )
+        assert self.battler.active.nickname == "PikachuNickname"
+        assert self.battler.active.status is None
+        assert self.battler.active.level == 84
+        assert self.battler.active.hp == 152
+        assert self.battler.active.max_hp == 335
+        assert self.battler.active.ability == "static"
+        assert self.battler.active.item == "lightball"
+        assert self.battler.active.stats == {
+            "attack": 200,
+            "defense": 210,
+            "special-attack": 220,
+            "special-defense": 230,
+            "speed": 240,
+        }
+        assert self.battler.active.moves == [
+            Move("volttackle"),
+            Move("thunderbolt"),
+            Move("hiddenpowerice"),
+            Move("nastyplot"),
+        ]
 
     def test_gigatonhammer_un_disabled_if_it_is_last_used_move(self):
         request_dict = {
@@ -185,7 +180,7 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertEqual(self.battler.active.get_move("gigatonhammer").disabled, False)
+        assert self.battler.active.get_move("gigatonhammer").disabled is False
 
     def test_gigatonhammer_remains_disabled_when_choice_item_selecting_another_move(
         self,
@@ -265,7 +260,7 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertEqual(self.battler.active.get_move("gigatonhammer").disabled, True)
+        assert self.battler.active.get_move("gigatonhammer").disabled is True
 
     def test_sets_trapped(self):
         request_dict = {
@@ -341,7 +336,7 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertTrue(self.battler.trapped)
+        assert self.battler.trapped
 
     def test_active_optional_attributes(self):
         request_dict = {
@@ -420,10 +415,10 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertTrue(self.battler.active.can_mega_evo)
-        self.assertTrue(self.battler.active.can_ultra_burst)
-        self.assertTrue(self.battler.active.can_dynamax)
-        self.assertTrue(self.battler.active.can_terastallize)
+        assert self.battler.active.can_mega_evo
+        assert self.battler.active.can_ultra_burst
+        assert self.battler.active.can_dynamax
+        assert self.battler.active.can_terastallize
 
     def test_basic_updating_attributes_for_reserve_pkmn(self):
         request_dict = {
@@ -522,30 +517,24 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertEqual(rattata.level, 100)
-        self.assertEqual(rattata.status, constants.PARALYZED)
-        self.assertEqual(rattata.ability, "runaway")
-        self.assertEqual(rattata.ability, "runaway")
-        self.assertEqual(rattata.item, "leftovers")
-        self.assertEqual(
-            rattata.stats,
-            {
-                "attack": 100,
-                "defense": 110,
-                "special-attack": 120,
-                "special-defense": 130,
-                "speed": 140,
-            },
-        )
-        self.assertEqual(
-            rattata.moves,
-            [
-                Move("tackle"),
-                Move("tailwhip"),
-                Move("hiddenpowerrock"),
-                Move("growl"),
-            ],
-        )
+        assert rattata.level == 100
+        assert rattata.status == constants.Status.PARALYZED
+        assert rattata.ability == "runaway"
+        assert rattata.ability == "runaway"
+        assert rattata.item == "leftovers"
+        assert rattata.stats == {
+            "attack": 100,
+            "defense": 110,
+            "special-attack": 120,
+            "special-defense": 130,
+            "speed": 140,
+        }
+        assert rattata.moves == [
+            Move("tackle"),
+            Move("tailwhip"),
+            Move("hiddenpowerrock"),
+            Move("growl"),
+        ]
 
     def test_reserve_pkmn_has_pp_preserved(self):
         request_dict = {
@@ -648,4 +637,4 @@ class TestUpdateFromRequestJson(unittest.TestCase):
 
         self.battler.update_from_request_json(request_dict)
 
-        self.assertEqual(16, rattata.get_move("tackle").current_pp)
+        assert 16 == rattata.get_move("tackle").current_pp

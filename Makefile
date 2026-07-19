@@ -5,8 +5,8 @@ clean_logs:
 	rm logs/*
 
 clean_data_cache:
-	rm -rf data/pkmn_sets_cache/*
-	rm -rf data/smogon_stats_cache/*
+	rm -rf fp/data/pkmn_sets_cache/*
+	rm -rf fp/data/smogon_stats_cache/*
 
 test:
 	ruff check

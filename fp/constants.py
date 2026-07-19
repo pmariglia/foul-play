@@ -5,9 +5,8 @@ class BattleType(StrEnum):
     STANDARD_BATTLE = "standard_battle"
     BATTLE_FACTORY = "battle_factory"
     RANDOM_BATTLE = "random_battle"
+    BSS = "bss"
 
-
-NO_TEAM_PREVIEW_GENS = {"gen1", "gen2", "gen3", "gen4"}
 
 START_STRING = "|start"
 RQID = "rqid"
@@ -44,7 +43,6 @@ DO_NOTHING_MOVE = "splash"
 ID = "id"
 BASESTATS = "baseStats"
 NAME = "name"
-STATUS = "status"
 TYPES = "types"
 TYPE = "type"
 WEIGHT = "weightkg"
@@ -62,7 +60,6 @@ DETAILS = "details"
 IDENT = "ident"
 TERA_TYPE = "teraType"
 
-MEGA_EVOLVE_GENERATIONS = ["gen6", "gen7"]
 CAN_MEGA_EVO = "canMegaEvo"
 CAN_ULTRA_BURST = "canUltraBurst"
 CAN_DYNAMAX = "canDynamax"
@@ -88,7 +85,6 @@ ACCURACY = "accuracy"
 EVASION = "evasion"
 
 ABILITY = "ability"
-REQUEST_DICT_ABILITY = ABILITY
 
 MAX_BOOSTS = 6
 
@@ -103,14 +99,24 @@ STAT_ABBREVIATION_LOOKUPS = {
 }
 
 HIDDEN_POWER = "hiddenpower"
-HIDDEN_POWER_TYPE_STRING_INDEX = -1
-HIDDEN_POWER_ACTIVE_MOVE_BASE_DAMAGE_STRING = "60"
 
-PHYSICAL = "physical"
-SPECIAL = "special"
+
+class MoveCategory(StrEnum):
+    PHYSICAL = "physical"
+    SPECIAL = "special"
+    STATUS = "status"
+
+
+class MoveTarget(StrEnum):
+    SELF = "self"
+    NORMAL = "normal"
+
+
+BASE_POWER = "basePower"
 CATEGORY = "category"
+TARGET = "target"
 
-DAMAGING_CATEGORIES = [PHYSICAL, SPECIAL]
+DAMAGING_CATEGORIES = [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]
 
 VOLATILE_STATUS = "volatileStatus"
 LOCKED_MOVE = "lockedmove"
@@ -127,16 +133,18 @@ WISH = "wish"
 FUTURE_SIGHT = "futuresight"
 HEALING_WISH = "healingwish"
 
-# weather
-RAIN = "raindance"
-SUN = "sunnyday"
-SAND = "sandstorm"
-HAIL = "hail"
-SNOW = "snowscape"
-DESOLATE_LAND = "desolateland"
-HEAVY_RAIN = "primordialsea"
 
-HAIL_OR_SNOW = {HAIL, SNOW}
+class Weather(StrEnum):
+    RAIN = "raindance"
+    SUN = "sunnyday"
+    SAND = "sandstorm"
+    HAIL = "hail"
+    SNOW = "snowscape"
+    DESOLATE_LAND = "desolateland"
+    HEAVY_RAIN = "primordialsea"
+
+
+HAIL_OR_SNOW = {Weather.HAIL, Weather.SNOW}
 
 # Hazards
 STEALTH_ROCK = "stealthrock"
@@ -146,15 +154,6 @@ TOXIC_SPIKES = "toxicspikes"
 TYPECHANGE = "typechange"
 
 FIRST_TURN_MOVES = {"fakeout", "firstimpression"}
-
-WEIGHT_BASED_MOVES = {
-    "heavyslam",
-    "heatcrash",
-    "lowkick",
-    "grassknot",
-}
-
-SPEED_BASED_MOVES = {"gyroball", "electroball"}
 
 COURT_CHANGE_SWAPS = {
     "spikes",
@@ -170,10 +169,13 @@ COURT_CHANGE_SWAPS = {
 TRICK_ROOM = "trickroom"
 GRAVITY = "gravity"
 
-ELECTRIC_TERRAIN = "electricterrain"
-GRASSY_TERRAIN = "grassyterrain"
-MISTY_TERRAIN = "mistyterrain"
-PSYCHIC_TERRAIN = "psychicterrain"
+
+class Terrain(StrEnum):
+    ELECTRIC = "electricterrain"
+    GRASSY = "grassyterrain"
+    MISTY = "mistyterrain"
+    PSYCHIC = "psychicterrain"
+
 
 # switch-out moves
 SWITCH_OUT_MOVES = {
@@ -206,17 +208,19 @@ PARTIALLY_TRAPPED = "partiallytrapped"
 
 PROTECT_VOLATILE_STATUSES = [PROTECT, BANEFUL_BUNKER, SPIKY_SHIELD, SILK_TRAP, ENDURE]
 
-TAUNT_DURATION_INCREMENT_END_OF_TURN = {"gen3", "gen4"}
 
 # non-volatile statuses
-SLEEP = "slp"
-BURN = "brn"
-FROZEN = "frz"
-PARALYZED = "par"
-POISON = "psn"
-TOXIC = "tox"
+class Status(StrEnum):
+    SLEEP = "slp"
+    BURN = "brn"
+    FROZEN = "frz"
+    PARALYZED = "par"
+    POISON = "psn"
+    TOXIC = "tox"
+
+
 TOXIC_COUNT = "toxic_count"
-NON_VOLATILE_STATUSES = {SLEEP, BURN, FROZEN, PARALYZED, POISON, TOXIC}
+NON_VOLATILE_STATUSES = set(Status)
 
 IMMUNE_TO_POISON_ABILITIES = {"immunity", "pastelveil"}
 

@@ -2,7 +2,7 @@
 import requests
 import re
 import json
-from fp.helpers import normalize_name
+from fp.battle.helpers import normalize_name
 
 # Fetch latest version
 data = requests.get(

@@ -23,16 +23,16 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Run update script pokedex
         run: |
-          python ./data/scripts/update_pokedex.py
+          python ./fp/data/scripts/update_pokedex.py
       - name: Overwrite pokedex.json
         run: |
-          mv ./pokedex_new.json ./data/pokedex.json
+          mv ./pokedex_new.json ./fp/data/pokedex.json
       - name: Run update script moves
         run: |
-          python ./data/scripts/update_moves.py
+          python ./fp/data/scripts/update_moves.py
       - name: Overwrite moves.json
         run: |
-          mv ./data/new_moves.json ./data/moves.json
+          mv ./fp/data/new_moves.json ./fp/data/moves.json
       - name: Create or update pull request
         uses: peter-evans/create-pull-request@v3
         with:

@@ -3,11 +3,8 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
-from constants import BattleType
-from fp.battle import Battle
-from config import FoulPlayConfig
-from .standard_battles import prepare_battles
-from .random_battles import prepare_random_battles
+from fp.battle.state import Battle
+from fp.config import FoulPlayConfig
 
 from poke_engine import State as PokeEngineState, monte_carlo_tree_search, MctsResult
 
@@ -58,73 +55,14 @@ def get_result_from_mcts(
     return res
 
 
-def search_time_num_battles_randombattles(battle):
-    revealed_pkmn = len(battle.opponent.reserve)
-    if battle.opponent.active is not None:
-        revealed_pkmn += 1
-
-    opponent_active_num_moves = len(battle.opponent.active.moves)
-    in_time_pressure = battle.time_remaining is not None and battle.time_remaining <= 60
-
-    # it is still quite early in the battle and the pkmn in front of us
-    # hasn't revealed any moves: search a lot of battles shallowly
-    if (
-        revealed_pkmn <= 3
-        and battle.opponent.active.hp > 0
-        and opponent_active_num_moves == 0
-    ):
-        num_battles_multiplier = 2 if in_time_pressure else 4
-        return FoulPlayConfig.parallelism * num_battles_multiplier, int(
-            FoulPlayConfig.search_time_ms // 2
-        )
-
-    else:
-        num_battles_multiplier = 1 if in_time_pressure else 2
-        return FoulPlayConfig.parallelism * num_battles_multiplier, int(
-            FoulPlayConfig.search_time_ms
-        )
-
-
-def search_time_num_battles_standard_battle(battle):
-    opponent_active_num_moves = len(battle.opponent.active.moves)
-    in_time_pressure = battle.time_remaining is not None and battle.time_remaining <= 60
-
-    if (
-        battle.team_preview
-        or (battle.opponent.active.hp > 0 and opponent_active_num_moves == 0)
-        or opponent_active_num_moves < 3
-    ):
-        num_battles_multiplier = 1 if in_time_pressure else 2
-        return FoulPlayConfig.parallelism * num_battles_multiplier, int(
-            FoulPlayConfig.search_time_ms
-        )
-    else:
-        return FoulPlayConfig.parallelism, FoulPlayConfig.search_time_ms
-
-
 def find_best_move(battle: Battle) -> str:
     battle = deepcopy(battle)
     if battle.team_preview:
         battle.user.active = battle.user.reserve.pop(0)
         battle.opponent.active = battle.opponent.reserve.pop(0)
 
-    if battle.battle_type == BattleType.RANDOM_BATTLE:
-        num_battles, search_time_per_battle = search_time_num_battles_randombattles(
-            battle
-        )
-        battles = prepare_random_battles(battle, num_battles)
-    elif battle.battle_type == BattleType.BATTLE_FACTORY:
-        num_battles, search_time_per_battle = search_time_num_battles_standard_battle(
-            battle
-        )
-        battles = prepare_random_battles(battle, num_battles)
-    elif battle.battle_type == BattleType.STANDARD_BATTLE:
-        num_battles, search_time_per_battle = search_time_num_battles_standard_battle(
-            battle
-        )
-        battles = prepare_battles(battle, num_battles)
-    else:
-        raise ValueError("Unsupported battle type: {}".format(battle.battle_type))
+    num_battles, search_time_per_battle = battle.mode.search_params(battle)
+    battles = battle.mode.prepare_battles(battle, num_battles)
 
     logger.info("Searching for a move using MCTS...")
     logger.info(

@@ -13,5 +13,3 @@ with open(move_json_location) as f:
 pkmn_json_location = os.path.join(PWD, "pokedex.json")
 with open(pkmn_json_location, "r") as f:
     pokedex = json.loads(f.read())
-
-effectiveness = {}

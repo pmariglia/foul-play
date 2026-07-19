@@ -1,8 +1,8 @@
 import logging
 
-import constants
-from data import pokedex
-from fp.battle import Battle, Pokemon, Battler, LastUsedMove
+from fp import constants
+from fp.data import pokedex
+from fp.battle.state import Battle, Pokemon, Battler, LastUsedMove
 
 from poke_engine import (
     State as PokeEngineState,
@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 def status_to_string(status):
-    if status == constants.SLEEP:
+    if status == constants.Status.SLEEP:
         return "Sleep"
-    elif status == constants.BURN:
+    elif status == constants.Status.BURN:
         return "Burn"
-    elif status == constants.FROZEN:
+    elif status == constants.Status.FROZEN:
         return "Freeze"
-    elif status == constants.PARALYZED:
+    elif status == constants.Status.PARALYZED:
         return "Paralyze"
-    elif status == constants.POISON:
+    elif status == constants.Status.POISON:
         return "Poison"
-    elif status == constants.TOXIC:
+    elif status == constants.Status.TOXIC:
         return "Toxic"
     elif status is None:
         return "None"
@@ -40,6 +40,10 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
     id,level,type0,type1,hp,maxhp,ability,item,atk,def,spa,spd,spe,atkb,defb,spab,spdb,speb,accb,evab,status,subhp,restturns
     nature,volatiles,m0,m1,m2,m3
     """
+
+    # the pkmn is not part of the battle, use the default empty pokemon
+    if pkmn.name == "none" and pkmn.hp == 0:
+        return PokeEnginePokemon(id="none", hp=0)
 
     # Gen 3/4 don't remove items if knocked off
     # but the item is not active, so lets remove it
@@ -97,6 +101,7 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         moves=pkmn_moves,
         tera_type=pkmn.tera_type or "typeless",
         terastallized=pkmn.terastallized,
+        mega_evolved=pkmn.is_mega,
     )
 
 
@@ -216,19 +221,19 @@ def battler_to_poke_engine_side(
 
 
 def get_weather_string(weather):
-    if weather == constants.RAIN:
+    if weather == constants.Weather.RAIN:
         return "rain"
-    elif weather == constants.SUN:
+    elif weather == constants.Weather.SUN:
         return "sun"
-    elif weather == constants.SAND:
+    elif weather == constants.Weather.SAND:
         return "sand"
-    elif weather == constants.HAIL:
+    elif weather == constants.Weather.HAIL:
         return "hail"
-    elif weather == constants.SNOW:
+    elif weather == constants.Weather.SNOW:
         return "snow"
-    elif weather == constants.DESOLATE_LAND:
+    elif weather == constants.Weather.DESOLATE_LAND:
         return "harshsun"
-    elif weather == constants.HEAVY_RAIN:
+    elif weather == constants.Weather.HEAVY_RAIN:
         return "heavyrain"
     elif weather is None:
         return "none"
@@ -239,13 +244,13 @@ def get_weather_string(weather):
 
 
 def get_terrain_string(terrain):
-    if terrain == constants.ELECTRIC_TERRAIN:
+    if terrain == constants.Terrain.ELECTRIC:
         return "electricterrain"
-    elif terrain == constants.GRASSY_TERRAIN:
+    elif terrain == constants.Terrain.GRASSY:
         return "grassyterrain"
-    elif terrain == constants.MISTY_TERRAIN:
+    elif terrain == constants.Terrain.MISTY:
         return "mistyterrain"
-    elif terrain == constants.PSYCHIC_TERRAIN:
+    elif terrain == constants.Terrain.PSYCHIC:
         return "psychicterrain"
     elif terrain is None:
         return "none"

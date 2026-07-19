@@ -8,8 +8,8 @@ This was made for the purposes of random battles
 
 import json
 from copy import deepcopy
-import constants
-from fp.helpers import normalize_name
+from fp import constants
+from fp.battle.helpers import normalize_name
 
 fp = "../../sets.txt"
 pokedex_path = "../pokedex.json"
