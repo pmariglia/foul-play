@@ -6,7 +6,7 @@ import logging
 from fp import constants
 from fp.data import all_move_json
 from fp.data import pokedex
-from fp.battle.state import Pokemon, Battle
+from fp.battle.state import Pokemon, Battle, ObservedMatchupChoice, ObservedMatchup
 from fp.battle.state import LastUsedMove
 from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
 from fp.battle.helpers import (
@@ -2282,8 +2282,43 @@ def update_battle(battle: Battle, msg: str):
     return False
 
 
+def update_observations(battle: Battle, msg_list: list[str]):
+    if battle.user.active is None or battle.opponent.active is None:
+        return
+
+    choices: dict[str, ObservedMatchupChoice | None] = {"ours": None, "theirs": None}
+
+    for m in msg_list:
+        if m.startswith("|move|"):
+            choice = ObservedMatchupChoice.Move
+        elif m.startswith("|switch|"):
+            choice = ObservedMatchupChoice.Switch
+        else:
+            continue
+
+        parts = m.split("|")
+        side = "theirs" if is_opponent(battle, parts) else "ours"
+        if choices[side] is not None:
+            return  # same side acted twice? don't parse this
+        choices[side] = choice
+
+        if choices["ours"] is not None and choices["theirs"] is not None:
+            break
+
+    if choices["ours"] is None or choices["theirs"] is None:
+        return
+
+    observation = ObservedMatchup(choices["ours"], choices["theirs"])
+    battle.observed_matchups.set(battle, observation)
+
+    logger.info(
+        f"Set observation: {battle.user.active.name}'s {choices['ours']} vs {battle.opponent.active.name}'s {choices['theirs']}"
+    )
+
+
 def process_battle_updates(battle: Battle):
     msg_lines = battle.msg_list
+    update_observations(battle, msg_lines)
     check_speed_ranges(battle, msg_lines)
     for i, line in enumerate(msg_lines):
         split_msg = line.split("|")

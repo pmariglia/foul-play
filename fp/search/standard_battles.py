@@ -4,7 +4,10 @@ from copy import deepcopy, copy
 
 from fp import constants
 from fp.data import pokedex
-from fp.search.helpers import populate_pkmn_from_set
+from fp.search.helpers import (
+    populate_pkmn_from_set,
+    maybe_sample_opponent_active_choicescarf,
+)
 from fp.battle.helpers import normalize_name
 from fp.battle.state import Pokemon, Battle
 from fp.generations import current_generation_mechanics
@@ -294,6 +297,7 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
 
 
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
+    maybe_sample_opponent_active_choicescarf(battle)
     sampled_battles = []
     for index in range(num_battles):
         logger.info("Sampling battle {}".format(index))

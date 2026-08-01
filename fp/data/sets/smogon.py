@@ -293,6 +293,16 @@ class SmogonSets(PokemonSets):
             MOVES_STRING, []
         )
 
+    def item_usage_rate(self, pkmn: Pokemon, item_name: str) -> float:
+        pkmn_items = self.get_pkmn_by_name_in_dict(pkmn, self.raw_pkmn_sets).get(
+            ITEM_STRING, []
+        )
+        this_item = [i for i in pkmn_items if i[0] == item_name]
+        if len(this_item) != 1:
+            return 0.0
+        else:
+            return this_item[0][1]
+
     def get_raw_count(self, pkmn_name) -> int | None:
         if pkmn_name not in self.all_pkmn_counts:
             return None

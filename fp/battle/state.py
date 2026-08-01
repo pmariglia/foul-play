@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections import namedtuple
+from enum import StrEnum
 
 from fp import constants
 import logging
@@ -98,6 +99,7 @@ class Battle:
 
         self.request_json = None
         self.msg_list = []
+        self.observed_matchups = ObservedMatchups()
         self.opponent_team_preview_affinities = None
 
     @property
@@ -825,3 +827,40 @@ class Move:
 
     def __repr__(self):
         return "{}".format(self.name)
+
+
+class ObservedMatchupChoice(StrEnum):
+    Switch = "switch"
+    Move = "move"
+
+
+class ObservedMatchup:
+    our_choice: ObservedMatchupChoice
+    their_choice: ObservedMatchupChoice
+
+    def __init__(
+        self, our_choice: ObservedMatchupChoice, their_choice: ObservedMatchupChoice
+    ):
+        self.our_choice = our_choice
+        self.their_choice = their_choice
+
+
+class ObservedMatchups:
+    observed_matchups: dict
+
+    def __init__(self):
+        self.observed_matchups = {}
+
+    def get(self, battle: Battle) -> list[ObservedMatchup]:
+        our_pkmn_matchups = self.observed_matchups.setdefault(
+            battle.user.active.name, {}
+        )
+        return our_pkmn_matchups.setdefault(battle.opponent.active.name, [])
+
+    def set(self, battle: Battle, observation: ObservedMatchup):
+        our_pkmn_matchups = self.observed_matchups.setdefault(
+            battle.user.active.name, {}
+        )
+        our_pkmn_matchups.setdefault(battle.opponent.active.name, []).append(
+            observation
+        )
