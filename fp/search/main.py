@@ -71,16 +71,23 @@ def find_best_move(battle: Battle) -> str:
     with ProcessPoolExecutor(max_workers=FoulPlayConfig.parallelism) as executor:
         futures = []
         for index, (b, chance) in enumerate(battles):
+            state = battle_to_poke_engine_state(b).to_string()
+            logger.debug("Calling with {} state: {}".format(index, state))
             fut = executor.submit(
                 get_result_from_mcts,
-                battle_to_poke_engine_state(b).to_string(),
+                state,
                 search_time_per_battle,
                 index,
                 FoulPlayConfig.search_threads,
             )
             futures.append((fut, chance, index))
 
-    mcts_results = [(fut.result(), chance, index) for (fut, chance, index) in futures]
+    mcts_results = []
+    for fut, chance, index in futures:
+        res = fut.result()
+        logger.info("Iterations {}: {}".format(index, res.total_visits))
+        mcts_results.append((res, chance, index))
+
     choice = select_move_from_mcts_results(mcts_results)
     logger.info("Choice: {}".format(choice))
     return choice
