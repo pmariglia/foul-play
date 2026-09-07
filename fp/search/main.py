@@ -1,12 +1,18 @@
 import logging
+import math
 import random
-from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
 from fp.battle.state import Battle
 from fp.config import FoulPlayConfig
 
-from poke_engine import State as PokeEngineState, monte_carlo_tree_search, MctsResult
+from poke_engine import (
+    State as PokeEngineState,
+    monte_carlo_tree_search,
+    MctsResult,
+    CfrResult,
+    cfr_search,
+)
 
 from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 
@@ -37,7 +43,7 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     # drop the low-probability tail: it is mostly unconverged exploration noise,
     # while genuine mixing keeps moves with comparable weight
     highest_percentage = final_policy[0][1]
-    final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.10]
+    final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.75]
     logger.info("Considered Choices:")
     for i, policy in enumerate(final_policy):
         logger.info(f"\t{round(policy[1] * 100, 3)}%: {policy[0]}")
@@ -59,6 +65,25 @@ def get_result_from_mcts(
     return res
 
 
+def select_move_from_cfr_result(result: CfrResult) -> str:
+    policy = sorted(
+        ((r.move_choice, r.total_score) for r in result.side_one),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    # drop the low-probability tail: it is mostly unconverged exploration noise,
+    # while genuine mixing keeps moves with comparable weight
+    highest_percentage = policy[0][1]
+    policy = [p for p in policy if p[1] >= highest_percentage * 0.75]
+    logger.info("Considered Choices:")
+    for move, weight in policy:
+        logger.info(f"\t{round(weight * 100, 3)}%: {move}")
+
+    choice = random.choices(policy, weights=[p[1] for p in policy])[0]
+    return choice[0]
+
+
 def find_best_move(battle: Battle) -> str:
     battle = deepcopy(battle)
     if battle.team_preview:
@@ -68,30 +93,33 @@ def find_best_move(battle: Battle) -> str:
     num_battles, search_time_per_battle = battle.mode.search_params(battle)
     battles = battle.mode.prepare_battles(battle, num_battles)
 
-    logger.info("Searching for a move using MCTS...")
-    logger.info(
-        "Sampling {} battles at {}ms each".format(num_battles, search_time_per_battle)
+    # one shared-root cfr search over all determinizations. the total duration
+    # preserves the wall-clock of the old one-search-per-determinization
+    # approach, which ran `parallelism` searches at a time
+    total_search_time_ms = search_time_per_battle * math.ceil(
+        len(battles) / FoulPlayConfig.parallelism
     )
-    with ProcessPoolExecutor(max_workers=FoulPlayConfig.parallelism) as executor:
-        futures = []
-        for index, (b, chance) in enumerate(battles):
-            state = battle_to_poke_engine_state(b).to_string()
-            logger.debug("Calling with {} state: {}".format(index, state))
-            fut = executor.submit(
-                get_result_from_mcts,
-                state,
-                search_time_per_battle,
-                index,
-                FoulPlayConfig.search_threads,
-            )
-            futures.append((fut, chance, index))
 
-    mcts_results = []
-    for fut, chance, index in futures:
-        res = fut.result()
-        logger.info("Iterations {}: {}".format(index, res.total_visits))
-        mcts_results.append((res, chance, index))
+    states = []
+    weights = []
+    for index, (b, chance) in enumerate(battles):
+        state = battle_to_poke_engine_state(b)
+        logger.debug("Determinization {} state: {}".format(index, state.to_string()))
+        states.append(state)
+        weights.append(chance)
 
-    choice = select_move_from_mcts_results(mcts_results)
+    logger.info("Searching for a move using CFR...")
+    logger.info(
+        "Sampling {} determinizations at {}ms total".format(
+            len(states), total_search_time_ms
+        )
+    )
+    result = cfr_search(states, weights, duration_ms=total_search_time_ms)
+    logger.info("Total iterations: {}".format(result.total_visits))
+    logger.info(
+        "Iterations per determinization: {}".format(result.determinization_visits)
+    )
+
+    choice = select_move_from_cfr_result(result)
     logger.info("Choice: {}".format(choice))
     return choice
