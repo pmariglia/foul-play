@@ -14,26 +14,28 @@ logger = logging.getLogger(__name__)
 
 
 def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) -> str:
+    # the engine's search runs CFR: total_score holds each move's weight in the
+    # normalized average strategy, which is a mixed strategy to be sampled from
     final_policy = {}
     for mcts_result, sample_chance, index in mcts_results:
-        this_policy = max(mcts_result.side_one, key=lambda x: x.visits)
+        this_policy = max(mcts_result.side_one, key=lambda x: x.total_score)
         logger.info(
-            "Policy {}: {} visited {}% avg_score={} sample_chance_multiplier={}".format(
+            "Policy {}: {} strategy={}% sample_chance_multiplier={}".format(
                 index,
                 this_policy.move_choice,
-                round(100 * this_policy.visits / mcts_result.total_visits, 2),
-                round(this_policy.total_score / this_policy.visits, 3),
+                round(100 * this_policy.total_score, 2),
                 round(sample_chance, 3),
             )
         )
         for s1_option in mcts_result.side_one:
             final_policy[s1_option.move_choice] = final_policy.get(
                 s1_option.move_choice, 0
-            ) + (sample_chance * (s1_option.visits / mcts_result.total_visits))
+            ) + (sample_chance * s1_option.total_score)
 
     final_policy = sorted(final_policy.items(), key=lambda x: x[1], reverse=True)
 
-    # Consider all moves that are close to the best move
+    # drop the low-probability tail: it is mostly unconverged exploration noise,
+    # while genuine mixing keeps moves with comparable weight
     highest_percentage = final_policy[0][1]
     final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.75]
     logger.info("Considered Choices:")
@@ -50,7 +52,9 @@ def get_result_from_mcts(
     logger.debug("Calling with {} state: {}".format(index, state))
     poke_engine_state = PokeEngineState.from_string(state)
 
-    res = monte_carlo_tree_search(poke_engine_state, search_time_ms, threads=threads)
+    # threads>1 would route to the threaded DUCT search in the engine;
+    # CFR is single-threaded only
+    res = monte_carlo_tree_search(poke_engine_state, search_time_ms, threads=1)
     logger.info("Iterations {}: {}".format(index, res.total_visits))
     return res
 
