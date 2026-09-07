@@ -43,7 +43,7 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     # drop the low-probability tail: it is mostly unconverged exploration noise,
     # while genuine mixing keeps moves with comparable weight
     highest_percentage = final_policy[0][1]
-    final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.10]
+    final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.75]
     logger.info("Considered Choices:")
     for i, policy in enumerate(final_policy):
         logger.info(f"\t{round(policy[1] * 100, 3)}%: {policy[0]}")
@@ -75,7 +75,7 @@ def select_move_from_cfr_result(result: CfrResult) -> str:
     # drop the low-probability tail: it is mostly unconverged exploration noise,
     # while genuine mixing keeps moves with comparable weight
     highest_percentage = policy[0][1]
-    policy = [p for p in policy if p[1] >= highest_percentage * 0.10]
+    policy = [p for p in policy if p[1] >= highest_percentage * 0.75]
     logger.info("Considered Choices:")
     for move, weight in policy:
         logger.info(f"\t{round(weight * 100, 3)}%: {move}")
@@ -93,20 +93,19 @@ def find_best_move(battle: Battle) -> str:
     num_battles, search_time_per_battle = battle.mode.search_params(battle)
     battles = battle.mode.prepare_battles(battle, num_battles)
 
-    # one shared-root cfr search over all determinizations. the total duration
+    # one shared-root cfr search over all determinizations; the engine gives
+    # each determinization its own dedicated thread. the total duration
     # preserves the wall-clock of the old one-search-per-determinization
-    # approach, which ran `parallelism` searches at a time
+    # approach, which ran `parallelism` processes at a time
     total_search_time_ms = search_time_per_battle * math.ceil(
         len(battles) / FoulPlayConfig.parallelism
     )
 
     states = []
-    weights = []
-    for index, (b, chance) in enumerate(battles):
+    for index, (b, _chance) in enumerate(battles):
         state = battle_to_poke_engine_state(b)
         logger.debug("Determinization {} state: {}".format(index, state.to_string()))
         states.append(state)
-        weights.append(chance)
 
     logger.info("Searching for a move using CFR...")
     logger.info(
@@ -114,7 +113,7 @@ def find_best_move(battle: Battle) -> str:
             len(states), total_search_time_ms
         )
     )
-    result = cfr_search(states, weights, duration_ms=total_search_time_ms)
+    result = cfr_search(states, duration_ms=total_search_time_ms)
     logger.info("Total iterations: {}".format(result.total_visits))
     logger.info(
         "Iterations per determinization: {}".format(result.determinization_visits)
