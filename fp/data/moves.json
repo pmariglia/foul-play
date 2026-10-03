@@ -13607,6 +13607,7 @@
         "priority": 0,
         "secondary": null,
         "target": "any",
+        "tracksTarget": true,
         "type": "flying"
     },
     "skyuppercut": {
