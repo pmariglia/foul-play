@@ -6,9 +6,11 @@ from fp.battle.protocol_types import (
     Details,
     Effect,
     EffectKind,
+    KwArgs,
     PokemonIdent,
     SideId,
     parse_side_id,
+    positional_args,
 )
 
 
@@ -52,7 +54,7 @@ class TestEffect:
             ("pokemon: Zoroark", EffectKind.POKEMON, "Zoroark", "zoroark"),
             ("Reflect", EffectKind.CONDITION, "Reflect", "reflect"),
             ("[from] item: Leftovers", EffectKind.ITEM, "Leftovers", "leftovers"),
-            ("[from]move: Sleep Talk", EffectKind.MOVE, "Sleep Talk", "sleeptalk"),
+            ("[from] move: Sleep Talk", EffectKind.MOVE, "Sleep Talk", "sleeptalk"),
             ("[from] Baton Pass", EffectKind.CONDITION, "Baton Pass", "batonpass"),
         ],
     )
@@ -118,3 +120,59 @@ class TestCondition:
         assert 20 == condition.hp
         assert 100 == condition.max_hp
         assert constants.Status.BURN == condition.status
+
+
+class TestKwArgs:
+    def test_from_and_of(self):
+        kwargs = KwArgs.parse(
+            ["", "-weather", "RainDance", "[from] ability: Drizzle", "[of] p2a: p1"]
+        )
+        assert Effect(EffectKind.ABILITY, "Drizzle", "drizzle") == kwargs.from_
+        assert PokemonIdent(SideId.P2, "a", "p1") == kwargs.of
+
+    def test_flags(self):
+        kwargs = KwArgs.parse(["", "move", "p1a: Clefable", "Wish", "", "[still]"])
+        assert "still" in kwargs
+        assert "miss" not in kwargs
+        assert kwargs.from_ is None
+        assert kwargs.of is None
+
+    def test_is_from(self):
+        kwargs = KwArgs.parse(
+            ["", "move", "p1a: X", "Tackle", "p2a: Y", "[from] move: Sleep Talk"]
+        )
+        assert kwargs.is_from("sleeptalk")
+        assert kwargs.is_from("sleeptalk", EffectKind.MOVE)
+        assert not kwargs.is_from("sleeptalk", EffectKind.ABILITY)
+
+    def test_from_is_not_affected_by_trailing_flags(self):
+        kwargs = KwArgs.parse(
+            ["", "move", "p1a: X", "Tackle", "p2a: Y", "[from] lockedmove", "[miss]"]
+        )
+        assert kwargs.is_from("lockedmove")
+        assert "miss" in kwargs
+
+    def test_valued_kwarg(self):
+        kwargs = KwArgs.parse(
+            [
+                "",
+                "-activate",
+                "p2a: X",
+                "ability: Mummy",
+                "p1a: Y",
+                "[ability] Rough Skin",
+            ]
+        )
+        assert "Rough Skin" == kwargs.get("ability")
+        assert kwargs.get("of") is None
+
+    def test_kwarg_without_space(self):
+        # |move|p1a: X|Z-Thunderbolt|p2a: Y|[anim]Thunderbolt
+        kwargs = KwArgs.parse(
+            ["", "move", "p1a: X", "Z-Thunderbolt", "p2a: Y", "[anim]Thunderbolt"]
+        )
+        assert "Thunderbolt" == kwargs.get("anim")
+
+    def test_positional_args(self):
+        split_msg = ["", "move", "p1a: X", "Wish", "", "[still]"]
+        assert ["p1a: X", "Wish", ""] == positional_args(split_msg)

@@ -2,6 +2,7 @@ import logging
 
 from fp import constants
 from fp.battle.inference import is_opponent
+from fp.battle.protocol_types import KwArgs
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import random_battles_evs, type_effectiveness_modifier
 from fp.battle.state import Pokemon
@@ -105,7 +106,7 @@ class RandomBattleMode(BattleMode):
             is_opponent(battle, split_msg)
             and "transform" not in pkmn.volatile_statuses
             and move_name not in self.datasets.get_all_possible_moves(pkmn)
-            and "from" not in split_msg[-1]
+            and KwArgs.parse(split_msg).from_ is None
         ):
             actual_zoroark = None
             zoroark_hisui = Pokemon("zoroarkhisui", 100)

@@ -18,8 +18,9 @@ from fp.battle.protocol_types import (
     Condition,
     Effect,
     EffectKind,
+    KwArgs,
     PokemonIdent,
-    SideId,
+    positional_args,
 )
 from fp.battle.inference import is_opponent
 from fp.battle.inference import check_speed_ranges
@@ -31,11 +32,6 @@ from fp.battle.inference import check_heavydutyboots
 
 
 logger = logging.getLogger(__name__)
-
-FROM_SLEEPTALK = [
-    "[from]sleeptalk",
-    "[from]movesleeptalk",
-]
 
 ITEMS_REVEALED_ON_SWITCH_IN = [
     # boosterenergy technically only revealed if pkmn has quarkdrive/protosynthesis
@@ -61,23 +57,6 @@ SIDE_CONDITION_DEFAULT_DURATION = {
     constants.MIST: 5,
     constants.TAILWIND: 4,
 }
-
-
-def is_from_sleeptalk(msg: str) -> bool:
-    if normalize_name(msg) in FROM_SLEEPTALK:
-        return True
-    return False
-
-
-def of_ident(msg: str) -> PokemonIdent | None:
-    if not msg.startswith("[of]"):
-        return None
-    return PokemonIdent.parse(msg.removeprefix("[of]"))
-
-
-def of_side(msg: str) -> SideId | None:
-    ident = of_ident(msg)
-    return ident.side if ident is not None else None
 
 
 def remove_volatile(pkmn, volatile):
@@ -196,6 +175,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         other_side = battle.opponent
         side.side_conditions[constants.TOXIC_COUNT] = 0
 
+    kwargs = KwArgs.parse(split_msg)
     baton_passed_boosts = None
     switch_keep_volatiles = []
     if side.active is not None:
@@ -236,7 +216,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             side.active.ability = side.active.original_ability
             side.active.original_ability = None
 
-        if split_msg[-1] == "[from] Baton Pass":
+        if kwargs.is_from("batonpass"):
             side.baton_passing = False
             logger.info(
                 "Baton passing, preserving boosts: {}".format(dict(side.active.boosts))
@@ -249,7 +229,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             if constants.LEECH_SEED in side.active.volatile_statuses:
                 logger.info("Baton passing, preserving leechseed")
                 switch_keep_volatiles.append(constants.LEECH_SEED)
-        elif split_msg[-1] == "[from] Shed Tail":
+        elif kwargs.is_from("shedtail"):
             side.shed_tailing = False
 
             if constants.SUBSTITUTE in side.active.volatile_statuses:
@@ -522,11 +502,12 @@ def sethp(battle, split_msg):
 
 def heal_or_damage(battle, split_msg):
     condition = Condition.parse(split_msg[3])
+    kwargs = KwArgs.parse(split_msg)
     if is_opponent(battle, split_msg):
         side = battle.opponent
         other_side = battle.user
         pkmn = battle.opponent.active
-        if len(split_msg) == 5 and split_msg[4] == "[from] move: Revival Blessing":
+        if kwargs.is_from("revivalblessing", EffectKind.MOVE):
             nickname = Pokemon.extract_nickname_from_pokemonshowdown_string(
                 split_msg[2]
             )
@@ -542,7 +523,7 @@ def heal_or_damage(battle, split_msg):
         side = battle.user
         other_side = battle.opponent
         pkmn = battle.user.active
-        if len(split_msg) == 5 and split_msg[4] == "[from] move: Revival Blessing":
+        if kwargs.is_from("revivalblessing", EffectKind.MOVE):
             nickname = Pokemon.extract_nickname_from_pokemonshowdown_string(
                 split_msg[2]
             )
@@ -554,27 +535,22 @@ def heal_or_damage(battle, split_msg):
             pkmn.max_hp = condition.max_hp
 
     # increase the amount of turns toxic has been active
-    if (
-        len(split_msg) == 5
-        and condition.status == constants.Status.TOXIC
-        and "[from] psn" in split_msg[4]
+    if condition.status == constants.Status.TOXIC and kwargs.is_from(
+        constants.Status.POISON
     ):
         side.side_conditions[constants.TOXIC_COUNT] += 1
 
     if (
-        len(split_msg) == 6
-        and split_msg[4].startswith("[from] item:")
-        and of_side(split_msg[5]) == other_side.name
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ITEM
+        and kwargs.of is not None
+        and kwargs.of.side == other_side.name
     ):
-        item = Effect.parse(split_msg[4]).id
+        item = kwargs.from_.id
         logger.info("Setting {}'s item to: {}".format(other_side.active.name, item))
         other_side.active.item = item
 
-    if (
-        len(split_msg) >= 5
-        and split_msg[-1].startswith("[from]")
-        and split_msg[-1].endswith("Healing Wish")
-    ):
+    if kwargs.is_from("healingwish"):
         logger.info(
             "{} was healed from healing wish, setting side condition to 0".format(
                 side.active.name
@@ -584,12 +560,13 @@ def heal_or_damage(battle, split_msg):
 
     # set the ability for the other side (the side not taking damage, '-damage' only)
     if (
-        len(split_msg) == 6
-        and split_msg[4].startswith("[from] ability:")
-        and of_side(split_msg[5]) == other_side.name
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+        and kwargs.of is not None
+        and kwargs.of.side == other_side.name
         and split_msg[1] == "-damage"
     ):
-        ability = Effect.parse(split_msg[4]).id
+        ability = kwargs.from_.id
         logger.info(
             "Setting {}'s ability to: {}".format(other_side.active.name, ability)
         )
@@ -597,29 +574,31 @@ def heal_or_damage(battle, split_msg):
 
     # set the ability of the side (the side being healed, '-heal' only)
     if (
-        len(split_msg) == 6
-        and Effect.parse(split_msg[4]).kind == EffectKind.ABILITY
-        and of_side(split_msg[5]) == other_side.name
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+        and kwargs.of is not None
+        and kwargs.of.side == other_side.name
         and split_msg[1] == "-heal"
     ):
-        ability = Effect.parse(split_msg[4]).id
+        ability = kwargs.from_.id
         logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
         pkmn.ability = ability
 
     # give that pokemon an item if this string specifies one
     if (
-        len(split_msg) == 5
-        and Effect.parse(split_msg[4]).kind == EffectKind.ITEM
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ITEM
+        and kwargs.of is None
         and pkmn.item is not None
     ):
-        item = Effect.parse(split_msg[4]).id
+        item = kwargs.from_.id
         logger.info("Setting {}'s item to: {}".format(pkmn.name, item))
         pkmn.item = item
 
     # gen 1 if you are trapping the opponent and hit yourself in confusion, the opponent is released
     if (
         battle.gen.partial_trapping_mechanics
-        and split_msg[-1] == "[from] confusion"
+        and kwargs.is_from(constants.CONFUSION)
         and (
             constants.PARTIALLY_TRAPPED in other_side.active.volatile_statuses
             or other_side.active.volatile_status_durations[constants.PARTIALLY_TRAPPED]
@@ -644,17 +623,16 @@ def faint(battle, split_msg):
 
 def fail(battle, split_msg):
     # |-fail|p2a: Dragapult|unboost|[from] ability: Clear Body|[of] p2a: Dragapult
+    kwargs = KwArgs.parse(split_msg)
     if (
-        len(split_msg) > 5
-        and split_msg[4].startswith("[from] ability: ")
-        and split_msg[5].startswith("[of]")
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+        and kwargs.of is not None
     ):
         ability_side = (
-            battle.user
-            if of_side(split_msg[5]) == battle.user.name
-            else battle.opponent
+            battle.user if kwargs.of.side == battle.user.name else battle.opponent
         )
-        ability = Effect.parse(split_msg[4]).id
+        ability = kwargs.from_.id
         logger.info(
             "Setting {}'s ability to: {}".format(ability_side.active.name, ability)
         )
@@ -672,6 +650,8 @@ def move(battle, split_msg):
         opposing_pkmn = battle.opponent.active
 
     move_name = normalize_name(split_msg[3].strip().lower())
+    kwargs = KwArgs.parse(split_msg)
+    from_sleeptalk = kwargs.is_from("sleeptalk")
 
     zoroark_from_reserves = side.find_pokemon_in_reserves(
         "zoroark"
@@ -681,10 +661,7 @@ def move(battle, split_msg):
         battle, side, pkmn, move_name, split_msg, zoroark_from_reserves
     )
 
-    if (
-        any(is_from_sleeptalk(msg) for msg in split_msg)
-        and battle.gen.tracks_consecutive_sleep_talks
-    ):
+    if from_sleeptalk and battle.gen.tracks_consecutive_sleep_talks:
         pkmn.gen_3_consecutive_sleep_talks += 1
         logger.info(
             "{} gen3 consecutive sleep talks: {}".format(
@@ -702,7 +679,7 @@ def move(battle, split_msg):
         battle.gen.partial_trapping_mechanics
         and all_move_json.get(move_name, {}).get(constants.VOLATILE_STATUS)
         == constants.PARTIALLY_TRAPPED
-        and not any(msg == "[miss]" for msg in split_msg)
+        and "miss" not in kwargs
     ):
         opposing_pkmn.volatile_status_durations[constants.PARTIALLY_TRAPPED] += 1
         if constants.PARTIALLY_TRAPPED not in opposing_pkmn.volatile_statuses:
@@ -743,7 +720,7 @@ def move(battle, split_msg):
             )
             pkmn.volatile_statuses.append("gen1paralysisnullify")
 
-    if is_from_sleeptalk(split_msg[-1]):
+    if from_sleeptalk:
         move_object = pkmn.get_move(move_name)
         if move_object is None:
             pkmn.add_move(move_name)
@@ -754,12 +731,9 @@ def move(battle, split_msg):
             )
         return
 
-    elif any(
-        "[from]" in msg and msg != "[from]lockedmove" and msg != "[from] lockedmove"
-        for msg in split_msg
-    ):
-        if split_msg[-1].startswith("[from] ability:"):
-            ability = Effect.parse(split_msg[-1]).id
+    elif kwargs.from_ is not None and not kwargs.is_from(constants.LOCKED_MOVE):
+        if kwargs.from_.kind == EffectKind.ABILITY:
+            ability = kwargs.from_.id
             logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
             pkmn.ability = ability
         return
@@ -891,13 +865,13 @@ def move(battle, split_msg):
     try:
         category = all_move_json[move_name][constants.CATEGORY]
         logger.info("Setting {}'s last used move: {}".format(pkmn.name, move_name))
-        if not any(is_from_sleeptalk(msg) for msg in split_msg):
+        if not from_sleeptalk:
             side.last_used_move = LastUsedMove(
                 pokemon_name=pkmn.name, move=move_name, turn=battle.turn
             )
     except KeyError:
         category = None
-        if not any(is_from_sleeptalk(msg) for msg in split_msg):
+        if not from_sleeptalk:
             side.last_used_move = LastUsedMove(
                 pokemon_name=pkmn.name, move=constants.DO_NOTHING_MOVE, turn=battle.turn
             )
@@ -916,7 +890,7 @@ def move(battle, split_msg):
         pkmn.impossible_items.add(constants.LIFE_ORB)
 
     # there is nothing special in the protocol for "wish" - it must be extracted here
-    if move_name == constants.WISH and "still" not in split_msg[4]:
+    if move_name == constants.WISH and "still" not in kwargs:
         logger.info(
             "{} used wish - expecting {} health of recovery next turn".format(
                 side.active.name, side.active.max_hp / 2
@@ -988,11 +962,12 @@ def status(battle, split_msg):
         pkmn = battle.user.active
         other_side = battle.opponent
 
-    if len(split_msg) > 4 and Effect.parse(split_msg[4]).kind == EffectKind.ITEM:
-        pkmn.item = Effect.parse(split_msg[4]).id
+    kwargs = KwArgs.parse(split_msg)
+    if kwargs.from_ is not None and kwargs.from_.kind == EffectKind.ITEM:
+        pkmn.item = kwargs.from_.id
 
-    if len(split_msg) == 5 and split_msg[3] == "slp":
-        if split_msg[4] == "[from] move: Rest":
+    if split_msg[3] == constants.Status.SLEEP:
+        if kwargs.is_from("rest", EffectKind.MOVE):
             logger.info("Setting rest_turns to 3 for {}".format(pkmn.name))
             pkmn.rest_turns = 3
         else:
@@ -1013,11 +988,12 @@ def status(battle, split_msg):
 
     # ["", "-status", "p1a: Caterpie", "brn", "[from] ability: Flame Body", "[of] p2a: Caterpie"]
     if (
-        len(split_msg) > 5
-        and split_msg[4].startswith("[from] ability: ")
-        and of_side(split_msg[5]) == other_side.name
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+        and kwargs.of is not None
+        and kwargs.of.side == other_side.name
     ):
-        ability = Effect.parse(split_msg[4]).id
+        ability = kwargs.from_.id
         logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
         other_side.active.ability = ability
 
@@ -1031,12 +1007,9 @@ def activate(battle, split_msg):
         other_pkmn = battle.opponent.active
 
     effect = Effect.parse(split_msg[3])
+    kwargs = KwArgs.parse(split_msg)
 
-    if (
-        effect.id == constants.SUBSTITUTE
-        and len(split_msg) > 4
-        and split_msg[4] == "[damage]"
-    ):
+    if effect.id == constants.SUBSTITUTE and "damage" in kwargs:
         logger.info(
             "{}'s substitute took damage, setting substitute_hit to True".format(
                 pkmn.name
@@ -1055,7 +1028,8 @@ def activate(battle, split_msg):
         pkmn.ability = ability
 
         if ability in ["mummy", "lingeringaroma"]:
-            original_ability = normalize_name(split_msg[4])
+            # |-activate|p2a: Cofagrigus|ability: Mummy|p1a: Garchomp|[ability] Rough Skin
+            original_ability = normalize_name(kwargs.get("ability"))
             other_pkmn.ability = ability
             other_pkmn.original_ability = original_ability
             logger.info(
@@ -1064,9 +1038,7 @@ def activate(battle, split_msg):
                 )
             )
 
-    elif effect.kind == EffectKind.ITEM and not any(
-        i == "[consumed]" for i in split_msg
-    ):
+    elif effect.kind == EffectKind.ITEM and "consumed" not in kwargs:
         item = effect.id
         logger.info("Setting {}'s item to {}".format(pkmn.name, item))
         pkmn.item = item
@@ -1140,6 +1112,7 @@ def start_volatile_status(battle, split_msg):
         side = battle.user
 
     effect = Effect.parse(split_msg[3])
+    kwargs = KwArgs.parse(split_msg)
     volatile_status = effect.id
 
     # for some reason futuresight is sent with the `-start` message
@@ -1169,7 +1142,7 @@ def start_volatile_status(battle, split_msg):
         pkmn.volatile_statuses.append(volatile_status)
 
     if volatile_status == constants.SUBSTITUTE:
-        if len(split_msg) >= 5 and split_msg[4] == "[from] move: Shed Tail":
+        if kwargs.is_from("shedtail", EffectKind.MOVE):
             logger.info(
                 "{} started a substitute from shed tail - setting shed_tailing to True".format(
                     pkmn.name
@@ -1190,7 +1163,7 @@ def start_volatile_status(battle, split_msg):
     if volatile_status == constants.CONFUSION:
         logger.info("{} got confused, no longer guessing lumberry".format(pkmn.name))
         pkmn.impossible_items.add("lumberry")
-        if split_msg[-1] == "[fatigue]":
+        if "fatigue" in kwargs:
             logger.info(
                 "{} got confused from fatigue, removing lockedmove from volatile statuses".format(
                     pkmn.name
@@ -1211,12 +1184,17 @@ def start_volatile_status(battle, split_msg):
     if effect.kind == EffectKind.ABILITY:
         pkmn.ability = volatile_status
 
-    if len(split_msg) == 6 and constants.ABILITY in normalize_name(split_msg[5]):
-        pkmn.ability = normalize_name(split_msg[5].split("ability:")[-1])
+    # |-start|p1a: Greninja|typechange|Water|[from] ability: Protean
+    if (
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+        and kwargs.of is None
+    ):
+        pkmn.ability = kwargs.from_.id
 
     if volatile_status == constants.TYPECHANGE:
-        if split_msg[4] == "[from] move: Reflect Type":
-            pkmn_name = normalize_name(split_msg[5].split(":")[-1])
+        if kwargs.is_from("reflecttype", EffectKind.MOVE) and kwargs.of is not None:
+            pkmn_name = normalize_name(kwargs.of.nickname)
             new_types = deepcopy(pokedex[pkmn_name][constants.TYPES])
         else:
             new_types = [normalize_name(t) for t in split_msg[4].split("/")]
@@ -1231,6 +1209,7 @@ def end_volatile_status(battle, split_msg):
     else:
         pkmn = battle.user.active
 
+    kwargs = KwArgs.parse(split_msg)
     volatile_status = Effect.parse(split_msg[3]).id
     if volatile_status == constants.SUBSTITUTE:
         logger.info("Substitute ended for {}".format(pkmn.name))
@@ -1241,7 +1220,7 @@ def end_volatile_status(battle, split_msg):
             if vs.startswith(volatile_status):
                 logger.info("Removing {} from {}".format(vs, pkmn.name))
                 pkmn.volatile_statuses.remove(vs)
-    elif len(split_msg) >= 5 and constants.PARTIALLY_TRAPPED in split_msg[4]:
+    elif constants.PARTIALLY_TRAPPED in kwargs:
         remove_volatile(pkmn, constants.PARTIALLY_TRAPPED)
     elif volatile_status not in pkmn.volatile_statuses:
         logger.warning(
@@ -1334,10 +1313,11 @@ def weather(battle, split_msg):
     #  `|-weather|RainDance|[from] ability: Drizzle|[of] p2a: Politoed`
     #
     # If that information is present, we can infer certain things about the Side
+    kwargs = KwArgs.parse(split_msg)
     side = None
     side_name = None
-    if len(split_msg) == 5:
-        if of_side(split_msg[-1]) == battle.opponent.name:
+    if kwargs.of is not None:
+        if kwargs.of.side == battle.opponent.name:
             side = battle.opponent
             side_name = "opponent"
         else:
@@ -1354,14 +1334,14 @@ def weather(battle, split_msg):
     elif side is not None and side_name is not None:
         battle.weather_source = f"{side_name}:{side.active.name}"
 
-    if split_msg[-1] == "[upkeep]" and battle.weather_turns_remaining > 0:
+    if "upkeep" in kwargs and battle.weather_turns_remaining > 0:
         battle.weather_turns_remaining -= 1
-    elif split_msg[-1] == "[upkeep]":
+    elif "upkeep" in kwargs:
         logger.debug("Weather {} permanently active".format(weather_name))
     elif (
-        len(split_msg) > 3
-        and battle.gen.ability_weather_is_permanent
-        and split_msg[3].startswith("[from] ability:")
+        battle.gen.ability_weather_is_permanent
+        and kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
     ):
         battle.weather_turns_remaining = -1
     elif (
@@ -1438,8 +1418,12 @@ def weather(battle, split_msg):
                 )
                 pkmn.item = item
 
-    if side is not None and len(split_msg) >= 5 and of_side(split_msg[4]) == side.name:
-        ability = Effect.parse(split_msg[3]).id
+    if (
+        side is not None
+        and kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.ABILITY
+    ):
+        ability = kwargs.from_.id
         logger.info("Setting {} ability to {}".format(side.active.name, ability))
         side.active.ability = ability
 
@@ -1543,7 +1527,16 @@ def swapsideconditions(battle, _):
 
 def set_item(battle, split_msg):
     """Set the opponent's item"""
-    if is_opponent(battle, split_msg):
+    kwargs = KwArgs.parse(split_msg)
+
+    # frisk reveals the item of the pokemon opposing the frisker
+    # gen4/5 do not identify the pokemon holding the item:
+    # |-item||Life Orb|[from] ability: Frisk|[of] p2a: Furret
+    if kwargs.is_from("frisk", EffectKind.ABILITY) and kwargs.of is not None:
+        frisker_is_user = kwargs.of.side == battle.user.name
+        side = battle.opponent if frisker_is_user else battle.user
+        other_side = battle.user if frisker_is_user else battle.opponent
+    elif is_opponent(battle, split_msg):
         side = battle.opponent
         other_side = battle.user
     else:
@@ -1553,7 +1546,7 @@ def set_item(battle, split_msg):
     item = normalize_name(split_msg[3].strip())
 
     if (
-        len(split_msg) >= 5
+        kwargs.from_ is not None
         and side.active.removed_item is None
         and item != side.active.item
         and side.active.item not in [constants.UNKNOWN_ITEM]
@@ -1563,33 +1556,15 @@ def set_item(battle, split_msg):
 
     # when the bot gets tricked we set the opponent's removed item
     if (
-        len(split_msg) >= 5
-        and "[from] move: Trick" in split_msg[4]
-        and not is_opponent(battle, split_msg)
+        kwargs.is_from("trick", EffectKind.MOVE)
+        and side is battle.user
         and other_side.active.removed_item is None
     ):
         logger.info("Setting opponent's removed_item to {}".format(item))
         other_side.active.removed_item = item
 
-    # for gen5 frisk only
-    # the frisk message will (incorrectly imo) show the item as belonging to the
-    # pokemon with frisk
-    #
-    # e.g. Furret is frisking the opponent:
-    # |-item|p2a: Furret|Life Orb|[from] ability: Frisk|[of] p2a: Furret
-    if (
-        len(split_msg) == 6
-        and split_msg[4] == "[from] ability: Frisk"
-        and of_ident(split_msg[5]) == PokemonIdent.parse(split_msg[2])
-    ):
-        logger.info(
-            "{} frisked the opponent's item as {}".format(side.active.name, item)
-        )
-        logger.info("Setting {}'s item to {}".format(other_side.active.name, item))
-        other_side.active.item = item
-    else:
-        logger.info("Setting {}'s item to {}".format(side.active.name, item))
-        side.active.item = item
+    logger.info("Setting {}'s item to {}".format(side.active.name, item))
+    side.active.item = item
 
 
 def remove_item(battle, split_msg):
@@ -1615,7 +1590,7 @@ def remove_item(battle, split_msg):
         logger.info("Adding unburden volatile to {}".format(side.active.name))
         side.active.volatile_statuses.append("unburden")
 
-    if len(split_msg) >= 5 and "knockoff" in normalize_name(split_msg[4]):
+    if KwArgs.parse(split_msg).is_from("knockoff"):
         logger.info("Knockoff removed {}'s item".format(side.active.name))
         side.active.knocked_off = True
 
@@ -1628,12 +1603,11 @@ def immune(battle, split_msg):
         side = battle.user
         pkmn = side.active
 
-    for msg in split_msg[3:]:
-        effect = Effect.parse(msg)
-        if effect.kind == EffectKind.ABILITY:
-            ability = effect.id
-            logger.info("Setting {}'s ability to {}".format(side.active.name, ability))
-            side.active.ability = ability
+    kwargs = KwArgs.parse(split_msg)
+    if kwargs.from_ is not None and kwargs.from_.kind == EffectKind.ABILITY:
+        ability = kwargs.from_.id
+        logger.info("Setting {}'s ability to {}".format(side.active.name, ability))
+        side.active.ability = ability
 
     zoroark_from_reserves = side.find_pokemon_in_reserves(
         "zoroark"
@@ -1655,7 +1629,7 @@ def immune(battle, split_msg):
             side.active.types,
         )
         != 0
-        and "from" not in split_msg[-1]
+        and kwargs.from_ is None
         and not all(x == 0 for x in expected_damage_rolls)
         and battle.user.future_sight[0] != 1
         and not (
@@ -1679,11 +1653,11 @@ def update_ability(battle, split_msg):
         other_side = battle.opponent
 
     ability = normalize_name(split_msg[3])
+    kwargs = KwArgs.parse(split_msg)
 
-    if len(split_msg) >= 6 and (
-        "ability:" in split_msg[4] or "ability:" in split_msg[5]
-    ):
-        original_ability = Effect.parse(split_msg[4]).id
+    if kwargs.from_ is not None and kwargs.from_.kind == EffectKind.ABILITY:
+        # |-ability|p2a: Porygon2|Levitate|Trace|[from] ability: Trace|[of] p1a: Claydol
+        original_ability = normalize_name(positional_args(split_msg)[2])
         logger.info(
             "Setting {}'s original ability to {}".format(
                 side.active.name, original_ability
@@ -1691,7 +1665,11 @@ def update_ability(battle, split_msg):
         )
         side.active.original_ability = original_ability
 
-        if of_side(split_msg[5]) == other_side.name:
+        if (
+            kwargs.from_.id == "trace"
+            and kwargs.of is not None
+            and kwargs.of.side == other_side.name
+        ):
             logger.info(
                 "Setting {}'s ability to {}".format(other_side.active.name, ability)
             )
@@ -2281,11 +2259,9 @@ def transform(battle, split_msg):
     for mv in side.active.moves:
         mv.current_pp = 5
 
-    if (
-        split_msg[-1].startswith("[from]")
-        and Effect.parse(split_msg[-1]).kind == EffectKind.ABILITY
-    ):
-        side.active.original_ability = Effect.parse(split_msg[-1]).id
+    kwargs = KwArgs.parse(split_msg)
+    if kwargs.from_ is not None and kwargs.from_.kind == EffectKind.ABILITY:
+        side.active.original_ability = kwargs.from_.id
     elif side.active.ability is not None:
         side.active.original_ability = side.active.ability
 

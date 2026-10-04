@@ -1,5 +1,6 @@
 import re
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from fp import constants
@@ -7,6 +8,7 @@ from fp.battle.helpers import normalize_name
 
 
 IDENT_REGEX = re.compile(r"^(p[1-4])([a-z]?)(?:: ?(.*))?$", re.DOTALL)
+KWARG_REGEX = re.compile(r"^\[([^\]]+)\]\s*(.*)$", re.DOTALL)
 
 
 class SideId(StrEnum):
@@ -183,3 +185,52 @@ class Condition:
         if self.fainted:
             return 0.0
         return self.hp / self.max_hp
+
+
+@dataclass(frozen=True)
+class KwArgs:
+    """
+    The trailing keyword arguments of a protocol line
+
+    "[from] ability: Drizzle" -> from_=Effect(ABILITY, "Drizzle", "drizzle")
+    "[of] p2a: Politoed"      -> of=PokemonIdent(p2, "a", "Politoed")
+    "[silent]"                -> "silent" in kwargs
+    "[spread] p1a,p2a"        -> kwargs.get("spread") == "p1a,p2a"
+    """
+
+    from_: Effect | None = None
+    of: PokemonIdent | None = None
+    values: Mapping[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def parse(cls, split_msg: list[str]) -> "KwArgs":
+        # positional args never start with "[": idents start with the side id
+        # and nicknames only ever appear inside idents
+        values = {}
+        for part in split_msg[2:]:
+            match = KWARG_REGEX.match(part)
+            if match is not None:
+                key, value = match.groups()
+                values.setdefault(key.strip(), value.strip())
+
+        from_ = Effect.parse(values["from"]) if values.get("from") else None
+        of = PokemonIdent.parse(values["of"]) if values.get("of") else None
+        return cls(from_=from_, of=of, values=values)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.values
+
+    def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+    def is_from(self, effect_id: str, kind: EffectKind | None = None) -> bool:
+        return (
+            self.from_ is not None
+            and self.from_.id == effect_id
+            and (kind is None or self.from_.kind == kind)
+        )
+
+
+def positional_args(split_msg: list[str]) -> list[str]:
+    """The non-keyword arguments of a protocol line, excluding the message type"""
+    return [p for p in split_msg[2:] if KWARG_REGEX.match(p) is None]

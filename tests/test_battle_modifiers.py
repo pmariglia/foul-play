@@ -1225,6 +1225,23 @@ class TestActivate:
         self.battle.opponent.active = self.opponent_active
         self.battle.user.active = self.user_active
 
+    def test_mummy_activating_with_previous_ability_keyword(self):
+        self.battle.user.active.ability = "intimidate"
+        self.battle.opponent.active.ability = None
+        split_msg = [
+            "",
+            "-activate",
+            "p2a: Caterpie",
+            "ability: Mummy",
+            "p1a: Caterpie",
+            "[ability] Intimidate",
+        ]
+        activate(self.battle, split_msg)
+
+        assert "mummy" == self.battle.opponent.active.ability
+        assert "mummy" == self.battle.user.active.ability
+        assert "intimidate" == self.battle.user.active.original_ability
+
     def test_lingeringarmoa_activating_to_change_abilities(self):
         self.battle.user.active.ability = "intimidate"
         self.battle.opponent.active.ability = (
@@ -1235,8 +1252,8 @@ class TestActivate:
             "-activate",
             "p2a: Caterpie",
             "ability: Lingering Aroma",
-            "Intimidate",
-            "[of] p1a: Caterpie",
+            "p1a: Caterpie",
+            "[ability] Intimidate",
         ]
         activate(self.battle, split_msg)
 
@@ -1720,7 +1737,8 @@ class TestMove:
             "move",
             "p2a: Caterpie",
             "String Shot",
-            "[from]Magic Bounce",
+            "",
+            "[from] ability: Magic Bounce",
             "[still]",
         ]
 
@@ -1762,7 +1780,13 @@ class TestMove:
         assert 1 == len(self.battle.opponent.active.moves)
 
     def test_increments_gen3_consecutive_sleeptalk_turns_when_using_sleeptalk(self):
-        split_msg = ["", "move", "p2a: Caterpie", "Earthquake", "[from]Sleep Talk"]
+        split_msg = [
+            "",
+            "move",
+            "p2a: Caterpie",
+            "Earthquake",
+            "[from] move: Sleep Talk",
+        ]
         self.battle.opponent.active.status = constants.Status.SLEEP
         self.battle.generation = "gen3"
 
@@ -1795,7 +1819,13 @@ class TestMove:
         assert 0 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
     def test_does_not_decrement_pp_if_move_is_called_by_sleeptalk(self):
-        split_msg = ["", "move", "p2a: Caterpie", "String Shot", "[from]Sleep Talk"]
+        split_msg = [
+            "",
+            "move",
+            "p2a: Caterpie",
+            "String Shot",
+            "[from] move: Sleep Talk",
+        ]
         m = Move("String Shot")
         m.current_pp = 5
         self.battle.opponent.active.moves.append(m)
@@ -1804,7 +1834,13 @@ class TestMove:
         assert 5 == m.current_pp
 
     def test_sets_move_if_doesnt_exist_from_sleeptalk(self):
-        split_msg = ["", "move", "p2a: Caterpie", "String Shot", "[from]Sleep Talk"]
+        split_msg = [
+            "",
+            "move",
+            "p2a: Caterpie",
+            "String Shot",
+            "[from] move: Sleep Talk",
+        ]
         move(self.battle, split_msg)
 
         assert Move("stringshot") in self.battle.opponent.active.moves
@@ -1819,7 +1855,7 @@ class TestMove:
             "move",
             "p2a: Caterpie",
             "String Shot",
-            "[from]move: Sleep Talk",
+            "[from] move: Sleep Talk",
         ]
         move(self.battle, split_msg)
 
@@ -1835,7 +1871,24 @@ class TestMove:
             "move",
             "p2a: Caterpie",
             "String Shot",
-            "[from]move: Sleep Talk",
+            "[from] move: Sleep Talk",
+        ]
+        m = Move("String Shot")
+        m.current_pp = 5
+        self.battle.opponent.active.moves.append(m)
+        move(self.battle, split_msg)
+
+        assert 5 == m.current_pp
+
+    def test_does_not_decrement_pp_if_move_called_by_sleeptalk_misses(self):
+        split_msg = [
+            "",
+            "move",
+            "p2a: Caterpie",
+            "String Shot",
+            "p1a: Caterpie",
+            "[from] move: Sleep Talk",
+            "[miss]",
         ]
         m = Move("String Shot")
         m.current_pp = 5
@@ -2094,7 +2147,7 @@ class TestMove:
 
     def test_failed_wish_does_not_set_wish(self):
         self.battle.user.wish = (1, 100)
-        split_msg = ["", "move", "p1a: Clefable", "Wish", "[still]"]
+        split_msg = ["", "move", "p1a: Clefable", "Wish", "", "[still]"]
 
         move(self.battle, split_msg)
 
@@ -2643,6 +2696,20 @@ class TestStatus:
         status(self.battle, split_msg)
         assert "flamebody" == self.battle.opponent.active.ability
 
+    def test_sleep_from_ability_resets_sleep_turns(self):
+        self.battle.user.active.sleep_turns = 2
+        split_msg = [
+            "",
+            "-status",
+            "p1a: Caterpie",
+            "slp",
+            "[from] ability: Effect Spore",
+            "[of] p2a: Caterpie",
+        ]
+        status(self.battle, split_msg)
+        assert 0 == self.battle.user.active.sleep_turns
+        assert "effectspore" == self.battle.opponent.active.ability
+
     def test_sets_ability_when_status_comes_from_effectspore(self):
         split_msg = [
             "",
@@ -2806,6 +2873,48 @@ class TestSetItem:
 
         self.user_active = Pokemon("weedle", 100)
         self.battle.user.active = self.user_active
+
+    def test_gen5_frisk_from_opponent_sets_user_item(self):
+        split_msg = [
+            "",
+            "-item",
+            "",
+            "Leftovers",
+            "[from] ability: Frisk",
+            "[of] p2a: Caterpie",
+        ]
+        set_item(self.battle, split_msg)
+
+        assert "leftovers" == self.battle.user.active.item
+        assert "leftovers" != self.battle.opponent.active.item
+
+    def test_gen5_frisk_from_user_sets_opponent_item(self):
+        split_msg = [
+            "",
+            "-item",
+            "",
+            "Leftovers",
+            "[from] ability: Frisk",
+            "[of] p1a: Weedle",
+        ]
+        set_item(self.battle, split_msg)
+
+        assert "leftovers" == self.battle.opponent.active.item
+        assert "leftovers" != self.battle.user.active.item
+
+    def test_frisk_from_user_sets_opponent_item(self):
+        split_msg = [
+            "",
+            "-item",
+            "p2a: Caterpie",
+            "Leftovers",
+            "[from] ability: Frisk",
+            "[of] p1a: Weedle",
+        ]
+        set_item(self.battle, split_msg)
+
+        assert "leftovers" == self.battle.opponent.active.item
+        assert "leftovers" != self.battle.user.active.item
 
     def test_sets_remove_item_when_tricked(self):
         split_msg = ["", "-item", "p2a: Caterpie", "Leftovers", "[from] move: Trick"]
@@ -3333,6 +3442,40 @@ class TestUpdateAbility:
         assert "levitate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.opponent.active.original_ability
 
+    def test_trace_sets_the_traced_pokemons_ability(self):
+        self.battle.user.active.ability = None
+        split_msg = [
+            "",
+            "-ability",
+            "p2a: Caterpie",
+            "Levitate",
+            "Trace",
+            "[from] ability: Trace",
+            "[of] p1a: Weedle",
+        ]
+        update_ability(self.battle, split_msg)
+
+        assert "levitate" == self.battle.opponent.active.ability
+        assert "trace" == self.battle.opponent.active.original_ability
+        assert "levitate" == self.battle.user.active.ability
+
+    def test_wandering_spirit_does_not_set_ability_of_the_other_pokemon(self):
+        self.battle.user.active.ability = None
+        split_msg = [
+            "",
+            "-ability",
+            "p2a: Caterpie",
+            "Wandering Spirit",
+            "Intimidate",
+            "[from] ability: Wandering Spirit",
+            "[of] p1a: Weedle",
+        ]
+        update_ability(self.battle, split_msg)
+
+        assert "wanderingspirit" == self.battle.opponent.active.ability
+        assert "intimidate" == self.battle.opponent.active.original_ability
+        assert self.battle.user.active.ability is None
+
     def test_sets_original_ability_from_trace(self):
         self.battle.user.active.ability = "intimidate"
         self.battle.opponent.active.ability = None
@@ -3342,6 +3485,7 @@ class TestUpdateAbility:
             "-ability",
             "p2a: Caterpie",
             "Intimidate",
+            "Trace",
             "[from] ability: Trace",
             "[of] p1a: Caterpie",
         ]
@@ -3361,6 +3505,7 @@ class TestUpdateAbility:
             "-ability",
             "p2a: Caterpie",
             "Intimidate",
+            "Trace",
             "[from] ability: Trace",
             "[of] p1a: Caterpie",
         ]
@@ -3381,6 +3526,7 @@ class TestUpdateAbility:
             "-ability",
             "p1a: Caterpie",
             "Intimidate",
+            "Trace",
             "[from] ability: Trace",
             "[of] p2a: Caterpie",
         ]
@@ -4488,7 +4634,10 @@ class TestUpkeep:
 
         cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
         move(self.battle, ["", "move", "p1a: Weedle", "Sleeptalk"])
-        move(self.battle, ["", "move", "p1a: Weedle", "Tackle", "[from]Sleep Talk"])
+        move(
+            self.battle,
+            ["", "move", "p1a: Weedle", "Tackle", "[from] move: Sleep Talk"],
+        )
         upkeep(self.battle, "")
 
         assert 2 == self.battle.user.active.gen_3_consecutive_sleep_talks
@@ -5212,7 +5361,7 @@ class TestCheckSpeedRanges:
         messages = [
             "|switch|p1a: Caterpie|Caterpie, F|255/255",
             "|move|p2a: Caterpie|Stealth Rock|",
-            "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from]ability: Magic Bounce",
+            "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from] ability: Magic Bounce",
         ]
 
         check_speed_ranges(self.battle, messages)
@@ -5719,7 +5868,7 @@ class TestGuessChoiceScarf:
         messages = [
             "|switch|p1a: Caterpie|Caterpie, F|255/255",
             "|move|p2a: Caterpie|Stealth Rock|",
-            "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from]ability: Magic Bounce",
+            "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from] ability: Magic Bounce",
         ]
 
         check_choicescarf(self.battle, messages)

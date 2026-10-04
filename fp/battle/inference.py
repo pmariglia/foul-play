@@ -16,7 +16,7 @@ from fp.battle.helpers import (
     is_neutral_effectiveness,
 )
 from fp.battle.state import boost_multiplier_lookup
-from fp.battle.protocol_types import Condition, Effect, parse_side_id
+from fp.battle.protocol_types import Condition, Effect, KwArgs, parse_side_id
 
 
 logger = logging.getLogger(__name__)
@@ -673,10 +673,10 @@ def check_heavydutyboots(battle, msg_lines):
 
             # |-damage|p2a: Weedle|88/100|[from] Stealth Rock
             if (
-                len(split_line) > 4
+                len(split_line) > 2
                 and split_line[1] == "-damage"
                 and split_line[2].startswith(side_to_check.name)
-                and split_line[4] == "[from] Stealth Rock"
+                and KwArgs.parse(split_line).is_from(constants.STEALTH_ROCK)
             ):
                 pkmn_took_stealthrock_damage = True
 
@@ -708,10 +708,10 @@ def check_heavydutyboots(battle, msg_lines):
 
             # |-damage|p2a: Weedle|88/100|[from] Spikes
             if (
-                len(split_line) > 4
+                len(split_line) > 2
                 and split_line[1] == "-damage"
                 and split_line[2].startswith(side_to_check.name)
-                and split_line[4] == "[from] Spikes"
+                and KwArgs.parse(split_line).is_from(constants.SPIKES)
             ):
                 pkmn_took_spikes_damage = True
 

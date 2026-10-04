@@ -2,6 +2,7 @@ import logging
 
 from fp import constants
 from fp.battle.inference import is_opponent
+from fp.battle.protocol_types import KwArgs
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
 from fp.config import FoulPlayConfig
@@ -164,7 +165,7 @@ class StandardBattleMode(BattleMode):
             and move_name not in self.team_datasets.get_all_possible_moves(pkmn)
             and move_name
             in self.team_datasets.get_all_possible_moves(zoroark_from_reserves)
-            and "from" not in split_msg[-1]
+            and KwArgs.parse(split_msg).from_ is None
         ):
             logger.info(
                 "{} using {} means it is {}".format(
