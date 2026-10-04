@@ -1,6 +1,8 @@
 import pytest
 
 from fp.battle.protocol import switch_or_drag
+from fp.battle import protocol_messages
+from fp.battle.protocol_messages import parse_as
 from fp.battle.state import Battle, Move, Pokemon
 from fp.config import FoulPlayConfig
 from fp.constants import BattleType
@@ -103,7 +105,7 @@ class TestChampionsRegenerator:
         battle.user.active = Pokemon("pikachu", 100)
 
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(battle, split_msg)
+        switch_or_drag(battle, parse_as(protocol_messages.Switch, split_msg))
         return outgoing
 
     def test_regenerator_does_not_heal_in_champions(self):

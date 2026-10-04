@@ -109,6 +109,15 @@ class Battle:
     def gen(self) -> GenerationMechanics:
         return generation_mechanics(self.generation)
 
+    def side(self, side_id: str) -> "Battler":
+        return self.user if side_id == self.user.name else self.opponent
+
+    def other_side(self, battler: "Battler") -> "Battler":
+        return self.opponent if battler is self.user else self.user
+
+    def is_opponent_side(self, side_id: str) -> bool:
+        return self.side(side_id) is self.opponent
+
     def initialize_team_preview(self, opponent_pokemon, battle_type):
         self.user.reserve.insert(0, self.user.active)
         self.user.active = None
@@ -730,7 +739,10 @@ class Pokemon:
         if nickname is not None:
             nickname = cls.extract_nickname_from_pokemonshowdown_string(nickname)
 
-        details = Details.parse(switch_string)
+        return cls.from_details(Details.parse(switch_string), nickname=nickname)
+
+    @classmethod
+    def from_details(cls, details: Details, nickname=None):
         pkmn = Pokemon(details.species, details.level)
         pkmn.nickname = nickname
         return pkmn

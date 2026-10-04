@@ -29,8 +29,6 @@ from fp.battle.protocol import (
     fieldstart,
     fieldend,
     illusion_end,
-    drag,
-    switch,
     clearboost,
     remove_item,
     set_item,
@@ -43,7 +41,10 @@ from fp.battle.protocol import activate
 from fp.battle.protocol import prepare
 from fp.battle.protocol import switch_or_drag
 from fp.battle.protocol import clearallboost
-from fp.battle.protocol import heal_or_damage
+from fp.battle.protocol import heal
+from fp.battle.protocol import damage
+from fp.battle import protocol_messages
+from fp.battle.protocol_messages import Upkeep, parse_as
 from fp.battle.protocol import swapsideconditions
 from fp.battle.protocol import move
 from fp.battle.protocol import cant
@@ -291,14 +292,14 @@ class TestSwitchOrDrag:
 
     def test_50_100_g_message(self):
         split_msg = ["", "switch", "p1a: pikachu", "Pikachu, L100, M", "50/100g"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "pikachu" == self.battle.user.active.name
         assert 0.5 == self.battle.user.active.hp / self.battle.user.active.max_hp
 
     def test_adds_intimidate_to_impossible_abilities_when_switching_in(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "intimidate" in self.battle.opponent.active.impossible_abilities
@@ -306,7 +307,7 @@ class TestSwitchOrDrag:
     def test_does_not_add_sandstream_to_impossible_abilities_if_sand_active(self):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         self.battle.weather = constants.Weather.SAND
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "sandstream" not in self.battle.opponent.active.impossible_abilities
@@ -316,7 +317,7 @@ class TestSwitchOrDrag:
     ):
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
         self.battle.weather = constants.Weather.HEAVY_RAIN
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "sandstream" not in self.battle.opponent.active.impossible_abilities
@@ -325,7 +326,7 @@ class TestSwitchOrDrag:
         self.battle.generation = "gen3"
         self.battle.mode = RandomBattleMode()
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "pressure" not in self.battle.opponent.active.impossible_abilities
@@ -333,7 +334,7 @@ class TestSwitchOrDrag:
     def test_does_not_add_impossible_ability_if_other_side_has_neutralizinggas(self):
         self.battle.user.active.ability = "neutralizinggas"
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "intimidate" not in self.battle.opponent.active.impossible_abilities
@@ -344,7 +345,7 @@ class TestSwitchOrDrag:
         for item in ITEMS_REVEALED_ON_SWITCH_IN:
             assert item not in self.battle.opponent.active.impossible_items
 
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         for item in ITEMS_REVEALED_ON_SWITCH_IN:
             assert item in self.battle.opponent.active.impossible_items
@@ -352,7 +353,7 @@ class TestSwitchOrDrag:
     def test_cramorantgulping_reverts_to_cramorant_in_switchout(self):
         self.battle.opponent.active.name = "cramorantgulping"
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "caterpie" == self.battle.opponent.active.name
         assert "cramorant" in [p.name for p in self.battle.opponent.reserve]
@@ -404,7 +405,7 @@ class TestSwitchOrDrag:
         }
         self.battle.user.reserve = [zacian_crowned_reserve]
         split_msg = ["", "switch", "p1a: Zacian", "Zacian-Crowned", "211/325"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
         assert 399 == self.battle.user.active.stats[constants.ATTACK]
 
     def test_switch_properly_switches_zoroark_for_user_when_last_selected_move_was_zoroark(
@@ -435,7 +436,7 @@ class TestSwitchOrDrag:
             "caterpie", "switch zoroark", 0
         )
         split_msg = ["", "switch", "p1a: Weedle", "Weedle, L100, M", "100/100"]
-        switch(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "zoroark" == self.battle.user.active.name
 
@@ -462,7 +463,7 @@ class TestSwitchOrDrag:
             Pokemon("weedle", 100),
         ]
         split_msg = ["", "drag", "p1a: Weedle", "Weedle, L100, M", "100/100"]
-        drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "zoroark" == self.battle.user.active.name
 
@@ -489,7 +490,7 @@ class TestSwitchOrDrag:
             Pokemon("weedle", 100),
         ]
         split_msg = ["", "drag", "p1a: Weedle", "Weedle, L100, M", "100/100"]
-        drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "weedle" == self.battle.user.active.name
 
@@ -498,7 +499,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active.types = ["fire"]
         active = self.battle.opponent.active
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert ["bug"] == active.types
 
@@ -507,7 +508,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active.original_ability = "intimidate"
         active = self.battle.opponent.active
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert "intimidate" == active.ability
 
@@ -519,7 +520,7 @@ class TestSwitchOrDrag:
         active.rest_turns = 1
         active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == active.gen_3_consecutive_sleep_talks
         assert 2 == active.rest_turns
@@ -532,7 +533,7 @@ class TestSwitchOrDrag:
         active.sleep_turns = 1
         active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == active.gen_3_consecutive_sleep_talks
         assert 0 == active.rest_turns
@@ -543,7 +544,7 @@ class TestSwitchOrDrag:
         active.rest_turns = 1
         active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 3 == active.rest_turns
 
@@ -554,7 +555,7 @@ class TestSwitchOrDrag:
         active.sleep_turns = 1
         active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == active.sleep_turns
 
@@ -566,14 +567,14 @@ class TestSwitchOrDrag:
         active.sleep_turns = 1
         active.status = constants.Status.SLEEP
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 1 == active.sleep_turns
 
     def test_switch_opponents_pokemon_successfully_creates_new_pokemon_for_active(self):
         new_pkmn = Pokemon("weedle", 100)
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert new_pkmn == self.battle.opponent.active
 
@@ -583,7 +584,7 @@ class TestSwitchOrDrag:
         self.battle.user.active.hp = 1
         self.battle.user.active.max_hp = 300
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 101 == current_active.hp  # 100 hp from regenerator heal
 
@@ -593,7 +594,7 @@ class TestSwitchOrDrag:
         self.battle.user.active.hp = 250
         self.battle.user.active.max_hp = 300
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 300 == current_active.hp  # 50 hp from regenerator heal
 
@@ -604,14 +605,14 @@ class TestSwitchOrDrag:
         self.battle.user.active.fainted = True
         self.battle.user.active.max_hp = 300
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == current_active.hp  # no regenerator heal when you are fainted
 
     def test_nickname_attribute_is_set_when_switching(self):
         # |switch|p2a: Sus|Amoonguss, F|100/100
         split_msg = ["", "switch", "p2a: Sus", "Amoonguss, F", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert self.battle.opponent.active.name == "amoonguss"
         assert self.battle.opponent.active.nickname == "Sus"
@@ -619,20 +620,20 @@ class TestSwitchOrDrag:
     def test_switch_resets_toxic_count_for_opponent(self):
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_switch_resets_toxic_count_for_opponent_when_there_is_no_toxic_count(self):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_switch_resets_toxic_count_for_user(self):
         self.battle.user.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == self.battle.user.side_conditions[constants.TOXIC_COUNT]
 
@@ -640,7 +641,7 @@ class TestSwitchOrDrag:
         self,
     ):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert self.opponent_active in self.battle.opponent.reserve
 
@@ -648,7 +649,7 @@ class TestSwitchOrDrag:
         self,
     ):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 1 == len(self.battle.opponent.reserve)
 
@@ -656,7 +657,7 @@ class TestSwitchOrDrag:
         already_seen_pokemon = Pokemon("weedle", 100)
         self.battle.opponent.reserve.append(already_seen_pokemon)
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 1 == len(self.battle.opponent.reserve)
 
@@ -664,7 +665,7 @@ class TestSwitchOrDrag:
         already_seen_pokemon = Pokemon("weedle", 100)
         self.battle.user.reserve.append(already_seen_pokemon)
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert Pokemon("weedle", 100) == self.battle.user.active
 
@@ -672,7 +673,7 @@ class TestSwitchOrDrag:
         already_seen_pokemon = Pokemon("weedle", 100)
         self.battle.user.reserve.append(already_seen_pokemon)
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert Pokemon("pikachu", 100) == self.battle.user.reserve[0]
 
@@ -684,7 +685,7 @@ class TestSwitchOrDrag:
         user_active.volatile_status_durations["encore"] = 1
         user_active.volatile_status_durations["taunt"] = 2
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert [] == user_active.volatile_statuses
         assert 0 == user_active.volatile_status_durations["encore"]
@@ -694,7 +695,7 @@ class TestSwitchOrDrag:
         already_seen_pokemon = Pokemon("weedle", 100)
         self.battle.opponent.reserve.append(already_seen_pokemon)
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert already_seen_pokemon is self.battle.opponent.active
 
@@ -708,7 +709,7 @@ class TestSwitchOrDrag:
             "Silvally-Steel, L100, M",
             "100/100",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
@@ -724,7 +725,7 @@ class TestSwitchOrDrag:
             "Silvally-Steel, L100, M",
             "100/100",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
@@ -741,7 +742,7 @@ class TestSwitchOrDrag:
             "Silvally-Steel, L100, M",
             "100/100",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         expected_pokemon = Pokemon("silvallysteel", 100)
 
@@ -759,7 +760,7 @@ class TestSwitchOrDrag:
             "Silvally-Steel, L100, M",
             "50/100",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert self.battle.opponent.active.max_hp / 2 == self.battle.opponent.active.hp
 
@@ -767,7 +768,7 @@ class TestSwitchOrDrag:
         already_seen_pokemon = Pokemon("arceus", 100)
         self.battle.opponent.reserve.append(already_seen_pokemon)
         split_msg = ["", "switch", "p2a: Arceus", "Arceus-Ghost", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         expected_pokemon = Pokemon("arceus-ghost", 100)
 
@@ -779,7 +780,7 @@ class TestSwitchOrDrag:
         self.opponent_active.boosts[constants.ATTACK] = 1
         self.opponent_active.boosts[constants.SPEED] = 1
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert {} == self.opponent_active.boosts
 
@@ -788,7 +789,7 @@ class TestSwitchOrDrag:
         pkmn.boosts[constants.ATTACK] = 1
         pkmn.boosts[constants.SPEED] = 1
         split_msg = ["", "switch", "p1a: pidgey", "Pidgey, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert {} == pkmn.boosts
 
@@ -797,13 +798,13 @@ class TestSwitchOrDrag:
     ):
         # this is specifically for Zororak
         split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert not self.battle.opponent.reserve
 
     def test_switching_sets_last_move_to_none(self):
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         expected_last_move = LastUsedMove(None, "switch weedle", 0)
 
@@ -816,7 +817,7 @@ class TestSwitchOrDrag:
         ditto.volatile_statuses.append(constants.TRANSFORM)
         self.battle.opponent.active = ditto
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.opponent.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -830,7 +831,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active = ditto
 
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.opponent.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -844,7 +845,7 @@ class TestSwitchOrDrag:
         self.battle.user.active = ditto
 
         split_msg = ["", "switch", "p1a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.user.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -864,7 +865,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active = ditto
 
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.opponent.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -886,7 +887,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active = ditto
 
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.opponent.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -900,7 +901,7 @@ class TestSwitchOrDrag:
         self.battle.opponent.active = ditto
 
         split_msg = ["", "switch", "p2a: weedle", "Weedle, L100, M", "100/100"]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         if self.battle.opponent.reserve[0] != ditto:
             pytest.fail("Ditto was not moved to reserves")
@@ -918,7 +919,7 @@ class TestSwitchOrDrag:
             "100/100",
             "[from] Shed Tail",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert not self.battle.user.shed_tailing
 
@@ -938,7 +939,7 @@ class TestSwitchOrDrag:
             "100/100",
             "[from] Shed Tail",
         ]
-        switch_or_drag(self.battle, split_msg)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
 
         assert 0 == self.battle.user.active.boosts[constants.SPEED]
         assert 0 == self.battle.user.active.boosts[constants.ATTACK]
@@ -971,12 +972,12 @@ class TestHealOrDamage:
             "p1a: Pikachu",
             "50/100g",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert 0.5 == self.battle.user.active.hp / self.battle.user.active.max_hp
 
     def test_opponent_damage_with_pixel_hp_denominator(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "24/48y"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 100 == self.battle.opponent.active.hp
 
     def test_heal_from_healing_wish_clears_side_condition(self):
@@ -989,7 +990,7 @@ class TestHealOrDamage:
             "100/100",
             "[from] move: Healing Wish",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert 0 == self.battle.opponent.side_conditions[constants.HEALING_WISH]
 
     def test_sets_ability_when_the_information_is_present(self):
@@ -1001,7 +1002,7 @@ class TestHealOrDamage:
             "[from] ability: Water Absorb",
             "[of] p1a: Genesect",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert "waterabsorb" == self.battle.opponent.active.ability
 
     def test_sets_ability_when_the_bot_is_damaged_from_opponents_ability(self):
@@ -1013,7 +1014,7 @@ class TestHealOrDamage:
             "[from] ability: Iron Barbs",
             "[of] p2a: Ferrothorn",
         ]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert "ironbarbs" == self.battle.opponent.active.ability
 
     def test_sets_ability_when_the_opponent_is_damaged_from_bots_ability(self):
@@ -1025,7 +1026,7 @@ class TestHealOrDamage:
             "[from] ability: Iron Barbs",
             "[of] p1a: Ferrothorn",
         ]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert "ironbarbs" == self.battle.user.active.ability
 
     def test_sets_item_when_it_causes_the_bot_damage(self):
@@ -1037,7 +1038,7 @@ class TestHealOrDamage:
             "[from] item: Rocky Helmet",
             "[of] p2a: Ferrothorn",
         ]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert "rockyhelmet" == self.battle.opponent.active.item
 
     def test_sets_item_when_it_causes_the_opponent_damage(self):
@@ -1049,7 +1050,7 @@ class TestHealOrDamage:
             "[from] item: Rocky Helmet",
             "[of] p1a: Ferrothorn",
         ]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert "rockyhelmet" == self.battle.user.active.item
 
     def test_does_not_set_item_when_item_is_none(self):
@@ -1062,57 +1063,57 @@ class TestHealOrDamage:
             "[from] item: Sitrus Berry",
         ]
         self.battle.opponent.active.item = None
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert None is self.battle.opponent.active.item
 
     def test_damage_sets_opponents_active_pokemon_to_correct_hp(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "80/100"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 160 == self.battle.opponent.active.hp
 
     def test_damage_sets_bots_active_pokemon_to_correct_hp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "150/250"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 150 == self.battle.user.active.hp
 
     def test_damage_sets_bots_active_pokemon_to_correct_maxhp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "150/250"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 250 == self.battle.user.active.max_hp
 
     def test_damage_sets_bots_active_pokemon_to_zero_hp(self):
         split_msg = ["", "-damage", "p1a: Caterpie", "0 fnt"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 0 == self.battle.user.active.hp
 
     def test_fainted_message_properly_faints_opponents_pokemon(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "0 fnt"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 0 == self.battle.opponent.active.hp
 
     def test_damage_caused_by_an_item_properly_sets_opponents_item(self):
         split_msg = ["", "-damage", "p2a: Caterpie", "100/100", "[from] item: Life Orb"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert "lifeorb" == self.battle.opponent.active.item
 
     def test_damage_caused_by_toxic_increases_side_condition_toxic_counter_for_opponent(
         self,
     ):
         split_msg = ["", "-damage", "p2a: Caterpie", "94/100 tox", "[from] psn"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 1 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_damage_caused_by_toxic_increases_side_condition_toxic_counter_for_user(
         self,
     ):
         split_msg = ["", "-damage", "p1a: Caterpie", "94/100 tox", "[from] psn"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 1 == self.battle.user.side_conditions[constants.TOXIC_COUNT]
 
     def test_toxic_count_increases_to_2(self):
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 1
         split_msg = ["", "-damage", "p2a: Caterpie", "94/100 tox", "[from] psn"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 2 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_damage_caused_by_non_toxic_damage_does_not_increase_toxic_count(self):
@@ -1123,7 +1124,7 @@ class TestHealOrDamage:
             "50/100 tox",
             "[from] item: Life Orb",
         ]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
 
     def test_healing_from_ability_sets_ability_to_opponent(self):
@@ -1135,7 +1136,7 @@ class TestHealOrDamage:
             "[from] ability: Volt Absorb",
             "[of] p1a: Caterpie",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert "voltabsorb" == self.battle.opponent.active.ability
 
     def test_healing_from_ability_does_not_set_bots_ability(self):
@@ -1148,7 +1149,7 @@ class TestHealOrDamage:
             "[from] ability: Volt Absorb",
             "[of] p1a: Caterpie",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert self.battle.user.active.ability is None
 
     def test_healing_from_revivalblessing_for_opponent_pkmn(self):
@@ -1160,7 +1161,7 @@ class TestHealOrDamage:
 
         # |-heal|p1: Amoonguss|50/100|[from] move: Revival Blessing
         split_msg = ["", "-heal", "p2a: Sus", "50/100", "[from] move: Revival Blessing"]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert amoongus_reserve.hp == int(amoongus_reserve.max_hp / 2)
 
     def test_healing_from_revivalblessing_for_bot_pkmn(self):
@@ -1177,7 +1178,7 @@ class TestHealOrDamage:
             "150/301",
             "[from] move: Revival Blessing",
         ]
-        heal_or_damage(self.battle, split_msg)
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert amoongus_reserve.hp == int(amoongus_reserve.max_hp / 2)
 
     def test_gen1_pkmn_trapping_foe_releases_target_after_hitting_self_in_confusion(
@@ -1193,7 +1194,7 @@ class TestHealOrDamage:
             constants.PARTIALLY_TRAPPED
         ] = 1
         split_msg = ["", "-damage", "p1a: Rhydon", "376/413", "[from] confusion"]
-        heal_or_damage(self.battle, split_msg)
+        damage(self.battle, parse_as(protocol_messages.Damage, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED
             not in self.battle.opponent.active.volatile_statuses
@@ -1236,7 +1237,7 @@ class TestActivate:
             "p1a: Caterpie",
             "[ability] Intimidate",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
 
         assert "mummy" == self.battle.opponent.active.ability
         assert "mummy" == self.battle.user.active.ability
@@ -1255,7 +1256,7 @@ class TestActivate:
             "p1a: Caterpie",
             "[ability] Intimidate",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
 
         # sets ability but retains original ability
         assert "lingeringaroma" == self.battle.user.active.ability
@@ -1272,7 +1273,7 @@ class TestActivate:
             "move: Whirlpool",
             "[of] p1a: Luvdisc",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED in self.battle.opponent.active.volatile_statuses
         )
@@ -1285,7 +1286,7 @@ class TestActivate:
             "move: Magma Storm",
             "[of] p1a: Luvdisc",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED in self.battle.opponent.active.volatile_statuses
         )
@@ -1299,7 +1300,7 @@ class TestActivate:
             "move: Tackle",
             "[of] p1a: Luvdisc",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED
             not in self.battle.opponent.active.volatile_statuses
@@ -1314,7 +1315,7 @@ class TestActivate:
             "[consumed]",
         ]
         self.battle.opponent.active.item = None
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert self.battle.opponent.active.item is None
 
     def test_sets_item_when_poltergeist_activates(self):
@@ -1325,7 +1326,7 @@ class TestActivate:
             "Move: Poltergeist",
             "Leftovers",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert "leftovers" == self.battle.opponent.active.item
 
     def test_sets_item_when_poltergeist_activates_and_move_is_lowercase(self):
@@ -1336,7 +1337,7 @@ class TestActivate:
             "move: Poltergeist",
             "Leftovers",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert "leftovers" == self.battle.opponent.active.item
 
     def test_sets_item_from_activate(self):
@@ -1347,23 +1348,23 @@ class TestActivate:
             "item: Safety Goggles",
             "Stun Spore",
         ]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert "safetygoggles" == self.battle.opponent.active.item
 
     def test_sets_ability_from_activate(self):
         split_msg = ["", "-activate", "p2a: Ferrothorn", "ability: Iron Barbs"]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert "ironbarbs" == self.battle.opponent.active.ability
 
     def test_sets_substitute_hit_from_activate(self):
         split_msg = ["", "-activate", "p2a: Heatran", "Substitute", "[damage]"]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert self.battle.opponent.active.substitute_hit
 
     def test_sets_substitute_hit_from_activate_with_move_prefix(self):
         # gen6+ sends the substitute effect with its `move: ` prefix
         split_msg = ["", "-activate", "p2a: Heatran", "move: Substitute", "[damage]"]
-        activate(self.battle, split_msg)
+        activate(self.battle, parse_as(protocol_messages.Activate, split_msg))
         assert self.battle.opponent.active.substitute_hit
 
 
@@ -1389,7 +1390,7 @@ class TestPrepare:
     def test_prepare_sets_volatile_status_on_pokemon(self):
         # |-prepare|p1a: Dragapult|Phantom Force
         split_msg = ["", "-prepare", "p2a: Caterpie", "Phantom Force"]
-        prepare(self.battle, split_msg)
+        prepare(self.battle, parse_as(protocol_messages.Prepare, split_msg))
         assert "phantomforce" in self.battle.opponent.active.volatile_statuses
 
 
@@ -1415,14 +1416,14 @@ class TestClearAllBoosts:
     def test_clears_bots_boosts(self):
         split_msg = ["", "-clearallboost"]
         self.battle.user.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
-        clearallboost(self.battle, split_msg)
+        clearallboost(self.battle, parse_as(protocol_messages.ClearAllBoost, split_msg))
         assert 0 == self.battle.user.active.boosts[constants.ATTACK]
         assert 0 == self.battle.user.active.boosts[constants.DEFENSE]
 
     def test_clears_opponents_boosts(self):
         split_msg = ["", "-clearallboost"]
         self.battle.opponent.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
-        clearallboost(self.battle, split_msg)
+        clearallboost(self.battle, parse_as(protocol_messages.ClearAllBoost, split_msg))
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
         assert 0 == self.battle.opponent.active.boosts[constants.DEFENSE]
 
@@ -1430,7 +1431,7 @@ class TestClearAllBoosts:
         split_msg = ["", "-clearallboost"]
         self.battle.user.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
         self.battle.opponent.active.boosts = {constants.ATTACK: 1, constants.DEFENSE: 1}
-        clearallboost(self.battle, split_msg)
+        clearallboost(self.battle, parse_as(protocol_messages.ClearAllBoost, split_msg))
         assert 0 == self.battle.user.active.boosts[constants.ATTACK]
         assert 0 == self.battle.user.active.boosts[constants.DEFENSE]
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
@@ -1489,7 +1490,7 @@ class TestMove:
             "p2a: Gyarados",
             "Shadow Ball",
         ]  # Gyarados does not get shadowball in gen9 battle factory
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "zoroarkhisui" == self.battle.opponent.active.name
 
@@ -1529,7 +1530,7 @@ class TestMove:
             "p2a: Gyarados",
             "Poltergeist",
         ]  # Gyarados does not get Poltergeist in gen9randbats
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "zoroarkhisui" == self.battle.opponent.active.name
 
@@ -1571,7 +1572,7 @@ class TestMove:
             "p2a: Gyarados",
             "Dark Pulse",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.name
 
@@ -1609,7 +1610,7 @@ class TestMove:
             "p2a: Tornadus Therian",
             "Nasty Plot",
         ]  # Tornadus Therian gets nastyplot so no inferring zoroark
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "tornadustherian" == self.battle.opponent.active.name
         assert [] == self.battle.opponent.reserve
@@ -1634,7 +1635,7 @@ class TestMove:
             "p2a: Tornadus Therian",
             "Struggle",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "tornadustherian" == self.battle.opponent.active.name
         assert [] == self.battle.opponent.reserve
@@ -1657,7 +1658,7 @@ class TestMove:
             "p2a: Gyarados",
             "Struggle",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         # nothing changes
         assert "gyarados" == self.battle.opponent.active.name
@@ -1665,7 +1666,7 @@ class TestMove:
 
     def test_sets_healing_wish_side_condition_when_healing_wish_is_used(self):
         split_msg = ["", "move", "p2a: Caterpie", "Healing Wish", "p2a: Caterpie"]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert 1 == self.battle.opponent.side_conditions[constants.HEALING_WISH]
 
     def test_swordsdance_sets_burn_nullify_volatile_when_burned(self):
@@ -1673,7 +1674,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "Swords Dance"]
         self.battle.opponent.active.status = constants.Status.BURN
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "gen1burnnullify" in self.battle.opponent.active.volatile_statuses
 
@@ -1682,7 +1683,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "Meditate"]
         self.battle.opponent.active.status = constants.Status.BURN
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "gen1burnnullify" in self.battle.opponent.active.volatile_statuses
 
@@ -1691,14 +1692,14 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "Agility"]
         self.battle.opponent.active.status = constants.Status.PARALYZED
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "gen1paralysisnullify" in self.battle.opponent.active.volatile_statuses
 
     def test_adds_move_to_opponent(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         m = Move("String Shot")
 
         assert m in self.battle.opponent.active.moves
@@ -1706,13 +1707,13 @@ class TestMove:
     def test_adds_truant_when_truant_pkmn(self):
         self.battle.opponent.active.ability = "truant"
         split_msg = ["", "move", "p2a: Slaking", "Earthquake"]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert "truant" in self.battle.opponent.active.volatile_statuses
 
     def test_adds_truant_when_slaking_pkmn(self):
         self.battle.opponent.active.name = "slaking"
         split_msg = ["", "move", "p2a: Slaking", "Earthquake"]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert "truant" in self.battle.opponent.active.volatile_statuses
 
     def test_does_not_set_move_for_magicbounce(self):
@@ -1724,7 +1725,7 @@ class TestMove:
             "[from] ability: Magic Bounce",
         ]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         m = Move("String Shot")
 
         assert m not in self.battle.opponent.active.moves
@@ -1742,7 +1743,7 @@ class TestMove:
             "[still]",
         ]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         m = Move("String Shot")
 
         assert m not in self.battle.opponent.active.moves
@@ -1750,7 +1751,7 @@ class TestMove:
     def test_new_move_has_one_pp_less_than_max(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         m = self.battle.opponent.active.get_move("String Shot")
         expected_pp = m.max_pp - 1
 
@@ -1760,7 +1761,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.user.active.ability = "pressure"
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         m = self.battle.opponent.active.get_move("String Shot")
         expected_pp = m.max_pp - 2
 
@@ -1769,13 +1770,13 @@ class TestMove:
     def test_unknown_move_does_not_try_to_decrement(self):
         split_msg = ["", "move", "p2a: Caterpie", "some-random-unknown-move"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
     def test_add_revealed_move_does_not_add_move_twice(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
 
         self.battle.opponent.active.moves.append(Move("String Shot"))
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 1 == len(self.battle.opponent.active.moves)
 
@@ -1790,7 +1791,7 @@ class TestMove:
         self.battle.opponent.active.status = constants.Status.SLEEP
         self.battle.generation = "gen3"
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 1 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
@@ -1802,7 +1803,7 @@ class TestMove:
         self.battle.opponent.active.gen_3_consecutive_sleep_talks = 1
         self.battle.generation = "gen3"
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 1 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
@@ -1814,7 +1815,7 @@ class TestMove:
         self.battle.opponent.active.gen_3_consecutive_sleep_talks = 1
         self.battle.generation = "gen3"
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 0 == self.battle.opponent.active.gen_3_consecutive_sleep_talks
 
@@ -1829,7 +1830,7 @@ class TestMove:
         m = Move("String Shot")
         m.current_pp = 5
         self.battle.opponent.active.moves.append(m)
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 5 == m.current_pp
 
@@ -1841,7 +1842,7 @@ class TestMove:
             "String Shot",
             "[from] move: Sleep Talk",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert Move("stringshot") in self.battle.opponent.active.moves
         assert (
@@ -1857,7 +1858,7 @@ class TestMove:
             "String Shot",
             "[from] move: Sleep Talk",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert Move("stringshot") in self.battle.opponent.active.moves
         assert (
@@ -1876,7 +1877,7 @@ class TestMove:
         m = Move("String Shot")
         m.current_pp = 5
         self.battle.opponent.active.moves.append(m)
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 5 == m.current_pp
 
@@ -1893,7 +1894,7 @@ class TestMove:
         m = Move("String Shot")
         m.current_pp = 5
         self.battle.opponent.active.moves.append(m)
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 5 == m.current_pp
 
@@ -1902,7 +1903,7 @@ class TestMove:
         m = Move("String Shot")
         m.current_pp = 5
         self.battle.opponent.active.moves.append(m)
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 4 == m.current_pp
 
@@ -1912,14 +1913,14 @@ class TestMove:
         m.current_pp = 5
         self.battle.user.active.ability = "pressure"
         self.battle.opponent.active.moves.append(m)
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert 3 == m.current_pp
 
     def test_properly_sets_last_used_move(self):
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         expected_last_used_move = LastUsedMove(
             pokemon_name="caterpie", move="stringshot", turn=0
@@ -1931,7 +1932,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.ASSAULT_VEST in self.battle.opponent.active.impossible_items
 
@@ -1939,7 +1940,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert (
             constants.ASSAULT_VEST not in self.battle.opponent.active.impossible_items
@@ -1949,7 +1950,7 @@ class TestMove:
         self.battle.opponent.active.volatile_statuses = ["phantomforce"]
         split_msg = ["", "move", "p2a: Caterpie", "Phantom Force", "[from] lockedmove"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -1957,14 +1958,14 @@ class TestMove:
         self.battle.opponent.active.volatile_statuses = ["encore"]
         self.battle.opponent.active.volatile_status_durations["encore"] = 0
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert 1 == self.battle.opponent.active.volatile_status_durations["encore"]
 
     def test_increments_taunt_duration_when_using_move_having_been_taunted(self):
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert (
             1 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
@@ -1973,7 +1974,7 @@ class TestMove:
         self.battle.opponent.active.volatile_statuses = ["destinybond"]
         split_msg = ["", "move", "p2a: Caterpie", "Destiny Bond"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -1983,7 +1984,7 @@ class TestMove:
         self.battle.opponent.active.volatile_statuses = ["destinybond"]
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -1994,7 +1995,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert not self.battle.opponent.active.can_have_choice_item
 
@@ -2002,7 +2003,7 @@ class TestMove:
         self.battle.opponent.active.can_have_choice_item = True
         split_msg = ["", "move", "p2a: Caterpie", "Dragon Dance"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert not self.battle.opponent.active.can_have_choice_item
 
@@ -2012,7 +2013,7 @@ class TestMove:
         self.battle.opponent.active.can_have_choice_item = True
         split_msg = ["", "move", "p2a: Caterpie", "Scale Shot"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert self.battle.opponent.active.can_have_choice_item
 
@@ -2022,7 +2023,7 @@ class TestMove:
         self.battle.opponent.active.can_have_choice_item = True
         split_msg = ["", "move", "p2a: Caterpie", "Scale Shot"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert self.battle.opponent.active.can_have_choice_item
 
@@ -2035,7 +2036,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -2048,7 +2049,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.CHOICE_BAND == self.battle.opponent.active.item
 
@@ -2060,7 +2061,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert "leftovers" == self.battle.opponent.active.item
 
@@ -2071,7 +2072,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert self.battle.opponent.active.can_have_choice_item
 
@@ -2082,7 +2083,7 @@ class TestMove:
         split_msg = ["", "move", "p2a: Caterpie", "String Shot"]
         self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert not self.battle.opponent.active.can_have_choice_item
 
@@ -2090,7 +2091,7 @@ class TestMove:
         # if a damaging move is used, we no longer want to guess lifeorb as an item
         split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.LIFE_ORB in self.battle.opponent.active.impossible_items
 
@@ -2102,7 +2103,7 @@ class TestMove:
         self.battle.opponent.active.name = "mawile"
         split_msg = ["", "move", "p2a: Mawile", "Tackle"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.LIFE_ORB not in self.battle.opponent.active.impossible_items
 
@@ -2114,32 +2115,32 @@ class TestMove:
         self.battle.opponent.active.name = "clefable"
         split_msg = ["", "move", "p2a: Clefable", "Tackle"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert constants.LIFE_ORB not in self.battle.opponent.active.impossible_items
 
     def test_adds_normal_gem_to_impossible_items(self):
         split_msg = ["", "move", "p2a: Clefable", "Tackle"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert "normalgem" in self.battle.opponent.active.impossible_items
 
     def test_adds_flying_gem_to_impossible_items(self):
         split_msg = ["", "move", "p2a: Clefable", "Acrobatics"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert "flyinggem" in self.battle.opponent.active.impossible_items
 
     def test_does_not_add_gem_if_non_damaging_move(self):
         split_msg = ["", "move", "p2a: Clefable", "Protect"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert "normalgem" not in self.battle.opponent.active.impossible_items
 
     def test_wish_sets_battler_wish(self):
         split_msg = ["", "move", "p1a: Clefable", "Wish", "p1a: Clefable"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         expected_wish = (2, self.battle.user.active.max_hp / 2)
 
@@ -2149,7 +2150,7 @@ class TestMove:
         self.battle.user.wish = (1, 100)
         split_msg = ["", "move", "p1a: Clefable", "Wish", "", "[still]"]
 
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         expected_wish = (1, 100)
 
@@ -2164,7 +2165,7 @@ class TestMove:
             "Wrap",
             "p2a: Weedle",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert (
             1
             == self.battle.opponent.active.volatile_status_durations[
@@ -2182,7 +2183,7 @@ class TestMove:
             "p2a: Weedle",
             "[miss]",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert (
             0
             == self.battle.opponent.active.volatile_status_durations[
@@ -2207,7 +2208,7 @@ class TestMove:
             "Tackle",
             "p1a: Weedle",
         ]
-        move(self.battle, split_msg)
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED
             not in self.battle.opponent.active.volatile_statuses
@@ -2240,7 +2241,7 @@ class TestTrickRoom:
             "p1a: Bronzong",
         ]
 
-        fieldstart(self.battle, split_msg)
+        fieldstart(self.battle, parse_as(protocol_messages.FieldStart, split_msg))
 
         assert True is self.battle.trick_room
         assert 5 == self.battle.trick_room_turns_remaining
@@ -2252,7 +2253,7 @@ class TestTrickRoom:
             "move: Trick Room",
         ]
 
-        fieldend(self.battle, split_msg)
+        fieldend(self.battle, parse_as(protocol_messages.FieldEnd, split_msg))
 
         assert False is self.battle.trick_room
         assert 0 == self.battle.trick_room_turns_remaining
@@ -2281,7 +2282,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert "opponent:caterpie" == self.battle.weather_source
@@ -2295,7 +2296,7 @@ class TestWeather:
             "[of] p1a: p2",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "user:caterpie" == self.battle.weather_source
         assert "drizzle" == self.battle.user.active.ability
@@ -2311,7 +2312,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert -1 == self.battle.weather_turns_remaining
@@ -2327,7 +2328,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert 5 == self.battle.weather_turns_remaining
@@ -2343,7 +2344,7 @@ class TestWeather:
             "[of] p1a: Weedle",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert 5 == self.battle.weather_turns_remaining
@@ -2360,7 +2361,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert 8 == self.battle.weather_turns_remaining
@@ -2377,7 +2378,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "sunnyday" == self.battle.weather
         assert 8 == self.battle.weather_turns_remaining
@@ -2394,7 +2395,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "sandstorm" == self.battle.weather
         assert 8 == self.battle.weather_turns_remaining
@@ -2411,7 +2412,7 @@ class TestWeather:
             "[of] p2a: Caterpie",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "hail" == self.battle.weather
         assert "opponent:caterpie" == self.battle.weather_source
@@ -2425,7 +2426,7 @@ class TestWeather:
             "RainDance",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert 5 == self.battle.weather_turns_remaining
@@ -2441,7 +2442,7 @@ class TestWeather:
             "[upkeep]",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert 4 == self.battle.weather_turns_remaining
@@ -2457,7 +2458,7 @@ class TestWeather:
             "[upkeep]",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "raindance" == self.battle.weather
         assert -1 == self.battle.weather_turns_remaining
@@ -2477,7 +2478,7 @@ class TestWeather:
             "[upkeep]",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "damprock" == self.battle.opponent.active.item
         assert "raindance" == self.battle.weather
@@ -2498,7 +2499,7 @@ class TestWeather:
             "[upkeep]",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "heatrock" == self.battle.opponent.active.item
         assert "sunnyday" == self.battle.weather
@@ -2513,7 +2514,7 @@ class TestWeather:
             "[of] p2a: Pelipper",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "drizzle" == self.battle.opponent.active.ability
 
@@ -2526,7 +2527,7 @@ class TestWeather:
             "[of] p1a: Pelipper",
         ]
 
-        weather(self.battle, split_msg)
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
 
         assert "drizzle" == self.battle.user.active.ability
 
@@ -2556,7 +2557,7 @@ class TestSetBoost:
             "6",
             "[from] move: Belly Drum",
         ]
-        setboost(self.battle, split_msg)
+        setboost(self.battle, parse_as(protocol_messages.SetBoost, split_msg))
 
         expected_boosts = {constants.ATTACK: 6}
 
@@ -2572,7 +2573,7 @@ class TestSetBoost:
             "6",
             "[from] move: Belly Drum",
         ]
-        setboost(self.battle, split_msg)
+        setboost(self.battle, parse_as(protocol_messages.SetBoost, split_msg))
 
         expected_boosts = {constants.ATTACK: 6}
 
@@ -2595,16 +2596,16 @@ class TestBoostAndUnboost:
         self.battle.opponent.active = self.opponent_active
 
     def test_opponent_boost_properly_updates_opponent_pokemons_boosts(self):
-        split_msg = ["", "boost", "p2a: Weedle", "atk", "1"]
-        boost(self.battle, split_msg)
+        split_msg = ["", "-boost", "p2a: Weedle", "atk", "1"]
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
 
         expected_boosts = {constants.ATTACK: 1}
 
         assert expected_boosts == self.battle.opponent.active.boosts
 
     def test_unboost_works_properly_on_opponent(self):
-        split_msg = ["", "boost", "p2a: Weedle", "atk", "1"]
-        unboost(self.battle, split_msg)
+        split_msg = ["", "-unboost", "p2a: Weedle", "atk", "1"]
+        unboost(self.battle, parse_as(protocol_messages.Unboost, split_msg))
 
         expected_boosts = {constants.ATTACK: -1}
 
@@ -2612,8 +2613,8 @@ class TestBoostAndUnboost:
 
     def test_unboost_does_not_lower_below_negative_6(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = -6
-        split_msg = ["", "unboost", "p2a: Weedle", "atk", "2"]
-        unboost(self.battle, split_msg)
+        split_msg = ["", "-unboost", "p2a: Weedle", "atk", "2"]
+        unboost(self.battle, parse_as(protocol_messages.Unboost, split_msg))
 
         expected_boosts = {constants.ATTACK: -6}
 
@@ -2621,8 +2622,8 @@ class TestBoostAndUnboost:
 
     def test_unboost_lowers_one_when_it_hits_the_limit(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = -5
-        split_msg = ["", "unboost", "p2a: Weedle", "atk", "2"]
-        unboost(self.battle, split_msg)
+        split_msg = ["", "-unboost", "p2a: Weedle", "atk", "2"]
+        unboost(self.battle, parse_as(protocol_messages.Unboost, split_msg))
 
         expected_boosts = {constants.ATTACK: -6}
 
@@ -2630,8 +2631,8 @@ class TestBoostAndUnboost:
 
     def test_boost_does_not_lower_below_negative_6(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = 6
-        split_msg = ["", "boost", "p2a: Weedle", "atk", "2"]
-        boost(self.battle, split_msg)
+        split_msg = ["", "-boost", "p2a: Weedle", "atk", "2"]
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
 
         expected_boosts = {constants.ATTACK: 6}
 
@@ -2639,33 +2640,33 @@ class TestBoostAndUnboost:
 
     def test_boost_lowers_one_when_it_hits_the_limit(self):
         self.battle.opponent.active.boosts[constants.ATTACK] = 5
-        split_msg = ["", "boost", "p2a: Weedle", "atk", "2"]
-        boost(self.battle, split_msg)
+        split_msg = ["", "-boost", "p2a: Weedle", "atk", "2"]
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
 
         expected_boosts = {constants.ATTACK: 6}
 
         assert expected_boosts == dict(self.battle.opponent.active.boosts)
 
     def test_unboost_works_properly_on_user(self):
-        split_msg = ["", "boost", "p1a: Caterpie", "atk", "1"]
-        unboost(self.battle, split_msg)
+        split_msg = ["", "-unboost", "p1a: Caterpie", "atk", "1"]
+        unboost(self.battle, parse_as(protocol_messages.Unboost, split_msg))
 
         expected_boosts = {constants.ATTACK: -1}
 
         assert expected_boosts == self.battle.user.active.boosts
 
     def test_user_boosts_updates_properly(self):
-        split_msg = ["", "boost", "p1a: Caterpie", "atk", "1"]
-        boost(self.battle, split_msg)
+        split_msg = ["", "-boost", "p1a: Caterpie", "atk", "1"]
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
 
         expected_boosts = {constants.ATTACK: 1}
 
         assert expected_boosts == self.battle.user.active.boosts
 
     def test_multiple_boost_properly_updates(self):
-        split_msg = ["", "boost", "p2a: Weedle", "atk", "1"]
-        boost(self.battle, split_msg)
-        boost(self.battle, split_msg)
+        split_msg = ["", "-boost", "p2a: Weedle", "atk", "1"]
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
+        boost(self.battle, parse_as(protocol_messages.Boost, split_msg))
 
         expected_boosts = {constants.ATTACK: 2}
 
@@ -2693,7 +2694,7 @@ class TestStatus:
             "[from] ability: Flame Body",
             "[of] p2a: Caterpie",
         ]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
         assert "flamebody" == self.battle.opponent.active.ability
 
     def test_sleep_from_ability_resets_sleep_turns(self):
@@ -2706,7 +2707,7 @@ class TestStatus:
             "[from] ability: Effect Spore",
             "[of] p2a: Caterpie",
         ]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
         assert 0 == self.battle.user.active.sleep_turns
         assert "effectspore" == self.battle.opponent.active.ability
 
@@ -2719,31 +2720,31 @@ class TestStatus:
             "[from] ability: Effect Spore",
             "[of] p2a: Caterpie",
         ]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
         assert "effectspore" == self.battle.opponent.active.ability
 
     def test_opponents_active_pokemon_has_status_properly_set(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert self.battle.opponent.active.status == constants.Status.BURN
 
     def test_getting_status_causes_lumberry_to_be_an_impossible_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert "lumberry" in self.battle.opponent.active.impossible_items
 
     def test_rest_turns_set_to_3_on_rest(self):
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Rest"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert self.battle.opponent.active.status == constants.Status.SLEEP
         assert self.battle.opponent.active.rest_turns == 3
 
     def test_rest_turns_at_0_and_sleep_turns_at_0_from_nonrest_sleep(self):
         split_msg = ["", "-status", "p2a: Caterpie", "slp", "[from] move: Sleep powder"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert self.battle.opponent.active.status == constants.Status.SLEEP
         assert self.battle.opponent.active.rest_turns == 0
@@ -2751,13 +2752,13 @@ class TestStatus:
 
     def test_bots_active_pokemon_has_status_properly_set(self):
         split_msg = ["", "-status", "p1a: Caterpie", "brn"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert self.battle.user.active.status == constants.Status.BURN
 
     def test_status_from_item_properly_sets_that_item(self):
         split_msg = ["", "-status", "p2a: Caterpie", "brn", "[from] item: Flame Orb"]
-        status(self.battle, split_msg)
+        status(self.battle, parse_as(protocol_messages.Status, split_msg))
 
         assert self.battle.opponent.active.item == "flameorb"
 
@@ -2783,7 +2784,7 @@ class TestCureStatus:
         self.battle.opponent.active.status = constants.Status.TOXIC
         self.battle.opponent.side_conditions[constants.TOXIC_COUNT] = 3
         split_msg = ["", "-curestatus", "p2: Caterpie", "tox", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert None is self.battle.opponent.active.status
         assert 0 == self.battle.opponent.side_conditions[constants.TOXIC_COUNT]
@@ -2791,21 +2792,21 @@ class TestCureStatus:
     def test_curestatus_works_on_active_pokemon(self):
         self.opponent_active.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p2: Caterpie", "brn", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert None is self.opponent_active.status
 
     def test_curestatus_works_on_active_pokemon_for_bot(self):
         self.battle.user.active.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p1: Weedle", "brn", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert None is self.battle.user.active.status
 
     def test_curestatus_works_on_reserve_pokemon(self):
         self.opponent_reserve.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p2: Pikachu", "brn", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert None is self.opponent_reserve.status
 
@@ -2814,7 +2815,7 @@ class TestCureStatus:
         self.opponent_reserve.status = constants.Status.BURN
         self.opponent_active.status = constants.Status.BURN
         split_msg = ["", "-curestatus", "p2: Sparky", "brn", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert None is self.opponent_reserve.status
         assert constants.Status.BURN == self.opponent_active.status
@@ -2824,7 +2825,7 @@ class TestCureStatus:
         self.opponent_reserve.sleep_turns = 1
         self.opponent_reserve.rest_turns = 1
         split_msg = ["", "-curestatus", "p2: Pikachu", "slp", "[msg]"]
-        curestatus(self.battle, split_msg)
+        curestatus(self.battle, parse_as(protocol_messages.CureStatus, split_msg))
 
         assert 0 == self.opponent_reserve.sleep_turns
         assert 0 == self.opponent_reserve.rest_turns
@@ -2847,14 +2848,14 @@ class TestStartFutureSight:
 
     def test_sets_futuresight_on_side_that_used_the_move(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Future Sight"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert self.battle.opponent.future_sight == (3, "caterpie")
 
     def test_does_not_set_futuresight_as_a_volatilestatus(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Future Sight"]
         self.battle.opponent.active.volatile_statuses = []
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -2883,7 +2884,7 @@ class TestSetItem:
             "[from] ability: Frisk",
             "[of] p2a: Caterpie",
         ]
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "leftovers" == self.battle.user.active.item
         assert "leftovers" != self.battle.opponent.active.item
@@ -2897,7 +2898,7 @@ class TestSetItem:
             "[from] ability: Frisk",
             "[of] p1a: Weedle",
         ]
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "leftovers" == self.battle.opponent.active.item
         assert "leftovers" != self.battle.user.active.item
@@ -2911,7 +2912,7 @@ class TestSetItem:
             "[from] ability: Frisk",
             "[of] p1a: Weedle",
         ]
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "leftovers" == self.battle.opponent.active.item
         assert "leftovers" != self.battle.user.active.item
@@ -2919,7 +2920,7 @@ class TestSetItem:
     def test_sets_remove_item_when_tricked(self):
         split_msg = ["", "-item", "p2a: Caterpie", "Leftovers", "[from] move: Trick"]
         self.battle.opponent.active.item = "choicescarf"
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "leftovers" == self.battle.opponent.active.item
         assert "choicescarf" == self.battle.opponent.active.removed_item
@@ -2930,7 +2931,7 @@ class TestSetItem:
         self.battle.opponent.active.removed_item = (
             "choicescarf"  # should not be overwritten with leftovers
         )
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "choicescarf" == self.battle.opponent.active.item
         assert "choicescarf" == self.battle.opponent.active.removed_item
@@ -2939,7 +2940,7 @@ class TestSetItem:
         split_msg = ["", "-item", "p2a: Caterpie", "Choice Scarf", "[from] move: Trick"]
         self.battle.opponent.active.item = constants.UNKNOWN_ITEM
         self.battle.opponent.active.removed_item = None
-        set_item(self.battle, split_msg)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
 
         assert "choicescarf" == self.battle.opponent.active.item
         assert None is self.battle.opponent.active.removed_item
@@ -2951,8 +2952,8 @@ class TestSetItem:
         self.battle.opponent.active.removed_item = None
         self.battle.user.active.item = "leftovers"
         self.battle.user.active.removed_item = None
-        set_item(self.battle, split_msg_1)
-        set_item(self.battle, split_msg_2)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg_1))
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg_2))
 
         assert "leftovers" == self.battle.opponent.active.item
         assert "choicespecs" == self.battle.user.active.item
@@ -2975,8 +2976,8 @@ class TestSetItem:
         self.battle.opponent.active.removed_item = "choicespecs"
         self.battle.user.active.item = "choicespecs"
         self.battle.user.active.removed_item = None
-        set_item(self.battle, split_msg_1)
-        set_item(self.battle, split_msg_2)
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg_1))
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg_2))
 
         assert "choicespecs" == self.battle.opponent.active.item
         assert "leftovers" == self.battle.user.active.item
@@ -3002,7 +3003,7 @@ class TestStartVolatileStatus:
 
     def test_sets_slowstart_duration_when_slowstart_activates(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Slow Start"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert (
             6
@@ -3013,7 +3014,7 @@ class TestStartVolatileStatus:
 
     def test_volatile_status_is_set_on_opponent_pokemon(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Encore"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         expected_volatile_statuese = ["encore"]
 
@@ -3036,7 +3037,7 @@ class TestStartVolatileStatus:
 
         split_msg = messages[1].split("|")
 
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
         assert not self.battle.opponent.active.substitute_hit
 
     def test_substitute_gets_shed_tailing_flag_set_to_true(self):
@@ -3054,24 +3055,24 @@ class TestStartVolatileStatus:
 
         split_msg = messages[1].split("|")
 
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
         assert self.battle.user.shed_tailing
 
     def test_flashfire_sets_ability_on_opponent(self):
         split_msg = ["", "-start", "p2a: Caterpie", "ability: Flash Fire"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert "flashfire" == self.battle.opponent.active.ability
 
     def test_flashfire_sets_ability_on_bot(self):
         split_msg = ["", "-start", "p1a: Caterpie", "ability: Flash Fire"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert "flashfire" == self.battle.user.active.ability
 
     def test_volatile_status_is_set_on_user_pokemon(self):
         split_msg = ["", "-start", "p1a: Weedle", "Encore"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         expected_volatile_statuese = ["encore"]
 
@@ -3079,7 +3080,7 @@ class TestStartVolatileStatus:
 
     def test_adds_volatile_status_from_move_string(self):
         split_msg = ["", "-start", "p1a: Weedle", "move: Taunt"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         expected_volatile_statuese = ["taunt"]
 
@@ -3088,7 +3089,7 @@ class TestStartVolatileStatus:
     def test_does_not_add_the_same_volatile_status_twice(self):
         self.battle.opponent.active.volatile_statuses = ["encore"]
         split_msg = ["", "-start", "p2a: Caterpie", "Encore"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         expected_volatile_statuese = ["encore"]
 
@@ -3099,7 +3100,7 @@ class TestStartVolatileStatus:
     def test_doubles_hp_when_dynamax_starts_for_opponent(self):
         split_msg = ["", "-start", "p2a: Caterpie", "Dynamax"]
         hp, maxhp = self.battle.opponent.active.hp, self.battle.opponent.active.max_hp
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert hp * 2 == self.battle.opponent.active.hp
         assert maxhp * 2 == self.battle.opponent.active.max_hp
@@ -3107,20 +3108,20 @@ class TestStartVolatileStatus:
     def test_doubles_hp_when_dynamax_starts_for_bot(self):
         split_msg = ["", "-start", "p1a: Caterpie", "Dynamax"]
         hp, maxhp = self.battle.user.active.hp, self.battle.user.active.max_hp
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert hp * 2 == self.battle.user.active.hp
         assert maxhp * 2 == self.battle.user.active.max_hp
 
     def test_terastallize(self):
         split_msg = ["", "-terastallize", "p2a: Caterpie", "Fire"]
-        terastallize(self.battle, split_msg)
+        terastallize(self.battle, parse_as(protocol_messages.Terastallize, split_msg))
 
         assert self.battle.opponent.active.terastallized
 
     def test_terastallize_sets_tera_type(self):
         split_msg = ["", "-terastallize", "p2a: Caterpie", "Fire"]
-        terastallize(self.battle, split_msg)
+        terastallize(self.battle, parse_as(protocol_messages.Terastallize, split_msg))
 
         assert "fire" == self.battle.opponent.active.tera_type
 
@@ -3134,7 +3135,7 @@ class TestStartVolatileStatus:
             "Fighting",
             "[from] ability: Libero",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert "libero" == self.battle.opponent.active.ability
 
@@ -3148,7 +3149,7 @@ class TestStartVolatileStatus:
             "Fighting",
             "[from] ability: Libero",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert constants.TYPECHANGE in self.battle.opponent.active.volatile_statuses
 
@@ -3159,7 +3160,7 @@ class TestStartVolatileStatus:
             "p2a: Cinderace",
             "Confusion",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert "lumberry" in self.battle.opponent.active.impossible_items
 
@@ -3167,7 +3168,7 @@ class TestStartVolatileStatus:
         self.battle.opponent.active.volatile_statuses.append("lockedmove")
         self.battle.opponent.active.volatile_status_durations[constants.LOCKED_MOVE] = 1
         split_msg = ["", "-start", "p2a: Cinderace", "Confusion", "[fatigue]"]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert (
             constants.LOCKED_MOVE not in self.battle.opponent.active.volatile_statuses
@@ -3189,12 +3190,13 @@ class TestStartVolatileStatus:
             "Fighting",
             "[from] ability: Libero",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert ["fighting"] == self.battle.opponent.active.types
 
     def test_typechange_works_with_reflect_type(self):
         # |-start|p1a: Starmie|typechange|[from] move: Reflect Type|[of] p2a: Dragapult
+        self.battle.user.active = Pokemon("dragapult", 100)
         split_msg = [
             "",
             "-start",
@@ -3203,7 +3205,21 @@ class TestStartVolatileStatus:
             "[from] move: Reflect Type",
             "[of] p1a: Dragapult",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
+
+        assert ["dragon", "ghost"] == self.battle.opponent.active.types
+
+    def test_typechange_with_reflect_type_on_a_nicknamed_pokemon(self):
+        self.battle.user.active = Pokemon("dragapult", 100)
+        split_msg = [
+            "",
+            "-start",
+            "p2a: Starmie",
+            "typechange",
+            "[from] move: Reflect Type",
+            "[of] p1a: Ghost Jet",
+        ]
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert ["dragon", "ghost"] == self.battle.opponent.active.types
 
@@ -3217,7 +3233,7 @@ class TestStartVolatileStatus:
             "???/Flying",
             "[from] move: Burn Up",
         ]
-        start_volatile_status(self.battle, split_msg)
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
 
         assert ["???", "flying"] == self.battle.opponent.active.types
 
@@ -3240,7 +3256,7 @@ class TestEndVolatileStatus:
     def test_removes_partiallytrapped(self):
         self.battle.opponent.active.volatile_statuses = [constants.PARTIALLY_TRAPPED]
         split_msg = ["", "-end", "p2a: Caterpie", "whirlpool", "[partiallytrapped]"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -3254,7 +3270,7 @@ class TestEndVolatileStatus:
             "[partiallytrapped]",
             "[silent]",
         ]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
@@ -3268,7 +3284,7 @@ class TestEndVolatileStatus:
             "Slow Start",
             "[silent]",
         ]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
         assert (
@@ -3288,7 +3304,7 @@ class TestEndVolatileStatus:
             "Taunt",
             "[silent]",
         ]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
         assert (
@@ -3305,7 +3321,7 @@ class TestEndVolatileStatus:
             "Yawn",
             "[silent]",
         ]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert [] == self.battle.opponent.active.volatile_statuses
         assert (
@@ -3315,7 +3331,7 @@ class TestEndVolatileStatus:
     def test_removes_volatile_status_from_opponent(self):
         self.battle.opponent.active.volatile_statuses = ["encore"]
         split_msg = ["", "-end", "p2a: Caterpie", "Encore"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         expected_volatile_statuses = []
 
@@ -3326,7 +3342,7 @@ class TestEndVolatileStatus:
     def test_removes_protosynthesisspa_when_protocol_says_protosynthesis(self):
         self.battle.opponent.active.volatile_statuses = ["protosynthesisspa"]
         split_msg = ["", "-end", "p2a: Caterpie", "Protosynthesis"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         expected_volatile_statuses = []
 
@@ -3337,7 +3353,7 @@ class TestEndVolatileStatus:
     def test_removes_quarkdriveatk_when_protocol_says_quark_drive(self):
         self.battle.opponent.active.volatile_statuses = ["quarkdriveatk"]
         split_msg = ["", "-end", "p2a: Caterpie", "Quark Drive"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         expected_volatile_statuses = []
 
@@ -3348,7 +3364,7 @@ class TestEndVolatileStatus:
     def test_removes_volatile_status_from_user(self):
         self.battle.user.active.volatile_statuses = ["encore"]
         split_msg = ["", "-end", "p1a: Weedle", "Encore"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         expected_volatile_statuses = []
 
@@ -3358,7 +3374,7 @@ class TestEndVolatileStatus:
         self.battle.opponent.active.volatile_statuses = ["dynamax"]
         hp, maxhp = self.battle.opponent.active.hp, self.battle.opponent.active.max_hp
         split_msg = ["", "-end", "p2a: Weedle", "Dynamax"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert hp / 2 == self.battle.opponent.active.hp
         assert maxhp / 2 == self.battle.opponent.active.max_hp
@@ -3367,7 +3383,7 @@ class TestEndVolatileStatus:
         self.battle.user.active.volatile_statuses = ["dynamax"]
         hp, maxhp = self.battle.user.active.hp, self.battle.user.active.max_hp
         split_msg = ["", "-end", "p1a: Weedle", "Dynamax"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
 
         assert hp / 2 == self.battle.user.active.hp
         assert maxhp / 2 == self.battle.user.active.max_hp
@@ -3376,7 +3392,7 @@ class TestEndVolatileStatus:
         self.battle.opponent.active.substitute_hit = True
 
         split_msg = ["", "-end", "p2a: Weedle", "Substitute"]
-        end_volatile_status(self.battle, split_msg)
+        end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
         assert not self.battle.opponent.active.substitute_hit
 
 
@@ -3399,29 +3415,29 @@ class TestUpdateAbility:
     def test_sets_as_one_spectrier(self):
         self.battle.opponent.active.name = "calyrexshadow"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         assert "asonespectrier" == self.battle.opponent.active.ability
 
     def test_sets_as_one_glastrier(self):
         self.battle.opponent.active.name = "calyrexice"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         assert "asoneglastrier" == self.battle.opponent.active.ability
 
     def test_does_not_update_asoneglastrier_to_unnerve(self):
         self.battle.opponent.active.name = "calyrexice"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         split_msg = ["", "-ability", "p2a: Calyrex", "Unnerve"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         assert "asoneglastrier" == self.battle.opponent.active.ability
 
     def test_does_not_update_asonespectrier_to_unnerve(self):
         self.battle.opponent.active.name = "calyrexshadow"
         split_msg = ["", "-ability", "p2a: Calyrex", "As One"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         split_msg = ["", "-ability", "p2a: Calyrex", "Unnerve"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         assert "asonespectrier" == self.battle.opponent.active.ability
 
     def test_alternate_set_trace_ability(self):
@@ -3438,7 +3454,7 @@ class TestUpdateAbility:
             "[from] ability: Trace",
             "[of] p1a: Caterpie",
         ]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
         assert "levitate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.opponent.active.original_ability
 
@@ -3453,7 +3469,7 @@ class TestUpdateAbility:
             "[from] ability: Trace",
             "[of] p1a: Weedle",
         ]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
 
         assert "levitate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.opponent.active.original_ability
@@ -3470,7 +3486,7 @@ class TestUpdateAbility:
             "[from] ability: Wandering Spirit",
             "[of] p1a: Weedle",
         ]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
 
         assert "wanderingspirit" == self.battle.opponent.active.ability
         assert "intimidate" == self.battle.opponent.active.original_ability
@@ -3489,7 +3505,7 @@ class TestUpdateAbility:
             "[from] ability: Trace",
             "[of] p1a: Caterpie",
         ]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
 
         assert "intimidate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.opponent.active.original_ability
@@ -3509,8 +3525,8 @@ class TestUpdateAbility:
             "[from] ability: Trace",
             "[of] p1a: Caterpie",
         ]
-        update_ability(self.battle, split_msg_1)
-        update_ability(self.battle, split_msg_2)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg_1))
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg_2))
 
         assert "intimidate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.opponent.active.original_ability
@@ -3530,8 +3546,8 @@ class TestUpdateAbility:
             "[from] ability: Trace",
             "[of] p2a: Caterpie",
         ]
-        update_ability(self.battle, split_msg_1)
-        update_ability(self.battle, split_msg_2)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg_1))
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg_2))
 
         assert "intimidate" == self.battle.opponent.active.ability
         assert "trace" == self.battle.user.active.original_ability
@@ -3539,7 +3555,7 @@ class TestUpdateAbility:
 
     def test_update_ability_from_ability_string_properly_updates_ability(self):
         split_msg = ["", "-ability", "p2a: Caterpie", "Lightning Rod", "boost"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
 
         expected_ability = "lightningrod"
 
@@ -3547,7 +3563,7 @@ class TestUpdateAbility:
 
     def test_update_ability_from_ability_string_properly_updates_ability_for_bot(self):
         split_msg = ["", "-ability", "p1a: Caterpie", "Lightning Rod", "boost"]
-        update_ability(self.battle, split_msg)
+        update_ability(self.battle, parse_as(protocol_messages.Ability, split_msg))
 
         expected_ability = "lightningrod"
 
@@ -3576,7 +3592,9 @@ class TestSwapSideConditions:
 
     def test_does_nothing_when_no_side_conditions_are_present(self):
         split_msg = ["", "-swapsideconditions"]
-        swapsideconditions(self.battle, split_msg)
+        swapsideconditions(
+            self.battle, parse_as(protocol_messages.SwapSideConditions, split_msg)
+        )
 
         expected_dict = self.get_expected_empty_dict()
 
@@ -3588,7 +3606,9 @@ class TestSwapSideConditions:
 
         self.battle.user.side_conditions[constants.SPIKES] = 1
 
-        swapsideconditions(self.battle, split_msg)
+        swapsideconditions(
+            self.battle, parse_as(protocol_messages.SwapSideConditions, split_msg)
+        )
 
         expected_user_side_conditions = self.get_expected_empty_dict()
 
@@ -3604,7 +3624,9 @@ class TestSwapSideConditions:
         self.battle.user.side_conditions[constants.SPIKES] = 2
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
 
-        swapsideconditions(self.battle, split_msg)
+        swapsideconditions(
+            self.battle, parse_as(protocol_messages.SwapSideConditions, split_msg)
+        )
 
         expected_user_side_conditions = self.get_expected_empty_dict()
         expected_user_side_conditions[constants.SPIKES] = 1
@@ -3625,7 +3647,9 @@ class TestSwapSideConditions:
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
         self.battle.opponent.side_conditions[constants.LIGHT_SCREEN] = 2
 
-        swapsideconditions(self.battle, split_msg)
+        swapsideconditions(
+            self.battle, parse_as(protocol_messages.SwapSideConditions, split_msg)
+        )
 
         expected_user_side_conditions = self.get_expected_empty_dict()
         expected_user_side_conditions[constants.SPIKES] = 1
@@ -3660,7 +3684,7 @@ class TestIllusionEnd:
         self.battle.opponent.active = Pokemon("meloetta", 100)
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.name
 
@@ -3671,7 +3695,7 @@ class TestIllusionEnd:
         self.battle.opponent.active.hp_at_switch_in = 100
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "meloetta" == self.battle.opponent.reserve[0].name
         assert 100 == self.battle.opponent.reserve[0].hp
@@ -3682,7 +3706,7 @@ class TestIllusionEnd:
         self.battle.opponent.active.status_at_switch_in = None
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "meloetta" == self.battle.opponent.reserve[0].name
         assert self.battle.opponent.reserve[0].status is None
@@ -3699,7 +3723,7 @@ class TestIllusionEnd:
         self.battle.opponent.active = Pokemon("meloetta", 100)
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
 
@@ -3729,7 +3753,7 @@ class TestIllusionEnd:
         self.battle.opponent.active = meloetta
         self.battle.opponent.reserve = [zoroark]
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert Pokemon("zoroark", 82) == self.battle.opponent.active
         assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
@@ -3753,7 +3777,7 @@ class TestIllusionEnd:
         self.battle.opponent.active = meloetta
         self.battle.opponent.reserve = []
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert Pokemon("zoroark", 82) == self.battle.opponent.active
         assert [Pokemon("meloetta", 100)] == self.battle.opponent.reserve
@@ -3768,14 +3792,14 @@ class TestIllusionEnd:
         self.battle.opponent.active = Pokemon("meloetta", 100)
         self.battle.opponent.reserve = [zoroark]
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert zoroark not in self.battle.opponent.reserve
 
     def test_does_not_set_base_name_for_illusion_ending(self):
         self.battle.opponent.active = Pokemon("meloetta", 100)
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L84, F"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.base_name
 
@@ -3790,7 +3814,7 @@ class TestIllusionEnd:
         ]
         self.battle.opponent.reserve = [zoroark]
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, F"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.base_name
         assert 4 == len(self.battle.opponent.active.moves)
@@ -3812,7 +3836,7 @@ class TestIllusionEnd:
         ]
         self.battle.opponent.reserve = [Pokemon("meloetta", 100)]
         split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L84, F"]
-        illusion_end(self.battle, split_msg)
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.base_name
         assert None is self.battle.opponent.active.zoroark_disguised_as
@@ -3845,7 +3869,7 @@ class TestFail:
             "[from] ability: Clear Body",
             "[of] p2a: Caterpie",
         ]
-        fail(self.battle, split_msg)
+        fail(self.battle, parse_as(protocol_messages.Fail, split_msg))
         assert "clearbody" == self.battle.opponent.active.ability
 
 
@@ -3874,7 +3898,7 @@ class TestFormChange:
             "Meloetta - Pirouette",
             "[msg]",
         ]
-        form_change(self.battle, split_msg)
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
 
         assert "meloettapirouette" == self.battle.opponent.active.name
 
@@ -3888,7 +3912,7 @@ class TestFormChange:
             "Meloetta - Pirouette",
             "[msg]",
         ]
-        form_change(self.battle, split_msg)
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
 
         assert 2 == self.battle.opponent.active.boosts[constants.ATTACK]
 
@@ -3902,7 +3926,7 @@ class TestFormChange:
             "Meloetta - Pirouette",
             "[msg]",
         ]
-        form_change(self.battle, split_msg)
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
 
         assert constants.Status.BURN == self.battle.opponent.active.status
 
@@ -3916,7 +3940,7 @@ class TestFormChange:
             "Aegislash-Blade",
             "[from] ability: Stance Change",
         ]
-        form_change(self.battle, split_msg)
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
 
         assert "airballoon" == self.battle.opponent.active.item
 
@@ -3929,7 +3953,7 @@ class TestFormChange:
             "Meloetta - Pirouette",
             "[msg]",
         ]
-        form_change(self.battle, split_msg)
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
 
         assert "meloetta" == self.battle.opponent.active.base_name
 
@@ -3969,14 +3993,14 @@ class TestFormChange:
             "[from] ability: Schooling",
         ]
 
-        switch_or_drag(self.battle, m1)
-        form_change(self.battle, m2)
-        switch_or_drag(self.battle, m3)
-        switch_or_drag(self.battle, m4)
-        form_change(self.battle, m5)
-        switch_or_drag(self.battle, m6)
-        switch_or_drag(self.battle, m7)
-        form_change(self.battle, m8)
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, m1))
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, m2))
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, m3))
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, m4))
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, m5))
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, m6))
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, m7))
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, m8))
 
         pkmn = Pokemon("wishiwashischool", 100)
         assert pkmn not in self.battle.opponent.reserve
@@ -4000,14 +4024,18 @@ class TestClearNegativeBoost:
     def test_clears_negative_boosts(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: -1}
         split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
-        clearnegativeboost(self.battle, split_msg)
+        clearnegativeboost(
+            self.battle, parse_as(protocol_messages.ClearNegativeBoost, split_msg)
+        )
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_clears_multiple_negative_boosts(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: -1, constants.SPEED: -1}
         split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
-        clearnegativeboost(self.battle, split_msg)
+        clearnegativeboost(
+            self.battle, parse_as(protocol_messages.ClearNegativeBoost, split_msg)
+        )
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
         assert 0 == self.battle.opponent.active.boosts[constants.SPEED]
@@ -4015,7 +4043,9 @@ class TestClearNegativeBoost:
     def test_does_not_clear_positive_boost(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: 1}
         split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
-        clearnegativeboost(self.battle, split_msg)
+        clearnegativeboost(
+            self.battle, parse_as(protocol_messages.ClearNegativeBoost, split_msg)
+        )
 
         assert 1 == self.battle.opponent.active.boosts[constants.ATTACK]
 
@@ -4028,7 +4058,9 @@ class TestClearNegativeBoost:
             constants.SPECIAL_DEFENSE: -1,
         }
         split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
-        clearnegativeboost(self.battle, split_msg)
+        clearnegativeboost(
+            self.battle, parse_as(protocol_messages.ClearNegativeBoost, split_msg)
+        )
 
         expected_boosts = {
             constants.ATTACK: 1,
@@ -4059,7 +4091,7 @@ class TestClearBoost:
     def test_clears_boost(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: 2}
         split_msg = ["", "-clearboost", "p2a: caterpie", "[silent]"]
-        clearboost(self.battle, split_msg)
+        clearboost(self.battle, parse_as(protocol_messages.ClearBoost, split_msg))
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
 
@@ -4070,7 +4102,7 @@ class TestClearBoost:
             constants.SPECIAL_ATTACK: -3,
         }
         split_msg = ["", "-clearboost", "p2a: caterpie", "[silent]"]
-        clearboost(self.battle, split_msg)
+        clearboost(self.battle, parse_as(protocol_messages.ClearBoost, split_msg))
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
         assert 0 == self.battle.opponent.active.boosts[constants.SPECIAL_ATTACK]
@@ -4100,14 +4132,14 @@ class TestZPower:
     def test_sets_item_to_none(self):
         split_msg = ["", "-zpower", "p2a: Pkmn"]
         self.battle.opponent.active.item = "some_item"
-        zpower(self.battle, split_msg)
+        zpower(self.battle, parse_as(protocol_messages.ZPower, split_msg))
 
         assert None is self.battle.opponent.active.item
 
     def test_does_not_set_item_when_the_bot_moves(self):
         split_msg = ["", "-zpower", "p1a: Pkmn"]
         self.battle.opponent.active.item = "some_item"
-        zpower(self.battle, split_msg)
+        zpower(self.battle, parse_as(protocol_messages.ZPower, split_msg))
 
         assert "some_item" == self.battle.opponent.active.item
 
@@ -4134,40 +4166,40 @@ class TestSideStart:
 
     def test_stealthrock_gets_1_layer(self):
         split_msg = ["", "-sidestart", "p2", "Stealth Rock"]
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 1 == self.battle.opponent.side_conditions[constants.STEALTH_ROCK]
 
     def test_spikes_increments_by_1(self):
         split_msg = ["", "-sidestart", "p2", "Spikes"]
         self.battle.opponent.side_conditions[constants.SPIKES] = 1
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 2 == self.battle.opponent.side_conditions[constants.SPIKES]
 
     def test_reflect_gets_5_turns(self):
         split_msg = ["", "-sidestart", "p2", "Reflect"]
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 5 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_lightscreen_gets_5_turns(self):
         split_msg = ["", "-sidestart", "p2", "move: Light Screen"]
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 5 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_lightscreen_gets_8_turns_with_lightclay(self):
         split_msg = ["", "-sidestart", "p2", "move: Light Screen"]
         self.battle.opponent.active.item = "lightclay"
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 8 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_auroraveil_gets_8_turns_with_lightclay(self):
         split_msg = ["", "-sidestart", "p2", "move: Aurora Veil"]
         self.battle.opponent.active.item = "lightclay"
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 8 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_tailwind_gets_4_turns(self):
         split_msg = ["", "-sidestart", "p2", "move: Tail Wind"]
-        sidestart(self.battle, split_msg)
+        sidestart(self.battle, parse_as(protocol_messages.SideStart, split_msg))
         assert 4 == self.battle.opponent.side_conditions[constants.TAILWIND]
 
 
@@ -4193,31 +4225,31 @@ class TestSingleTurn:
 
     def test_sets_protect_side_condition_for_opponent_when_used(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Protect"]
-        singleturn(self.battle, split_msg)
+        singleturn(self.battle, parse_as(protocol_messages.SingleTurn, split_msg))
 
         assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_when_endure_is_used(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Endure"]
-        singleturn(self.battle, split_msg)
+        singleturn(self.battle, parse_as(protocol_messages.SingleTurn, split_msg))
 
         assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_does_not_set_for_non_protect_move(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "Roost"]
-        singleturn(self.battle, split_msg)
+        singleturn(self.battle, parse_as(protocol_messages.SingleTurn, split_msg))
 
         assert 0 == self.battle.opponent.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_for_bot_when_used(self):
         split_msg = ["", "-singleturn", "p1a: Weedle", "Protect"]
-        singleturn(self.battle, split_msg)
+        singleturn(self.battle, parse_as(protocol_messages.SingleTurn, split_msg))
 
         assert 2 == self.battle.user.side_conditions[constants.PROTECT]
 
     def test_sets_protect_side_condition_when_prefixed_by_move(self):
         split_msg = ["", "-singleturn", "p2a: Caterpie", "move: Protect"]
-        singleturn(self.battle, split_msg)
+        singleturn(self.battle, parse_as(protocol_messages.SingleTurn, split_msg))
 
         assert 2 == self.battle.opponent.side_conditions[constants.PROTECT]
 
@@ -4351,7 +4383,7 @@ class TestTransform:
         if self.battle.user.active.ability == self.battle.opponent.active.ability:
             pytest.fail("Abilities were equal before transform")
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert self.user_active_ability == self.battle.opponent.active.ability
         assert "imposter" == self.battle.opponent.active.original_ability
@@ -4374,7 +4406,7 @@ class TestTransform:
         if self.battle.user.active.moves == self.battle.opponent.active.moves:
             pytest.fail("Moves were equal before transform")
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert self.battle.user.active.moves == self.battle.opponent.active.moves
 
@@ -4389,7 +4421,7 @@ class TestTransform:
             "[from] ability: Imposter",
         ]
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert self.battle.user.active.types == self.battle.opponent.active.types
 
@@ -4414,7 +4446,7 @@ class TestTransform:
             "[from] ability: Imposter",
         ]
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert self.battle.user.active.boosts == self.battle.opponent.active.boosts
 
@@ -4428,7 +4460,7 @@ class TestTransform:
             "[from] ability: Imposter",
         ]
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert constants.TRANSFORM in self.battle.opponent.active.volatile_statuses
 
@@ -4442,7 +4474,7 @@ class TestTransform:
             "[from] ability: Imposter",
         ]
 
-        transform(self.battle, split_msg)
+        transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert constants.TRANSFORM in self.battle.user.active.volatile_statuses
 
@@ -4462,29 +4494,64 @@ class TestCant:
         self.user_active = Pokemon("weedle", 100)
         self.battle.user.active = self.user_active
 
+    def test_adds_move_that_could_not_be_used_from_taunt(self):
+        cant(
+            self.battle,
+            parse_as(
+                protocol_messages.Cant,
+                ["", "cant", "p2a: Caterpie", "move: Taunt", "Toxic"],
+            ),
+        )
+        assert Move("toxic") in self.battle.opponent.active.moves
+
+    def test_does_not_add_move_from_throat_chop(self):
+        # the pokemon that was hit by throat chop did not use throat chop
+        cant(
+            self.battle,
+            parse_as(
+                protocol_messages.Cant,
+                ["", "cant", "p2a: Caterpie", "move: Throat Chop"],
+            ),
+        )
+        assert Move("throatchop") not in self.battle.opponent.active.moves
+
     def test_increments_sleep_turns_when_cant_from_sleep(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.status = constants.Status.SLEEP
-        cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "slp"]),
+        )
         assert 1 == self.battle.user.active.sleep_turns
 
     def test_removes_truant_when_cant_from_truant(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.volatile_statuses.append("truant")
-        cant(self.battle, ["", "-cant", "p1a: Slaking", "ability: Truant"])
+        cant(
+            self.battle,
+            parse_as(
+                protocol_messages.Cant, ["", "cant", "p1a: Slaking", "ability: Truant"]
+            ),
+        )
         assert "truant" not in self.battle.user.active.volatile_statuses
 
     def test_removes_mustrecharge_when_cant_from_recharge(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.volatile_statuses.append("mustrecharge")
-        cant(self.battle, ["", "-cant", "p1a: Slaking", "recharge"])
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Slaking", "recharge"]),
+        )
         assert "mustrecharge" not in self.battle.user.active.volatile_statuses
 
     def test_only_decrements_rest_turns_when_cant_from_sleep_with_a_rest_turn(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.rest_turns = 3
         self.battle.user.active.status = constants.Status.SLEEP
-        cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "slp"]),
+        )
         assert 0 == self.battle.user.active.sleep_turns
         assert 2 == self.battle.user.active.rest_turns
 
@@ -4498,8 +4565,8 @@ class TestCant:
         self.battle.opponent.active.volatile_status_durations[
             constants.PARTIALLY_TRAPPED
         ] = 1
-        split_msg = ["", "-cant", "p1a: Rhydon", "par"]
-        cant(self.battle, split_msg)
+        split_msg = ["", "cant", "p1a: Rhydon", "par"]
+        cant(self.battle, parse_as(protocol_messages.Cant, split_msg))
         assert (
             constants.PARTIALLY_TRAPPED
             not in self.battle.opponent.active.volatile_statuses
@@ -4531,7 +4598,7 @@ class TestUpkeep:
         self.battle.generation = "gen3"
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert (
             1 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
@@ -4540,7 +4607,7 @@ class TestUpkeep:
         self.battle.generation = "gen5"
         self.battle.opponent.active.volatile_statuses = [constants.TAUNT]
         self.battle.opponent.active.volatile_status_durations[constants.TAUNT] = 0
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert (
             0 == self.battle.opponent.active.volatile_status_durations[constants.TAUNT]
         )
@@ -4548,7 +4615,7 @@ class TestUpkeep:
     def test_decrements_slowstart_volatile_duration(self):
         self.battle.user.active.volatile_statuses.append(constants.SLOW_START)
         self.battle.user.active.volatile_status_durations[constants.SLOW_START] = 5
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert (
             4 == self.battle.user.active.volatile_status_durations[constants.SLOW_START]
         )
@@ -4556,7 +4623,7 @@ class TestUpkeep:
     def test_increments_lockedmove_end_of_turn(self):
         self.battle.opponent.active.volatile_statuses.append(constants.LOCKED_MOVE)
         self.battle.opponent.active.volatile_status_durations[constants.LOCKED_MOVE] = 0
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert (
             1
             == self.battle.opponent.active.volatile_status_durations[
@@ -4566,55 +4633,55 @@ class TestUpkeep:
 
     def test_decrements_reflect_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.REFLECT] = 5
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 4 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_decrementing_reflect_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.REFLECT] = 1
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 3 == self.battle.opponent.side_conditions[constants.REFLECT]
 
     def test_decrements_lightscreen_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.LIGHT_SCREEN] = 5
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 4 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_decrementing_lightscreen_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.LIGHT_SCREEN] = 1
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 3 == self.battle.opponent.side_conditions[constants.LIGHT_SCREEN]
 
     def test_decrements_auroraveil_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.AURORA_VEIL] = 5
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 4 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_decrementing_auroraveil_to_0_extends_by_3(self):
         self.battle.opponent.side_conditions[constants.AURORA_VEIL] = 1
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 3 == self.battle.opponent.side_conditions[constants.AURORA_VEIL]
 
     def test_decrements_tailwind_end_of_turn(self):
         self.battle.opponent.side_conditions[constants.TAILWIND] = 2
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 1 == self.battle.opponent.side_conditions[constants.TAILWIND]
 
     def test_field_turns_remaining_is_decremented(self):
         self.battle.field_turns_remaining = 5
         self.battle.field = constants.Terrain.GRASSY
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 4 == self.battle.field_turns_remaining
 
     def test_0_turns_remaining_field_sets_turns_remaining_to_3(self):
         self.battle.field_turns_remaining = 1
         self.battle.field = constants.Terrain.GRASSY
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 3 == self.battle.field_turns_remaining
 
     def test_none_field_does_not_change_field_or_turns_remaining(self):
         self.battle.field_turns_remaining = 0
         self.battle.field = None
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 0 == self.battle.field_turns_remaining
 
     def test_resets_sleep_turns_to_zero_after_not_using_sleeptalk(self):
@@ -4622,8 +4689,11 @@ class TestUpkeep:
         self.battle.user.active.status = constants.Status.SLEEP
         self.battle.user.active.gen_3_consecutive_sleep_talks = 1
 
-        cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
-        upkeep(self.battle, "")
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "slp"]),
+        )
+        upkeep(self.battle, Upkeep())
 
         assert 0 == self.battle.user.active.gen_3_consecutive_sleep_talks
 
@@ -4632,32 +4702,41 @@ class TestUpkeep:
         self.battle.user.active.status = constants.Status.SLEEP
         self.battle.user.active.gen_3_consecutive_sleep_talks = 1
 
-        cant(self.battle, ["", "-cant", "p1a: Weedle", "slp"])
-        move(self.battle, ["", "move", "p1a: Weedle", "Sleeptalk"])
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "slp"]),
+        )
         move(
             self.battle,
-            ["", "move", "p1a: Weedle", "Tackle", "[from] move: Sleep Talk"],
+            parse_as(protocol_messages.Move, ["", "move", "p1a: Weedle", "Sleeptalk"]),
         )
-        upkeep(self.battle, "")
+        move(
+            self.battle,
+            parse_as(
+                protocol_messages.Move,
+                ["", "move", "p1a: Weedle", "Tackle", "[from] move: Sleep Talk"],
+            ),
+        )
+        upkeep(self.battle, Upkeep())
 
         assert 2 == self.battle.user.active.gen_3_consecutive_sleep_talks
         assert "sleeptalk" == self.battle.user.last_used_move.move
 
     def test_increments_yawn_duration(self):
         self.battle.user.active.volatile_statuses.append(constants.YAWN)
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 1 == self.battle.user.active.volatile_status_durations[constants.YAWN]
 
     def test_decrements_trickroom_in_upkeep(self):
         self.battle.trick_room = True
         self.battle.trick_room_turns_remaining = 5
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 4 == self.battle.trick_room_turns_remaining
 
     def test_swaps_out_yawn_for_yawnSleepThisTurn_opponent(self):
         self.battle.opponent.active.volatile_statuses.append(constants.YAWN)
         self.battle.opponent.active.volatile_status_durations[constants.YAWN] = 0
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert constants.YAWN in self.battle.opponent.active.volatile_statuses
         assert (
             1 == self.battle.opponent.active.volatile_status_durations[constants.YAWN]
@@ -4666,74 +4745,74 @@ class TestUpkeep:
     def test_removes_yawnSleepNextTurn(self):
         self.battle.user.active.volatile_statuses.append(constants.YAWN)
         self.battle.user.active.volatile_status_durations[constants.YAWN] = 1
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert 0 == self.battle.user.active.volatile_status_durations[constants.YAWN]
         assert constants.YAWN not in self.battle.user.active.volatile_statuses
 
     def test_reduces_protect_for_bot(self):
         self.battle.user.side_conditions[constants.PROTECT] = 1
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.side_conditions[constants.PROTECT] == 0
 
     def test_does_not_reduce_protect_when_it_is_0(self):
         self.battle.user.side_conditions[constants.PROTECT] = 0
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.side_conditions[constants.PROTECT] == 0
 
     def test_reduces_wish_if_it_is_larger_than_0_for_the_opponent(self):
         self.battle.opponent.wish = (2, 100)
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.opponent.wish == (1, 100)
 
     def test_reduces_wish_if_it_is_larger_than_0_for_the_bot(self):
         self.battle.user.wish = (2, 100)
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.wish == (1, 100)
 
     def test_does_not_reduce_wish_if_it_is_0(self):
         self.battle.user.wish = (0, 100)
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.wish == (0, 100)
 
     def test_reduces_future_sight_if_it_is_larger_than_0_for_the_bot(self):
         self.battle.user.future_sight = (2, "pokemon_name")
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.future_sight == (1, "pokemon_name")
 
     def test_does_not_reduce_future_sight_if_it_is_0(self):
         self.battle.user.future_sight = (0, "pokemon_name")
 
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
 
         assert self.battle.user.future_sight == (0, "pokemon_name")
 
     def test_adds_leftovers_blacksludge_to_impossible_items_at_end_of_turn(self):
         self.battle.opponent.active.hp = 50
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert constants.LEFTOVERS in self.battle.opponent.active.impossible_items
         assert constants.BLACK_SLUDGE in self.battle.opponent.active.impossible_items
 
     def test_adds_flameorb_toxicorb_if_status_is_none_at_end_of_turn(self):
         self.battle.opponent.active.status = None
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert "flameorb" in self.battle.opponent.active.impossible_items
         assert "toxicorb" in self.battle.opponent.active.impossible_items
 
     def test_does_not_add_flameorb_toxicorb_if_status_exists_at_end_of_turn(self):
         self.battle.opponent.active.status = constants.Status.FROZEN
-        upkeep(self.battle, "")
+        upkeep(self.battle, Upkeep())
         assert "flameorb" not in self.battle.opponent.active.impossible_items
         assert "toxicorb" not in self.battle.opponent.active.impossible_items
 
@@ -6347,21 +6426,21 @@ class TestRemoveItem:
         self.battle.opponent.active.item = "sitrusberry"
         split_msg = ["", "-enditem", "p2a: Hawlucha", "Sitrus Berry"]
 
-        remove_item(self.battle, split_msg)
+        remove_item(self.battle, parse_as(protocol_messages.EndItem, split_msg))
         assert "unburden" in self.battle.opponent.active.volatile_statuses
 
     def test_basic_removes_item(self):
         self.battle.opponent.active.item = "airballoon"
         split_msg = ["", "-enditem", "p2a: Caterpie", "Air Balloon"]
 
-        remove_item(self.battle, split_msg)
+        remove_item(self.battle, parse_as(protocol_messages.EndItem, split_msg))
         assert None is self.battle.opponent.active.item
 
     def test_sets_removed_item_when_item_ends(self):
         self.battle.opponent.active.item = "airballoon"
         split_msg = ["", "-enditem", "p2a: Caterpie", "Air Balloon"]
 
-        remove_item(self.battle, split_msg)
+        remove_item(self.battle, parse_as(protocol_messages.EndItem, split_msg))
         assert "airballoon" == self.battle.opponent.active.removed_item
 
 
@@ -6404,7 +6483,7 @@ class TestImmune:
             "-immune",
             "p2a: Enamorus-Therian",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         # tera-type renders immune to electric-judgment
         # make sure no zoroark-hisui is inferred here thinking judgment is a normal type
@@ -6432,7 +6511,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "zoroarkhisui" == self.battle.opponent.active.name
         assert 100 != self.battle.opponent.active.level
@@ -6471,7 +6550,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "zoroarkhisui" == self.battle.opponent.active.name
         assert 100 != self.battle.opponent.active.level
@@ -6503,7 +6582,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "zoroark" == self.battle.opponent.active.name
         assert 100 != self.battle.opponent.active.level
@@ -6533,7 +6612,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "gyarados" == self.battle.opponent.active.name
         assert 0 == len(self.battle.opponent.reserve)
@@ -6555,7 +6634,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "gyarados" == self.battle.opponent.active.name
         assert 0 == len(self.battle.opponent.reserve)
@@ -6578,7 +6657,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "gyarados" == self.battle.opponent.active.name
         assert 0 == len(self.battle.opponent.reserve)
@@ -6599,7 +6678,7 @@ class TestImmune:
             "-immune",
             "p2a: Urshifu",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "urshifu" == self.battle.opponent.active.name
         assert 0 == len(self.battle.opponent.reserve)
@@ -6621,7 +6700,7 @@ class TestImmune:
             "-immune",
             "p2a: Urshifu",
         ]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "urshifu" == self.battle.opponent.active.name
         assert 0 == len(self.battle.opponent.reserve)
@@ -6649,7 +6728,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]  # Gyarados is not immune to shadowball
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         assert "zoroarkhisui" == self.battle.opponent.active.name
 
@@ -6688,7 +6767,7 @@ class TestImmune:
             "-immune",
             "p2a: Gyarados",
         ]  # Gyarados is immune to rapidspin when terastallized into a ghost type
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         # nothing changed
         assert "gyarados" == self.battle.opponent.active.name
@@ -6712,7 +6791,7 @@ class TestImmune:
             "-immune",
             "p2a: Maushold",
         ]  # Maushold is immune to shadowball - no inferring zoroarkhisui
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         # did not change
         assert "maushold" == self.battle.opponent.active.name
@@ -6736,7 +6815,7 @@ class TestImmune:
             "-immune",
             "p2a: Salamence",
         ]  # Salamence is immune to earthquake - no inferring zoroarkhisui
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         # did not change
         assert "salamence" == self.battle.opponent.active.name
@@ -6761,7 +6840,7 @@ class TestImmune:
             "p2a: Rotom",
             "[from] ability: Levitate",
         ]  # rotomheat is immune to earthquake via levitate - no inferring zoroarkhisui
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         # did not change
         assert "rotomheat" == self.battle.opponent.active.name
@@ -6769,7 +6848,7 @@ class TestImmune:
 
     def test_sets_ability_for_opponent(self):
         split_msg = ["", "-immune", "p2a: Caterpie", "[from] ability: Volt Absorb"]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         expected_ability = "voltabsorb"
 
@@ -6777,7 +6856,7 @@ class TestImmune:
 
     def test_sets_ability_for_bot(self):
         split_msg = ["", "-immune", "p1a: Caterpie", "[from] ability: Volt Absorb"]
-        immune(self.battle, split_msg)
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
 
         expected_ability = "voltabsorb"
 
@@ -6806,34 +6885,34 @@ class TestInactive:
 
     def test_sets_time_to_15_seconds(self):
         split_msg = ["", "inactive", "Time left: 135 sec this turn", "135 sec total"]
-        inactive(self.battle, split_msg)
+        inactive(self.battle, parse_as(protocol_messages.Inactive, split_msg))
 
         assert 135 == self.battle.time_remaining
 
     def test_sets_to_60_seconds(self):
         split_msg = ["", "inactive", "Time left: 60 sec this turn", "60 sec total"]
-        inactive(self.battle, split_msg)
+        inactive(self.battle, parse_as(protocol_messages.Inactive, split_msg))
 
         assert 60 == self.battle.time_remaining
 
     def test_capture_group_failing(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "some random message"]
-        inactive(self.battle, split_msg)
+        inactive(self.battle, parse_as(protocol_messages.Inactive, split_msg))
 
         assert 1 == self.battle.time_remaining
 
     def test_capture_group_failing_but_message_starts_with_username(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "Time left: some random message"]
-        inactive(self.battle, split_msg)
+        inactive(self.battle, parse_as(protocol_messages.Inactive, split_msg))
 
         assert 1 == self.battle.time_remaining
 
     def test_different_inactive_message_does_not_change_time(self):
         self.battle.time_remaining = 1
         split_msg = ["", "inactive", "Some Other Person has 10 seconds left"]
-        inactive(self.battle, split_msg)
+        inactive(self.battle, parse_as(protocol_messages.Inactive, split_msg))
 
         assert 1 == self.battle.time_remaining
 
@@ -7289,7 +7368,7 @@ class TestSetHp:
     def test_sets_opponent_hp_from_percentage(self):
         self.battle.opponent.active.max_hp = 250
         split_msg = ["", "-sethp", "p2a: Pikachu", "50/100", "[from] move: Pain Split"]
-        sethp(self.battle, split_msg)
+        sethp(self.battle, parse_as(protocol_messages.SetHp, split_msg))
 
         assert 125 == self.battle.opponent.active.hp
 
@@ -7302,14 +7381,14 @@ class TestSetHp:
             "[from] move: Pain Split",
             "[silent]",
         ]
-        sethp(self.battle, split_msg)
+        sethp(self.battle, parse_as(protocol_messages.SetHp, split_msg))
 
         assert 317 == self.battle.user.active.hp
         assert 403 == self.battle.user.active.max_hp
 
     def test_user_condition_with_status_suffix(self):
         split_msg = ["", "-sethp", "p1a: Caterpie", "150/301 par", "[silent]"]
-        sethp(self.battle, split_msg)
+        sethp(self.battle, parse_as(protocol_messages.SetHp, split_msg))
 
         assert 150 == self.battle.user.active.hp
         assert 301 == self.battle.user.active.max_hp
@@ -7330,13 +7409,13 @@ class TestFaint:
 
     def test_sets_opponent_active_hp_to_zero(self):
         split_msg = ["", "faint", "p2a: Pikachu"]
-        faint(self.battle, split_msg)
+        faint(self.battle, parse_as(protocol_messages.Faint, split_msg))
 
         assert 0 == self.battle.opponent.active.hp
 
     def test_sets_user_active_hp_to_zero(self):
         split_msg = ["", "faint", "p1a: Caterpie"]
-        faint(self.battle, split_msg)
+        faint(self.battle, parse_as(protocol_messages.Faint, split_msg))
 
         assert 0 == self.battle.user.active.hp
 
@@ -7357,14 +7436,14 @@ class TestAnim:
     def test_removes_matching_volatile_status(self):
         self.battle.opponent.active.volatile_statuses = ["phantomforce"]
         split_msg = ["", "-anim", "p2a: Dragapult", "Phantom Force", "p1a: Caterpie"]
-        anim(self.battle, split_msg)
+        anim(self.battle, parse_as(protocol_messages.Anim, split_msg))
 
         assert "phantomforce" not in self.battle.opponent.active.volatile_statuses
 
     def test_does_nothing_when_volatile_not_present(self):
         self.battle.opponent.active.volatile_statuses = ["substitute"]
         split_msg = ["", "-anim", "p2a: Dragapult", "Phantom Force", "p1a: Caterpie"]
-        anim(self.battle, split_msg)
+        anim(self.battle, parse_as(protocol_messages.Anim, split_msg))
 
         assert ["substitute"] == self.battle.opponent.active.volatile_statuses
 
@@ -7392,7 +7471,7 @@ class TestCureTeam:
         self.opponent_reserve.sleep_turns = 1
 
         split_msg = ["", "-cureteam", "p2a: Pikachu", "[from] move: Heal Bell"]
-        cureteam(self.battle, split_msg)
+        cureteam(self.battle, parse_as(protocol_messages.CureTeam, split_msg))
 
         assert None is self.opponent_active.status
         assert None is self.opponent_reserve.status
@@ -7416,14 +7495,14 @@ class TestSideEnd:
     def test_resets_side_condition_for_opponent(self):
         self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
         split_msg = ["", "-sideend", "p2", "move: Stealth Rock"]
-        sideend(self.battle, split_msg)
+        sideend(self.battle, parse_as(protocol_messages.SideEnd, split_msg))
 
         assert 0 == self.battle.opponent.side_conditions[constants.STEALTH_ROCK]
 
     def test_resets_side_condition_for_user(self):
         self.battle.user.side_conditions[constants.TOXIC_SPIKES] = 2
         split_msg = ["", "-sideend", "p1", "move: Toxic Spikes"]
-        sideend(self.battle, split_msg)
+        sideend(self.battle, parse_as(protocol_messages.SideEnd, split_msg))
 
         assert 0 == self.battle.user.side_conditions[constants.TOXIC_SPIKES]
 
@@ -7443,20 +7522,20 @@ class TestMustRecharge:
 
     def test_opponent_gets_mustrecharge_volatile(self):
         split_msg = ["", "-mustrecharge", "p2a: Tauros"]
-        mustrecharge(self.battle, split_msg)
+        mustrecharge(self.battle, parse_as(protocol_messages.MustRecharge, split_msg))
 
         assert "mustrecharge" in self.battle.opponent.active.volatile_statuses
 
     def test_user_does_not_get_mustrecharge_volatile(self):
         split_msg = ["", "-mustrecharge", "p1a: Caterpie"]
-        mustrecharge(self.battle, split_msg)
+        mustrecharge(self.battle, parse_as(protocol_messages.MustRecharge, split_msg))
 
         assert "mustrecharge" not in self.battle.user.active.volatile_statuses
 
     def test_removes_truant_volatile_when_present(self):
         self.battle.opponent.active.volatile_statuses = ["truant"]
         split_msg = ["", "-mustrecharge", "p2a: Tauros"]
-        mustrecharge(self.battle, split_msg)
+        mustrecharge(self.battle, parse_as(protocol_messages.MustRecharge, split_msg))
 
         assert "truant" not in self.battle.opponent.active.volatile_statuses
         assert "mustrecharge" in self.battle.opponent.active.volatile_statuses
@@ -7477,7 +7556,7 @@ class TestMega:
 
     def test_sets_is_mega_and_forced_ability(self):
         split_msg = ["", "-mega", "p2a: Gyarados", "Gyarados", "Gyaradosite"]
-        mega(self.battle, split_msg)
+        mega(self.battle, parse_as(protocol_messages.Mega, split_msg))
 
         assert True is self.battle.opponent.active.is_mega
         assert "moldbreaker" == self.battle.opponent.active.ability
