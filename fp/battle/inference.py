@@ -10,18 +10,29 @@ from fp.search.poke_engine_helpers import poke_engine_get_damage_rolls
 from fp.battle.helpers import (
     normalize_name,
 )
-from fp.battle.helpers import get_pokemon_info_from_condition
 from fp.battle.helpers import (
     is_not_very_effective,
     is_super_effective,
     is_neutral_effectiveness,
 )
 from fp.battle.state import boost_multiplier_lookup
+from fp.battle.protocol_types import Condition, Effect, parse_side_id
 
 
 logger = logging.getLogger(__name__)
 
 MOVE_END_STRINGS = {"move", "switch", "upkeep", "-miss", ""}
+
+# effects that can change turn order irrespective of speed
+TURN_ORDER_ACTIVATIONS = {"quickclaw", "quickdraw", "custapberry"}
+
+
+def _is_confusion_activation(split_line):
+    return (
+        len(split_line) > 3
+        and split_line[1] == "-activate"
+        and Effect.parse(split_line[3]).id == constants.CONFUSION
+    )
 
 
 def can_have_priority_modified(battle, pokemon, move_name):
@@ -113,7 +124,7 @@ def can_have_speed_modified(battle, pokemon):
 
 
 def is_opponent(battle, split_msg):
-    return not split_msg[2].startswith(battle.user.name)
+    return parse_side_id(split_msg[2]) != battle.user.name
 
 
 def get_move_information(m):
@@ -157,29 +168,23 @@ def check_speed_ranges(battle, msg_lines):
             - Grassy Glide is used when Grassy Terrain is up
     """
     for ln in msg_lines:
+        split_line = ln.split("|")
+
         # If either side switched this turn - don't do this check
         if ln.startswith("|switch|"):
             return
 
         # if anyone got `cant` or hit themselves in confusion
         # skip this check as we don't know if they used a priority move
-        if ln.startswith("|cant|") or (
-            ln.startswith("|-activate|") and ln.endswith("confusion")
+        if ln.startswith("|cant|") or _is_confusion_activation(split_line):
+            return
+
+        # If anyone had quick claw, quick draw, or custap berry activate, skip this check
+        if (
+            len(split_line) > 3
+            and split_line[1] in ("-activate", "-enditem")
+            and Effect.parse(split_line[3]).id in TURN_ORDER_ACTIVATIONS
         ):
-            return
-
-        # If anyone used a custapberry, skip this check
-        if ln.startswith("|-enditem|") and (
-            "custapberry" in normalize_name(ln) or "Custap Berry" in ln
-        ):
-            return
-
-        # If anyone had quick claw activate, skip this check
-        if "quickclaw" in normalize_name(ln) or "Quick Claw" in ln:
-            return
-
-        # If anyone had quick claw activate, skip this check
-        if "quickdraw" in normalize_name(ln) or "Quick Draw" in ln:
             return
 
     moves = [get_move_information(m) for m in msg_lines if m.startswith("|move|")]
@@ -347,7 +352,7 @@ def check_choicescarf(battle, msg_lines):
         not battle.gen.choice_scarf_exists
         or ln.startswith("|switch|")
         or ln.startswith("|cant|")
-        or (ln.startswith("|-activate|") and ln.endswith("confusion"))
+        or _is_confusion_activation(ln.split("|"))
         for ln in msg_lines
     ) or battle.user.last_selected_move.move.startswith("switch "):
         return
@@ -432,9 +437,11 @@ def get_damage_dealt(battle, split_msg, next_messages):
         # if '-damage' appears, we want to parse the percentage damage dealt
         elif (
             next_line_split[1] == "-damage"
-            and defending_side.name in next_line_split[2]
+            and parse_side_id(next_line_split[2]) == defending_side.name
         ):
-            final_health, maxhp, _ = get_pokemon_info_from_condition(next_line_split[3])
+            condition = Condition.parse(next_line_split[3])
+            final_health = condition.hp
+            maxhp = condition.max_hp
             # maxhp can be 0 if the targetted pokemon fainted
             # the message would be: "0 fnt"
             if maxhp == 0:

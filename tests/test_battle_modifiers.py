@@ -974,6 +974,11 @@ class TestHealOrDamage:
         heal_or_damage(self.battle, split_msg)
         assert 0.5 == self.battle.user.active.hp / self.battle.user.active.max_hp
 
+    def test_opponent_damage_with_pixel_hp_denominator(self):
+        split_msg = ["", "-damage", "p2a: Caterpie", "24/48y"]
+        heal_or_damage(self.battle, split_msg)
+        assert 100 == self.battle.opponent.active.hp
+
     def test_heal_from_healing_wish_clears_side_condition(self):
         # |-heal|p1a: Caterpie|100/100|[from] move: Healing Wish
         self.battle.opponent.side_conditions[constants.HEALING_WISH] = 1
@@ -1335,6 +1340,12 @@ class TestActivate:
 
     def test_sets_substitute_hit_from_activate(self):
         split_msg = ["", "-activate", "p2a: Heatran", "Substitute", "[damage]"]
+        activate(self.battle, split_msg)
+        assert self.battle.opponent.active.substitute_hit
+
+    def test_sets_substitute_hit_from_activate_with_move_prefix(self):
+        # gen6+ sends the substitute effect with its `move: ` prefix
+        split_msg = ["", "-activate", "p2a: Heatran", "move: Substitute", "[damage]"]
         activate(self.battle, split_msg)
         assert self.battle.opponent.active.substitute_hit
 
@@ -2222,6 +2233,21 @@ class TestWeather:
         assert "raindance" == self.battle.weather
         assert "opponent:caterpie" == self.battle.weather_source
 
+    def test_weather_source_is_not_confused_by_nickname_containing_side_id(self):
+        split_msg = [
+            "",
+            "-weather",
+            "RainDance",
+            "[from] ability: Drizzle",
+            "[of] p1a: p2",
+        ]
+
+        weather(self.battle, split_msg)
+
+        assert "user:caterpie" == self.battle.weather_source
+        assert "drizzle" == self.battle.user.active.ability
+        assert self.battle.opponent.active.ability != "drizzle"
+
     def test_sets_weather_turns_remaining_from_ability_gen4(self):
         self.battle.generation = "gen4"
         split_msg = [
@@ -2715,6 +2741,16 @@ class TestCureStatus:
         curestatus(self.battle, split_msg)
 
         assert None is self.opponent_reserve.status
+
+    def test_curestatus_works_on_nicknamed_reserve_pokemon(self):
+        self.opponent_reserve.nickname = "Sparky"
+        self.opponent_reserve.status = constants.Status.BURN
+        self.opponent_active.status = constants.Status.BURN
+        split_msg = ["", "-curestatus", "p2: Sparky", "brn", "[msg]"]
+        curestatus(self.battle, split_msg)
+
+        assert None is self.opponent_reserve.status
+        assert constants.Status.BURN == self.opponent_active.status
 
     def test_curestatus_sets_sleep_and_rest_turns_to_0(self):
         self.opponent_reserve.status = constants.Status.SLEEP
@@ -3817,14 +3853,14 @@ class TestClearNegativeBoost:
 
     def test_clears_negative_boosts(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: -1}
-        split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
 
     def test_clears_multiple_negative_boosts(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: -1, constants.SPEED: -1}
-        split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
@@ -3832,7 +3868,7 @@ class TestClearNegativeBoost:
 
     def test_does_not_clear_positive_boost(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: 1}
-        split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
         assert 1 == self.battle.opponent.active.boosts[constants.ATTACK]
@@ -3845,7 +3881,7 @@ class TestClearNegativeBoost:
             constants.DEFENSE: -1,
             constants.SPECIAL_DEFENSE: -1,
         }
-        split_msg = ["-clearnegativeboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearnegativeboost", "p2a: caterpie", "[silent]"]
         clearnegativeboost(self.battle, split_msg)
 
         expected_boosts = {
@@ -3876,7 +3912,7 @@ class TestClearBoost:
 
     def test_clears_boost(self):
         self.battle.opponent.active.boosts = {constants.ATTACK: 2}
-        split_msg = ["-clearboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearboost", "p2a: caterpie", "[silent]"]
         clearboost(self.battle, split_msg)
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
@@ -3887,7 +3923,7 @@ class TestClearBoost:
             constants.SPEED: 1,
             constants.SPECIAL_ATTACK: -3,
         }
-        split_msg = ["-clearboost", "p2a: caterpie", "[silent]"]
+        split_msg = ["", "-clearboost", "p2a: caterpie", "[silent]"]
         clearboost(self.battle, split_msg)
 
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
@@ -4671,6 +4707,37 @@ class TestCheckSpeedRanges:
 
         messages = [
             "|move|p2a: Pikachu|Tackle|p1a: Caterpie",
+            "|-damage|p1a: Caterpie|0 fnt",
+            "|faint|p1a: Caterpie",
+            "|upkeep",
+            "|turn|7",
+        ]
+        check_speed_ranges(self.battle, messages)
+        assert 150 == self.battle.opponent.active.speed_range.min
+
+    def test_quick_claw_activating_makes_this_check_not_happen(self):
+        self.battle.user.active.stats[constants.SPEED] = 150
+        self.battle.opponent.active.stats[constants.SPEED] = 100
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|-activate|p2a: Pikachu|item: Quick Claw",
+            "|move|p2a: Pikachu|Tackle|p1a: Caterpie",
+            "|-damage|p1a: Caterpie|0 fnt",
+            "|faint|p1a: Caterpie",
+            "|upkeep",
+            "|turn|7",
+        ]
+        check_speed_ranges(self.battle, messages)
+        assert 0 == self.battle.opponent.active.speed_range.min
+
+    def test_quick_claw_nickname_does_not_prevent_this_check(self):
+        self.battle.user.active.stats[constants.SPEED] = 150
+        self.battle.opponent.active.stats[constants.SPEED] = 100
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p2a: Quick Claw|Tackle|p1a: Caterpie",
             "|-damage|p1a: Caterpie|0 fnt",
             "|faint|p1a: Caterpie",
             "|upkeep",

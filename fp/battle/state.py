@@ -14,6 +14,7 @@ from fp.battle.helpers import (
 )
 from fp.battle.helpers import normalize_name
 from fp.battle.helpers import calculate_stats
+from fp.battle.protocol_types import Details, PokemonIdent
 from fp.format_spec import FormatSpec
 from fp.generations import (
     GenerationMechanics,
@@ -722,20 +723,15 @@ class Pokemon:
 
     @classmethod
     def extract_nickname_from_pokemonshowdown_string(cls, ps_string):
-        return "".join(ps_string.split(":")[1:]).strip()
+        return PokemonIdent.parse(ps_string).nickname
 
     @classmethod
     def from_switch_string(cls, switch_string, nickname=None):
         if nickname is not None:
             nickname = cls.extract_nickname_from_pokemonshowdown_string(nickname)
 
-        details = switch_string.split(",")
-        name = details[0]
-        try:
-            level = int(details[1].replace("L", "").strip())
-        except (IndexError, ValueError):
-            level = 100
-        pkmn = Pokemon(name, level)
+        details = Details.parse(switch_string)
+        pkmn = Pokemon(details.species, details.level)
         pkmn.nickname = nickname
         return pkmn
 

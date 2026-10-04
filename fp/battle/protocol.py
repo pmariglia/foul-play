@@ -13,8 +13,14 @@ from fp.battle.helpers import (
     normalize_name,
     type_effectiveness_modifier,
 )
-from fp.battle.helpers import get_pokemon_info_from_condition
 from fp.battle.helpers import calculate_stats
+from fp.battle.protocol_types import (
+    Condition,
+    Effect,
+    EffectKind,
+    PokemonIdent,
+    SideId,
+)
 from fp.battle.inference import is_opponent
 from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_opponent_hiddenpower
@@ -61,6 +67,17 @@ def is_from_sleeptalk(msg: str) -> bool:
     if normalize_name(msg) in FROM_SLEEPTALK:
         return True
     return False
+
+
+def of_ident(msg: str) -> PokemonIdent | None:
+    if not msg.startswith("[of]"):
+        return None
+    return PokemonIdent.parse(msg.removeprefix("[of]"))
+
+
+def of_side(msg: str) -> SideId | None:
+    ident = of_ident(msg)
+    return ident.side if ident is not None else None
 
 
 def remove_volatile(pkmn, volatile):
@@ -365,10 +382,10 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
         side.reserve.remove(pkmn)
 
-    split_hp_msg = split_msg[4].split("/")
+    condition = Condition.parse(split_msg[4])
     pkmn.revealed = True
     if is_opponent(battle, split_msg):
-        new_hp_percentage = float(split_hp_msg[0]) / 100
+        new_hp_percentage = condition.fraction
         if (
             pkmn.hp != new_hp_percentage * pkmn.max_hp
             and "regenerator"
@@ -389,9 +406,8 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             pkmn.ability = "regenerator"
         pkmn.hp = pkmn.max_hp * new_hp_percentage
     else:
-        hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[4])
-        pkmn.hp = hp
-        pkmn.max_hp = maxhp
+        pkmn.hp = condition.hp
+        pkmn.max_hp = condition.max_hp
 
     side.last_used_move = LastUsedMove(
         pokemon_name=None, move="switch {}".format(pkmn.name), turn=battle.turn
@@ -494,17 +510,18 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
 
 def sethp(battle, split_msg):
     # |-sethp|p2a: Jellicent|317/403|[from] move: Pain Split|[silent]
+    condition = Condition.parse(split_msg[3])
     if is_opponent(battle, split_msg):
         pkmn = battle.opponent.active
-        new_hp_percentage = float(split_msg[3].split("/")[0]) / 100
-        pkmn.hp = int(pkmn.max_hp * new_hp_percentage)
+        pkmn.hp = int(pkmn.max_hp * condition.fraction)
     else:
         pkmn = battle.user.active
-        pkmn.hp = int(split_msg[3].split("/")[0])
-        pkmn.max_hp = int(split_msg[3].split("/")[1].split()[0])
+        pkmn.hp = condition.hp
+        pkmn.max_hp = condition.max_hp
 
 
 def heal_or_damage(battle, split_msg):
+    condition = Condition.parse(split_msg[3])
     if is_opponent(battle, split_msg):
         side = battle.opponent
         other_side = battle.user
@@ -516,11 +533,10 @@ def heal_or_damage(battle, split_msg):
             pkmn = side.find_reserve_pokemon_by_nickname(nickname)
 
         # opponent hp is given as a percentage
-        if constants.FNT in split_msg[3]:
+        if condition.fainted:
             pkmn.hp = 0
         else:
-            new_hp_percentage = float(split_msg[3].split("/")[0]) / 100
-            pkmn.hp = pkmn.max_hp * new_hp_percentage
+            pkmn.hp = pkmn.max_hp * condition.fraction
 
     else:
         side = battle.user
@@ -531,17 +547,16 @@ def heal_or_damage(battle, split_msg):
                 split_msg[2]
             )
             pkmn = side.find_reserve_pokemon_by_nickname(nickname)
-        if constants.FNT in split_msg[3]:
+        if condition.fainted:
             pkmn.hp = 0
         else:
-            hp, maxhp, _ = get_pokemon_info_from_condition(split_msg[3])
-            pkmn.hp = hp
-            pkmn.max_hp = maxhp
+            pkmn.hp = condition.hp
+            pkmn.max_hp = condition.max_hp
 
     # increase the amount of turns toxic has been active
     if (
         len(split_msg) == 5
-        and constants.Status.TOXIC in split_msg[3]
+        and condition.status == constants.Status.TOXIC
         and "[from] psn" in split_msg[4]
     ):
         side.side_conditions[constants.TOXIC_COUNT] += 1
@@ -549,9 +564,9 @@ def heal_or_damage(battle, split_msg):
     if (
         len(split_msg) == 6
         and split_msg[4].startswith("[from] item:")
-        and other_side.name in split_msg[5]
+        and of_side(split_msg[5]) == other_side.name
     ):
-        item = normalize_name(split_msg[4].split("item:")[-1])
+        item = Effect.parse(split_msg[4]).id
         logger.info("Setting {}'s item to: {}".format(other_side.active.name, item))
         other_side.active.item = item
 
@@ -571,10 +586,10 @@ def heal_or_damage(battle, split_msg):
     if (
         len(split_msg) == 6
         and split_msg[4].startswith("[from] ability:")
-        and other_side.name in split_msg[5]
+        and of_side(split_msg[5]) == other_side.name
         and split_msg[1] == "-damage"
     ):
-        ability = normalize_name(split_msg[4].split("ability:")[-1])
+        ability = Effect.parse(split_msg[4]).id
         logger.info(
             "Setting {}'s ability to: {}".format(other_side.active.name, ability)
         )
@@ -583,17 +598,21 @@ def heal_or_damage(battle, split_msg):
     # set the ability of the side (the side being healed, '-heal' only)
     if (
         len(split_msg) == 6
-        and constants.ABILITY in split_msg[4]
-        and other_side.name in split_msg[5]
+        and Effect.parse(split_msg[4]).kind == EffectKind.ABILITY
+        and of_side(split_msg[5]) == other_side.name
         and split_msg[1] == "-heal"
     ):
-        ability = normalize_name(split_msg[4].split(constants.ABILITY)[-1].strip(": "))
+        ability = Effect.parse(split_msg[4]).id
         logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
         pkmn.ability = ability
 
     # give that pokemon an item if this string specifies one
-    if len(split_msg) == 5 and constants.ITEM in split_msg[4] and pkmn.item is not None:
-        item = normalize_name(split_msg[4].split(constants.ITEM)[-1].strip(": "))
+    if (
+        len(split_msg) == 5
+        and Effect.parse(split_msg[4]).kind == EffectKind.ITEM
+        and pkmn.item is not None
+    ):
+        item = Effect.parse(split_msg[4]).id
         logger.info("Setting {}'s item to: {}".format(pkmn.name, item))
         pkmn.item = item
 
@@ -632,10 +651,10 @@ def fail(battle, split_msg):
     ):
         ability_side = (
             battle.user
-            if split_msg[5].startswith(f"[of] {battle.user.name}")
+            if of_side(split_msg[5]) == battle.user.name
             else battle.opponent
         )
-        ability = normalize_name(split_msg[4].split("ability: ")[-1])
+        ability = Effect.parse(split_msg[4]).id
         logger.info(
             "Setting {}'s ability to: {}".format(ability_side.active.name, ability)
         )
@@ -740,7 +759,7 @@ def move(battle, split_msg):
         for msg in split_msg
     ):
         if split_msg[-1].startswith("[from] ability:"):
-            ability = normalize_name(split_msg[-1].split("ability: ")[-1])
+            ability = Effect.parse(split_msg[-1]).id
             logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
             pkmn.ability = ability
         return
@@ -969,8 +988,8 @@ def status(battle, split_msg):
         pkmn = battle.user.active
         other_side = battle.opponent
 
-    if len(split_msg) > 4 and "item: " in split_msg[4]:
-        pkmn.item = normalize_name(split_msg[4].split("item:")[-1])
+    if len(split_msg) > 4 and Effect.parse(split_msg[4]).kind == EffectKind.ITEM:
+        pkmn.item = Effect.parse(split_msg[4]).id
 
     if len(split_msg) == 5 and split_msg[3] == "slp":
         if split_msg[4] == "[from] move: Rest":
@@ -996,10 +1015,9 @@ def status(battle, split_msg):
     if (
         len(split_msg) > 5
         and split_msg[4].startswith("[from] ability: ")
-        and split_msg[5].startswith("[of]")
-        and split_msg[5].startswith(f"[of] {other_side.name}")
+        and of_side(split_msg[5]) == other_side.name
     ):
-        ability = normalize_name(split_msg[4].split("ability: ")[-1])
+        ability = Effect.parse(split_msg[4]).id
         logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
         other_side.active.ability = ability
 
@@ -1012,8 +1030,11 @@ def activate(battle, split_msg):
         pkmn = battle.user.active
         other_pkmn = battle.opponent.active
 
+    effect = Effect.parse(split_msg[3])
+
     if (
-        normalize_name(split_msg[3]) == constants.SUBSTITUTE
+        effect.id == constants.SUBSTITUTE
+        and len(split_msg) > 4
         and split_msg[4] == "[damage]"
     ):
         logger.info(
@@ -1023,13 +1044,13 @@ def activate(battle, split_msg):
         )
         pkmn.substitute_hit = True
 
-    if split_msg[3].lower() == "move: poltergeist":
+    if effect.kind == EffectKind.MOVE and effect.id == "poltergeist":
         item = normalize_name(split_msg[4])
         logger.info("{} has the item {}".format(pkmn.name, item))
         pkmn.item = item
 
-    if split_msg[3].lower().startswith("ability: "):
-        ability = normalize_name(split_msg[3].split(":")[-1].strip())
+    if effect.kind == EffectKind.ABILITY:
+        ability = effect.id
         logger.info("Setting {}'s ability to {}".format(pkmn.name, ability))
         pkmn.ability = ability
 
@@ -1043,15 +1064,15 @@ def activate(battle, split_msg):
                 )
             )
 
-    elif split_msg[3].lower().startswith("item: ") and not any(
+    elif effect.kind == EffectKind.ITEM and not any(
         i == "[consumed]" for i in split_msg
     ):
-        item = normalize_name(split_msg[3].split(":")[-1].strip())
+        item = effect.id
         logger.info("Setting {}'s item to {}".format(pkmn.name, item))
         pkmn.item = item
 
-    if split_msg[3].lower().startswith("move: "):
-        move_name = normalize_name(split_msg[3].split(":")[-1].strip())
+    if effect.kind == EffectKind.MOVE:
+        move_name = effect.id
         if (
             move_name in all_move_json
             and all_move_json[move_name].get("volatileStatus")
@@ -1118,7 +1139,8 @@ def start_volatile_status(battle, split_msg):
         pkmn = battle.user.active
         side = battle.user
 
-    volatile_status = normalize_name(split_msg[3].split(":")[-1])
+    effect = Effect.parse(split_msg[3])
+    volatile_status = effect.id
 
     # for some reason futuresight is sent with the `-start` message
     # `-start` is typically reserved for volatile statuses
@@ -1186,7 +1208,7 @@ def start_volatile_status(battle, split_msg):
             )
         )
 
-    if constants.ABILITY in split_msg[3]:
+    if effect.kind == EffectKind.ABILITY:
         pkmn.ability = volatile_status
 
     if len(split_msg) == 6 and constants.ABILITY in normalize_name(split_msg[5]):
@@ -1209,7 +1231,7 @@ def end_volatile_status(battle, split_msg):
     else:
         pkmn = battle.user.active
 
-    volatile_status = normalize_name(split_msg[3].split(":")[-1])
+    volatile_status = Effect.parse(split_msg[3]).id
     if volatile_status == constants.SUBSTITUTE:
         logger.info("Substitute ended for {}".format(pkmn.name))
         pkmn.substitute_hit = False
@@ -1253,10 +1275,17 @@ def curestatus(battle, split_msg):
     else:
         side = battle.user
 
-    pkmn_name = split_msg[2].split(":")[-1].strip()
+    ident = PokemonIdent.parse(split_msg[2])
+    pkmn_name = ident.nickname
+    pkmn_by_nickname = next(
+        (p for p in [side.active] + side.reserve if p.nickname == ident.nickname),
+        None,
+    )
 
-    if normalize_name(pkmn_name) == side.active.name:
+    if ident.is_active or normalize_name(pkmn_name) == side.active.name:
         pkmn = side.active
+    elif pkmn_by_nickname is not None:
+        pkmn = pkmn_by_nickname
     else:
         try:
             pkmn = next(
@@ -1308,14 +1337,14 @@ def weather(battle, split_msg):
     side = None
     side_name = None
     if len(split_msg) == 5:
-        if battle.opponent.name in split_msg[-1]:
+        if of_side(split_msg[-1]) == battle.opponent.name:
             side = battle.opponent
             side_name = "opponent"
         else:
             side = battle.user
             side_name = "user"
 
-    weather_name = normalize_name(split_msg[2].split(":")[-1].strip())
+    weather_name = Effect.parse(split_msg[2]).id
     logger.info("Weather {} is active".format(weather_name))
     battle.weather = weather_name
 
@@ -1409,15 +1438,15 @@ def weather(battle, split_msg):
                 )
                 pkmn.item = item
 
-    if side is not None and len(split_msg) >= 5 and side.name in split_msg[4]:
-        ability = normalize_name(split_msg[3].split(":")[-1].strip())
+    if side is not None and len(split_msg) >= 5 and of_side(split_msg[4]) == side.name:
+        ability = Effect.parse(split_msg[3]).id
         logger.info("Setting {} ability to {}".format(side.active.name, ability))
         side.active.ability = ability
 
 
 def fieldstart(battle, split_msg):
     """Set the battle's field condition"""
-    field_name = normalize_name(split_msg[2].split(":")[-1].strip())
+    field_name = Effect.parse(split_msg[2]).id
 
     # some field effects show up as a `-fieldstart` item but are separate from the other fields
     if field_name == constants.TRICK_ROOM:
@@ -1435,7 +1464,7 @@ def fieldstart(battle, split_msg):
 
 def fieldend(battle, split_msg):
     """Remove the battle's field condition"""
-    field_name = normalize_name(split_msg[2].split(":")[-1].strip())
+    field_name = Effect.parse(split_msg[2]).id
 
     # some field effects show up as a `-fieldend` item but are separate from the other fields
     if field_name == constants.TRICK_ROOM:
@@ -1461,8 +1490,7 @@ def sidestart(battle, split_msg):
     # Some side conditions have an explicit duration such as lightscreen, reflect, etc.
     # Others are incremented by 1
 
-    condition = split_msg[3].split(":")[-1].strip()
-    condition = normalize_name(condition)
+    condition = Effect.parse(split_msg[3]).id
     if is_opponent(battle, split_msg):
         side = battle.opponent
     else:
@@ -1493,8 +1521,7 @@ def sidestart(battle, split_msg):
 
 def sideend(battle, split_msg):
     """Remove a side effect such as stealth rock or sticky web"""
-    condition = split_msg[3].split(":")[-1].strip()
-    condition = normalize_name(condition)
+    condition = Effect.parse(split_msg[3]).id
 
     if is_opponent(battle, split_msg):
         logger.info("Side condition {} ending for opponent".format(condition))
@@ -1553,7 +1580,7 @@ def set_item(battle, split_msg):
     if (
         len(split_msg) == 6
         and split_msg[4] == "[from] ability: Frisk"
-        and split_msg[2] in split_msg[5]
+        and of_ident(split_msg[5]) == PokemonIdent.parse(split_msg[2])
     ):
         logger.info(
             "{} frisked the opponent's item as {}".format(side.active.name, item)
@@ -1601,9 +1628,10 @@ def immune(battle, split_msg):
         side = battle.user
         pkmn = side.active
 
-    for msg in split_msg:
-        if constants.ABILITY in normalize_name(msg):
-            ability = normalize_name(msg.split(":")[-1])
+    for msg in split_msg[3:]:
+        effect = Effect.parse(msg)
+        if effect.kind == EffectKind.ABILITY:
+            ability = effect.id
             logger.info("Setting {}'s ability to {}".format(side.active.name, ability))
             side.active.ability = ability
 
@@ -1655,7 +1683,7 @@ def update_ability(battle, split_msg):
     if len(split_msg) >= 6 and (
         "ability:" in split_msg[4] or "ability:" in split_msg[5]
     ):
-        original_ability = normalize_name(split_msg[4].split(":")[-1])
+        original_ability = Effect.parse(split_msg[4]).id
         logger.info(
             "Setting {}'s original ability to {}".format(
                 side.active.name, original_ability
@@ -1663,7 +1691,7 @@ def update_ability(battle, split_msg):
         )
         side.active.original_ability = original_ability
 
-        if split_msg[5].startswith("[of]") and other_side.name in split_msg[5]:
+        if of_side(split_msg[5]) == other_side.name:
             logger.info(
                 "Setting {}'s ability to {}".format(other_side.active.name, ability)
             )
@@ -1837,7 +1865,7 @@ def singleturn(battle, split_msg):
     else:
         side = battle.user
 
-    move_name = normalize_name(split_msg[3].split(":")[-1])
+    move_name = Effect.parse(split_msg[3]).id
     if move_name in constants.PROTECT_VOLATILE_STATUSES:
         # increment by 2 because the `upkeep` function will decrement by 1 on every end-of-turn
         side.side_conditions[constants.PROTECT] += 2
@@ -1890,8 +1918,14 @@ def cant(battle, split_msg):
         turn=battle.turn,
     )
 
+    effect = Effect.parse(split_msg[3]) if len(split_msg) > 3 else None
+
     # |cant|p1a: Slaking|ability: Truant
-    if len(split_msg) == 4 and split_msg[3] == "ability: Truant":
+    if (
+        len(split_msg) == 4
+        and effect.kind == EffectKind.ABILITY
+        and effect.id == "truant"
+    ):
         logger.info(
             "{} got 'cant' from truant, removing truant volatile".format(
                 side.active.name
@@ -1914,8 +1948,8 @@ def cant(battle, split_msg):
         remove_volatile(side.active, "mustrecharge")
 
     # |cant|p2a: Politoed|move: Taunt|Toxic
-    if len(split_msg) == 4 and split_msg[3].startswith("move: "):
-        move_name = normalize_name(split_msg[3].split(":")[-1])
+    if len(split_msg) == 4 and effect.kind == EffectKind.MOVE:
+        move_name = effect.id
         move_object = side.active.get_move(move_name)
         if move_object is None:
             side.active.add_move(move_name)
@@ -2247,10 +2281,11 @@ def transform(battle, split_msg):
     for mv in side.active.moves:
         mv.current_pp = 5
 
-    if split_msg[-1].startswith("[from]") and "ability:" in split_msg[-1]:
-        side.active.original_ability = normalize_name(
-            split_msg[-1].split("ability:")[-1].strip()
-        )
+    if (
+        split_msg[-1].startswith("[from]")
+        and Effect.parse(split_msg[-1]).kind == EffectKind.ABILITY
+    ):
+        side.active.original_ability = Effect.parse(split_msg[-1]).id
     elif side.active.ability is not None:
         side.active.original_ability = side.active.ability
 
