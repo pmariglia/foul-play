@@ -7,20 +7,25 @@ from fp.battle.protocol_messages import (
     Activate,
     Boost,
     Cant,
+    Crit,
     Damage,
     FormeChange,
     Heal,
     Inactive,
     Item,
+    Miss,
     Move,
+    Resisted,
     SideStart,
     Start,
+    SuperEffective,
     Switch,
     Turn,
     Unknown,
     Upkeep,
     parse_as,
     parse_line,
+    parse_lines,
 )
 from fp.battle.protocol_types import (
     Effect,
@@ -136,6 +141,23 @@ class TestParseLine:
 
     def test_upkeep(self):
         assert Upkeep() == parse_line("|upkeep")
+
+    def test_move_result_messages(self):
+        target = PokemonIdent(SideId.P2, "a", "Y")
+        assert Crit(target) == parse_line("|-crit|p2a: Y")
+        assert SuperEffective(target) == parse_line("|-supereffective|p2a: Y")
+        assert Resisted(target) == parse_line("|-resisted|p2a: Y")
+        assert Miss(PokemonIdent(SideId.P1, "a", "X"), target) == parse_line(
+            "|-miss|p1a: X|p2a: Y"
+        )
+
+
+class TestParseLines:
+    def test_drops_non_protocol_lines(self):
+        messages = parse_lines(
+            [">battle-gen9ou-1", "", "|move|p1a: X|Tackle|p2a: Y", "|", "|upkeep"]
+        )
+        assert [Move, Unknown, Upkeep] == [type(m) for m in messages]
 
 
 class TestParseAs:

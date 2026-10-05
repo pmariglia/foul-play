@@ -1,8 +1,7 @@
 import logging
 
 from fp import constants
-from fp.battle.inference import is_opponent
-from fp.battle.protocol_types import KwArgs
+from fp.battle.protocol_messages import Move
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import random_battles_evs, type_effectiveness_modifier
 from fp.battle.state import Pokemon
@@ -97,16 +96,17 @@ class RandomBattleMode(BattleMode):
         return self.datasets.get_all_remaining_sets(pkmn)
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, move_name, split_msg, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
     ):
         # in randombattles we can deduce that there is a zoroark in front of us
         # if we see a move that is not in the known moveset, even if there is no
         # zoroark is in the reserves
+        move_name = msg.move_id
         if (
-            is_opponent(battle, split_msg)
+            battle.is_opponent_side(msg.user.side)
             and "transform" not in pkmn.volatile_statuses
             and move_name not in self.datasets.get_all_possible_moves(pkmn)
-            and KwArgs.parse(split_msg).from_ is None
+            and msg.kwargs.from_ is None
         ):
             actual_zoroark = None
             zoroark_hisui = Pokemon("zoroarkhisui", 100)

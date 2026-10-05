@@ -63,9 +63,8 @@ from fp.battle.protocol_messages import (
     Upkeep,
     Weather,
     ZPower,
-    parse_split,
+    parse_lines,
 )
-from fp.battle.inference import is_opponent
 from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_opponent_hiddenpower
 from fp.battle.inference import check_choicescarf
@@ -685,7 +684,7 @@ def move(battle, msg: Move):
     ) or side.find_pokemon_in_reserves("zoroarkhisui")
 
     pkmn = battle.mode.check_zoroark_from_move(
-        battle, side, pkmn, move_name, msg.raw.split("|"), zoroark_from_reserves
+        battle, side, pkmn, msg, zoroark_from_reserves
     )
 
     if from_sleeptalk and battle.gen.tracks_consecutive_sleep_talks:
@@ -2293,32 +2292,30 @@ def apply_message(battle: Battle, msg: Message):
 
 
 def process_battle_updates(battle: Battle):
-    msg_lines = battle.msg_list
-    check_speed_ranges(battle, msg_lines)
-    for i, line in enumerate(msg_lines):
-        split_msg = line.split("|")
-        msg = parse_split(split_msg)
-        if msg is None:
-            continue
-
+    messages = parse_lines(battle.msg_list)
+    check_speed_ranges(battle, messages)
+    for i, msg in enumerate(messages):
         apply_message(battle, msg)
 
-        action = split_msg[1].strip()
-        if action == "move" and is_opponent(battle, split_msg):
+        if isinstance(msg, Move) and battle.is_opponent_side(msg.user.side):
             if msg.move_id == constants.HIDDEN_POWER:
-                check_opponent_hiddenpower(battle, msg_lines[i + 1])
-            check_choicescarf(battle, msg_lines)
-            damage_dealt = get_damage_dealt(battle, split_msg, msg_lines[i + 1 :])
+                check_opponent_hiddenpower(battle, messages[i + 1])
+            check_choicescarf(battle, messages)
+            damage_dealt = get_damage_dealt(battle, msg, messages[i + 1 :])
             if damage_dealt:
                 update_dataset_possibilities(battle, damage_dealt, "damage_dealt")
 
-        elif action == "move" and not is_opponent(battle, split_msg):
-            damage_dealt = get_damage_dealt(battle, split_msg, msg_lines[i + 1 :])
+        elif isinstance(msg, Move):
+            damage_dealt = get_damage_dealt(battle, msg, messages[i + 1 :])
             if damage_dealt:
                 update_dataset_possibilities(battle, damage_dealt, "damage_received")
 
-        elif action == "switch" and is_opponent(battle, split_msg):
-            check_heavydutyboots(battle, msg_lines[i + 1 :])
+        elif (
+            isinstance(msg, Switch)
+            and not msg.is_drag
+            and battle.is_opponent_side(msg.pokemon.side)
+        ):
+            check_heavydutyboots(battle, messages[i + 1 :])
 
     battle.msg_list.clear()
 

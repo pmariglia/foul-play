@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from fp.battle.helpers import normalize_name
@@ -80,6 +81,27 @@ class Move(Message):
     @property
     def move_id(self) -> str:
         return normalize_name(self.move)
+
+
+@dataclass(frozen=True, slots=True)
+class Miss(Message):
+    source: PokemonIdent
+    target: PokemonIdent | None
+
+
+@dataclass(frozen=True, slots=True)
+class Crit(Message):
+    pokemon: PokemonIdent
+
+
+@dataclass(frozen=True, slots=True)
+class SuperEffective(Message):
+    pokemon: PokemonIdent
+
+
+@dataclass(frozen=True, slots=True)
+class Resisted(Message):
+    pokemon: PokemonIdent
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,6 +462,12 @@ def _parse_anim(args, kwargs, raw, _):
     )
 
 
+def _parse_miss(args, kwargs, raw, _):
+    return Miss(
+        PokemonIdent.parse(args[0]), _optional_ident(args, 1), kwargs=kwargs, raw=raw
+    )
+
+
 def _parse_fail(args, kwargs, raw, _):
     return Fail(PokemonIdent.parse(args[0]), _optional(args, 1), kwargs=kwargs, raw=raw)
 
@@ -513,6 +541,10 @@ PARSERS = {
     "-heal": _parse_pokemon_and_condition(Heal),
     "-sethp": _parse_pokemon_and_condition(SetHp),
     "move": _parse_move,
+    "-miss": _parse_miss,
+    "-crit": _parse_pokemon_only(Crit),
+    "-supereffective": _parse_pokemon_only(SuperEffective),
+    "-resisted": _parse_pokemon_only(Resisted),
     "-boost": _parse_boost(Boost),
     "-unboost": _parse_boost(Unboost),
     "-setboost": _parse_boost(SetBoost),
@@ -580,6 +612,11 @@ def parse_split(split_msg: list[str]) -> Message | None:
 
 def parse_line(line: str) -> Message | None:
     return parse_split(line.split("|"))
+
+
+def parse_lines(lines: Iterable[str]) -> list[Message]:
+    """Parse protocol lines, dropping anything that is not a protocol message"""
+    return [msg for msg in (parse_line(line) for line in lines) if msg is not None]
 
 
 def parse_as[T: Message](message_class: type[T], split_msg: list[str]) -> T:

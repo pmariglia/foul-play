@@ -7,6 +7,7 @@ from copy import copy, deepcopy
 
 from fp import constants
 from fp.battle.state import Battle, Battler, LastUsedMove, Pokemon
+from fp.battle.protocol_messages import Move
 from fp.config import FoulPlayConfig
 from fp.constants import BattleType
 from fp.data.sets import SmogonSets
@@ -110,7 +111,7 @@ class BattleMode:
         pass
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, move_name, split_msg, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
     ) -> Pokemon:
         return pkmn
 

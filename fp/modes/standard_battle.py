@@ -1,8 +1,7 @@
 import logging
 
 from fp import constants
-from fp.battle.inference import is_opponent
-from fp.battle.protocol_types import KwArgs
+from fp.battle.protocol_messages import Move
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
 from fp.config import FoulPlayConfig
@@ -154,18 +153,19 @@ class StandardBattleMode(BattleMode):
         return standard_battles.prepare_battles(battle, num_battles)
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, move_name, split_msg, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
     ):
         # in battle factory we can deduce that there is a zoroark in front of us
         # if we see a move that is not in the known moveset and a zoroark is in the reserves
+        move_name = msg.move_id
         if (
-            is_opponent(battle, split_msg)
+            battle.is_opponent_side(msg.user.side)
             and zoroark_from_reserves is not None
             and "transform" not in pkmn.volatile_statuses
             and move_name not in self.team_datasets.get_all_possible_moves(pkmn)
             and move_name
             in self.team_datasets.get_all_possible_moves(zoroark_from_reserves)
-            and KwArgs.parse(split_msg).from_ is None
+            and msg.kwargs.from_ is None
         ):
             logger.info(
                 "{} using {} means it is {}".format(

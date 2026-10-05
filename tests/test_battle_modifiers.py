@@ -44,7 +44,7 @@ from fp.battle.protocol import clearallboost
 from fp.battle.protocol import heal
 from fp.battle.protocol import damage
 from fp.battle import protocol_messages
-from fp.battle.protocol_messages import Upkeep, parse_as
+from fp.battle.protocol_messages import Upkeep, parse_as, parse_lines
 from fp.battle.protocol import swapsideconditions
 from fp.battle.protocol import move
 from fp.battle.protocol import cant
@@ -4860,7 +4860,7 @@ class TestCheckSpeedRanges:
             "|-damage|p1a: Caterpie|0 fnt",
             "|faint|p2a: Caterpie",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 300 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_recharging_makes_this_check_not_happen(self):
@@ -4875,7 +4875,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 0 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_hit_self_in_confusion_makes_this_check_not_happen(self):
@@ -4891,7 +4891,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 0 == self.battle.opponent.active.speed_range.min  # unchanged
 
     def test_boosting_speed_after_opponent_does_not_mess_up_speed_range_check(self):
@@ -4907,7 +4907,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_boosting_speed_before_opponent_does_not_mess_up_speed_range_check(self):
@@ -4923,7 +4923,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 150 == self.battle.opponent.active.speed_range.max
 
     def test_opponent_knocking_out_user_sets_speed_range_if_bot_used_same_priority_move(
@@ -4940,7 +4940,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_quick_claw_activating_makes_this_check_not_happen(self):
@@ -4956,7 +4956,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_quick_claw_nickname_does_not_prevent_this_check(self):
@@ -4971,7 +4971,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 150 == self.battle.opponent.active.speed_range.min
 
     def test_user_knocking_out_opponent_does_nothing(
@@ -4988,7 +4988,7 @@ class TestCheckSpeedRanges:
             "|upkeep",
             "|turn|7",
         ]
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_suckerpunch_and_thunderclap_sets_speed_ranges(self):
@@ -5007,7 +5007,7 @@ class TestCheckSpeedRanges:
             "|turn|7",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 150 == self.battle.opponent.active.speed_range.min
 
@@ -5020,7 +5020,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED]
@@ -5037,7 +5037,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED]
@@ -5054,7 +5054,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert float("inf") == self.battle.opponent.active.speed_range.max
         assert 0 == self.battle.opponent.active.speed_range.min
@@ -5069,7 +5069,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # bot_speed * 2 should be the minspeed it has b/c it went first with paralysis
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] * 2)
@@ -5086,7 +5086,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # bot_speed / 2 should be the minspeed it has b/c it went first with paralysis
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] / 2)
@@ -5103,7 +5103,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # bot_speed / 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] / 2)
@@ -5120,7 +5120,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # bot_speed * 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] * 2)
@@ -5138,7 +5138,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # bot_speed / 2 should be the minspeed it has b/c it went first with tailwind up
         expected_min_speed = int(self.battle.user.active.stats[constants.SPEED] / 2)
@@ -5159,7 +5159,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 0 == self.battle.opponent.active.speed_range.min
 
@@ -5172,7 +5172,7 @@ class TestCheckSpeedRanges:
             "|move|p2a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED]
@@ -5190,7 +5190,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 0 == self.battle.opponent.active.speed_range.min
 
@@ -5204,7 +5204,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED]
@@ -5223,7 +5223,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED]
@@ -5240,7 +5240,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 0 == self.battle.opponent.active.speed_range.min
 
@@ -5254,7 +5254,7 @@ class TestCheckSpeedRanges:
             "|move|p2a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert (
             self.battle.user.active.stats[constants.SPEED] * 1.5
@@ -5275,7 +5275,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # this is meant to show the rounding inherent with way pokemon floors values
         # floor(317 / 1.5) = 211
@@ -5295,7 +5295,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # the minspeed should take into account the fact that the opponent has a boost
         # therefore, the minimum (unboosted) speed must be divided by the boost multiplier
@@ -5318,7 +5318,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # the minspeed should take into account the fact that the opponent has a boost
         # therefore, the minimum (unboosted) speed must be divided by the boost multiplier
@@ -5343,7 +5343,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # the minspeed should take into account the fact that the opponent has a boost
         # therefore, the minimum (unboosted) speed must be divided by the boost multiplier
@@ -5366,7 +5366,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|unknown-move|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 150 == self.battle.opponent.active.speed_range.min
 
@@ -5379,7 +5379,7 @@ class TestCheckSpeedRanges:
             "|move|p2a: Caterpie|unknown-move|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         assert 150 == self.battle.opponent.active.speed_range.max
 
@@ -5401,7 +5401,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         expected_min_speed = 150
         assert expected_min_speed == self.battle.opponent.active.speed_range.min
 
@@ -5416,7 +5416,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert 0 == self.battle.opponent.active.speed_range.min
 
     def test_bot_using_grassyglide_in_grassy_terrain_does_not_cause_maxspeed_to_be_set(
@@ -5430,7 +5430,7 @@ class TestCheckSpeedRanges:
             "|move|p2a: Caterpie|Stealth Rock|",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
         assert float("inf") == self.battle.opponent.active.speed_range.max
 
     def test_move_from_magicbounce_after_switching_does_not_set_speed_range(self):
@@ -5443,7 +5443,7 @@ class TestCheckSpeedRanges:
             "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from] ability: Magic Bounce",
         ]
 
-        check_speed_ranges(self.battle, messages)
+        check_speed_ranges(self.battle, parse_lines(messages))
 
         # speed ranges should be unchanged because this was a switch-in
         assert float("inf") == self.battle.opponent.active.speed_range.max
@@ -5495,7 +5495,7 @@ class TestGuessChoiceScarf:
             "|faint|p1a: Toedscruel",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5509,7 +5509,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5524,7 +5524,7 @@ class TestGuessChoiceScarf:
             "|faint|p1a: Forretress",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5541,7 +5541,7 @@ class TestGuessChoiceScarf:
             "|faint|p1a: Forretress",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5558,7 +5558,7 @@ class TestGuessChoiceScarf:
             "|faint|p1a: Caterpie",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5575,7 +5575,7 @@ class TestGuessChoiceScarf:
             "|faint|p1a: Caterpie",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5590,7 +5590,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5605,7 +5605,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5622,7 +5622,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5637,7 +5637,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5652,7 +5652,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5667,7 +5667,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5682,7 +5682,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5696,7 +5696,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|unknown-move|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5710,7 +5710,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|unknown-move|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5724,7 +5724,7 @@ class TestGuessChoiceScarf:
             "|move|p2a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5738,7 +5738,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5752,7 +5752,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5770,7 +5770,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5788,7 +5788,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5807,7 +5807,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5825,7 +5825,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5846,7 +5846,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5862,7 +5862,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -5883,7 +5883,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5898,7 +5898,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert None is self.battle.opponent.active.item
 
@@ -5913,7 +5913,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "leftovers" == self.battle.opponent.active.item
 
@@ -5934,7 +5934,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert "choicescarf" == self.battle.opponent.active.item
 
@@ -5950,7 +5950,7 @@ class TestGuessChoiceScarf:
             "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from] ability: Magic Bounce",
         ]
 
-        check_choicescarf(self.battle, messages)
+        check_choicescarf(self.battle, parse_lines(messages))
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
@@ -6041,7 +6041,7 @@ class TestCheckHeavyDutyBoots:
             "|-damage|p2a: Weedle|90/100",
         ]
 
-        check_heavydutyboots(self.battle, messages)
+        check_heavydutyboots(self.battle, parse_lines(messages))
 
         assert None is self.battle.opponent.active.item
 
@@ -6992,7 +6992,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7017,7 +7021,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7043,7 +7051,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7069,7 +7081,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7094,7 +7110,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7116,7 +7136,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
         assert damage_dealt is None
 
     def test_does_not_catch_second_moves_damage_after_a_heal(self):
@@ -7132,7 +7156,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
         assert damage_dealt is None
 
     def test_does_not_set_damage_when_status_move_occurs(self):
@@ -7146,7 +7174,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
         assert damage_dealt is None
 
     def test_assigns_damage_from_move_that_causes_status_as_secondary(self):
@@ -7161,7 +7193,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7186,7 +7222,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="pikachu",
@@ -7209,7 +7249,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="caterpie",
@@ -7234,7 +7278,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_amount_dealt = DamageDealt(
             attacker="caterpie",
@@ -7260,7 +7308,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
         assert damage_dealt is None
 
     def test_lifeorb_does_not_assign_damage(self):
@@ -7275,7 +7327,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_dealt = DamageDealt(
             attacker="pikachu",
@@ -7298,7 +7354,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         expected_damage_dealt = DamageDealt(
             attacker="caterpie",
@@ -7323,7 +7383,11 @@ class TestGetDamageDealt:
 
         split_msg = messages[0].split("|")
 
-        damage_dealt = get_damage_dealt(self.battle, split_msg, messages[1:])
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
 
         assert damage_dealt is None
 

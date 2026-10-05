@@ -16,22 +16,54 @@ from fp.battle.helpers import (
     is_neutral_effectiveness,
 )
 from fp.battle.state import boost_multiplier_lookup
-from fp.battle.protocol_types import Condition, Effect, KwArgs, parse_side_id
+from fp.battle.protocol_messages import (
+    Activate,
+    Cant,
+    Crit,
+    Damage,
+    EndItem,
+    Message,
+    Miss,
+    Move,
+    Resisted,
+    Status,
+    SuperEffective,
+    Switch,
+    Unknown,
+    Upkeep,
+)
 
 
 logger = logging.getLogger(__name__)
-
-MOVE_END_STRINGS = {"move", "switch", "upkeep", "-miss", ""}
 
 # effects that can change turn order irrespective of speed
 TURN_ORDER_ACTIVATIONS = {"quickclaw", "quickdraw", "custapberry"}
 
 
-def _is_confusion_activation(split_line):
+def _is_turn_separator(msg: Message) -> bool:
+    # a bare `|` line separates the actions within a turn
+    return isinstance(msg, Unknown) and msg.type == ""
+
+
+def _is_switch(msg: Message) -> bool:
+    return isinstance(msg, Switch) and not msg.is_drag
+
+
+def _is_end_of_move(msg: Message) -> bool:
     return (
-        len(split_line) > 3
-        and split_line[1] == "-activate"
-        and Effect.parse(split_line[3]).id == constants.CONFUSION
+        isinstance(msg, (Move, Upkeep, Miss))
+        or _is_switch(msg)
+        or _is_turn_separator(msg)
+    )
+
+
+def _is_confusion_activation(msg: Message) -> bool:
+    return isinstance(msg, Activate) and msg.effect.id == constants.CONFUSION
+
+
+def _changes_turn_order(msg: Message) -> bool:
+    return (isinstance(msg, Activate) and msg.effect.id in TURN_ORDER_ACTIVATIONS) or (
+        isinstance(msg, EndItem) and normalize_name(msg.item) in TURN_ORDER_ACTIVATIONS
     )
 
 
@@ -123,25 +155,18 @@ def can_have_speed_modified(battle, pokemon):
     )
 
 
-def is_opponent(battle, split_msg):
-    return parse_side_id(split_msg[2]) != battle.user.name
-
-
-def get_move_information(m):
-    # Given a |move| line from the PS protocol, extract the user of the move and the move object
+def get_move_information(msg: Move):
+    # Given a |move| message, extract the side that used the move and the move object
     try:
-        split_move_line = m.split("|")
-        return split_move_line[2], all_move_json[normalize_name(split_move_line[3])]
+        return msg.user.side, all_move_json[msg.move_id]
     except KeyError:
         logger.warning(
-            "Unknown move {} - using standard 0 priority move".format(
-                normalize_name(m.split("|")[3])
-            )
+            "Unknown move {} - using standard 0 priority move".format(msg.move_id)
         )
-        return m.split("|")[2], {constants.ID: "unknown", constants.PRIORITY: 0}
+        return msg.user.side, {constants.ID: "unknown", constants.PRIORITY: 0}
 
 
-def check_speed_ranges(battle, msg_lines):
+def check_speed_ranges(battle, messages: list[Message]):
     """
     Intention:
         This function is intended to set the min or max possible speed that the opponent's
@@ -167,39 +192,33 @@ def check_speed_ranges(battle, msg_lines):
             - the opponent COULD have prankster and it used a status move
             - Grassy Glide is used when Grassy Terrain is up
     """
-    for ln in msg_lines:
-        split_line = ln.split("|")
-
+    for msg in messages:
         # If either side switched this turn - don't do this check
-        if ln.startswith("|switch|"):
+        if _is_switch(msg):
             return
 
         # if anyone got `cant` or hit themselves in confusion
         # skip this check as we don't know if they used a priority move
-        if ln.startswith("|cant|") or _is_confusion_activation(split_line):
+        if isinstance(msg, Cant) or _is_confusion_activation(msg):
             return
 
         # If anyone had quick claw, quick draw, or custap berry activate, skip this check
-        if (
-            len(split_line) > 3
-            and split_line[1] in ("-activate", "-enditem")
-            and Effect.parse(split_line[3]).id in TURN_ORDER_ACTIVATIONS
-        ):
+        if _changes_turn_order(msg):
             return
 
-    moves = [get_move_information(m) for m in msg_lines if m.startswith("|move|")]
+    moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
     number_of_moves = len(moves)
     if number_of_moves not in [1, 2]:
         return
 
     if (
         number_of_moves == 1
-        and moves[0][0].startswith(battle.opponent.name)
+        and moves[0][0] == battle.opponent.name
         and moves[0][1][constants.ID] != "pursuit"
     ):
         moves.append(
             (
-                "{}a: {}".format(battle.opponent.name, battle.user.active.name),
+                battle.user.name,
                 all_move_json[normalize_name(battle.user.last_selected_move.move)],
             )
         )
@@ -214,7 +233,7 @@ def check_speed_ranges(battle, msg_lines):
     ):
         return
 
-    bot_went_first = moves[0][0].startswith(battle.user.name)
+    bot_went_first = moves[0][0] == battle.user.name
 
     if (
         battle.opponent.active is None
@@ -293,9 +312,9 @@ def check_speed_ranges(battle, msg_lines):
         )
 
 
-def check_opponent_hiddenpower(battle, msg_line):
+def check_opponent_hiddenpower(battle, msg: Message):
     """
-    `msg_line` is should be the line *after* |-move|...|Hidden Power|...
+    `msg` should be the message *after* |move|...|Hidden Power|...
     and is meant to be called for the opponent's pkmn only
 
     This function checks if the move was resisted, super-effective, or neutral.
@@ -312,31 +331,26 @@ def check_opponent_hiddenpower(battle, msg_line):
         )
     )
 
-    next_line_split_msg = msg_line.split("|")
-    if next_line_split_msg[1] == "-resisted":
+    if isinstance(msg, Resisted):
         logger.info("{} resisted hiddenpower".format(defender_types))
         for t in list(attacker.hidden_power_possibilities):
             if not is_not_very_effective(t, defender_types):
                 attacker.hidden_power_possibilities.remove(t)
 
-    elif next_line_split_msg[1] == "-supereffective":
+    elif isinstance(msg, SuperEffective):
         logger.info("{} was weak to hiddenpower".format(defender_types))
         for t in list(attacker.hidden_power_possibilities):
             if not is_super_effective(t, defender_types):
                 attacker.hidden_power_possibilities.remove(t)
 
-    elif next_line_split_msg[1] == "-damage":
+    elif isinstance(msg, Damage):
         logger.info("{} was neutral to hiddenpower".format(defender_types))
         for t in list(attacker.hidden_power_possibilities):
             if not is_neutral_effectiveness(t, defender_types):
                 attacker.hidden_power_possibilities.remove(t)
 
     else:
-        logger.info(
-            "Cannot update hiddenpower possibilities with: {}".format(
-                next_line_split_msg[1]
-            )
-        )
+        logger.info("Cannot update hiddenpower possibilities with: {}".format(msg))
         return
 
     logger.info(
@@ -346,28 +360,28 @@ def check_opponent_hiddenpower(battle, msg_line):
     )
 
 
-def check_choicescarf(battle, msg_lines):
+def check_choicescarf(battle, messages: list[Message]):
     # If either side switched this turn - don't do this check
     if any(
         not battle.gen.choice_scarf_exists
-        or ln.startswith("|switch|")
-        or ln.startswith("|cant|")
-        or _is_confusion_activation(ln.split("|"))
-        for ln in msg_lines
+        or _is_switch(msg)
+        or isinstance(msg, Cant)
+        or _is_confusion_activation(msg)
+        for msg in messages
     ) or battle.user.last_selected_move.move.startswith("switch "):
         return
 
-    moves = [get_move_information(m) for m in msg_lines if m.startswith("|move|")]
+    moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
     number_of_moves = len(moves)
 
     # if the bot went first we cannot ever infer a choicescarf
-    if number_of_moves not in [1, 2] or moves[0][0].startswith(battle.user.name):
+    if number_of_moves not in [1, 2] or moves[0][0] == battle.user.name:
         return
 
     elif number_of_moves == 1:
         moves.append(
             (
-                "{}a: {}".format(battle.opponent.name, battle.user.active.name),
+                battle.user.name,
                 all_move_json[normalize_name(battle.user.last_selected_move.move)],
             )
         )
@@ -413,33 +427,27 @@ def check_choicescarf(battle, msg_lines):
         battle.opponent.active.item_inferred = True
 
 
-def get_damage_dealt(battle, split_msg, next_messages):
-    move_name = normalize_name(split_msg[3])
+def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
+    move_name = msg.move_id
     critical_hit = False
 
-    if is_opponent(battle, split_msg):
-        attacking_side = battle.opponent
-        defending_side = battle.user
-    else:
-        attacking_side = battle.user
-        defending_side = battle.opponent
+    attacking_side = battle.side(msg.user.side)
+    defending_side = battle.other_side(attacking_side)
 
-    for line in next_messages:
-        next_line_split = line.split("|")
-        # if one of these strings appears in index 1 then
+    for next_msg in next_messages:
         # exit out since we are done with this pokemon's move
-        if len(next_line_split) < 2 or next_line_split[1] in MOVE_END_STRINGS:
+        if _is_end_of_move(next_msg):
             break
 
-        elif next_line_split[1] == "-crit":
+        elif isinstance(next_msg, Crit):
             critical_hit = True
 
         # if '-damage' appears, we want to parse the percentage damage dealt
         elif (
-            next_line_split[1] == "-damage"
-            and parse_side_id(next_line_split[2]) == defending_side.name
+            isinstance(next_msg, Damage)
+            and next_msg.pokemon.side == defending_side.name
         ):
-            condition = Condition.parse(next_line_split[3])
+            condition = next_msg.condition
             final_health = condition.hp
             maxhp = condition.max_hp
             # maxhp can be 0 if the targetted pokemon fainted
@@ -652,7 +660,7 @@ def update_dataset_possibilities(
         )
 
 
-def check_heavydutyboots(battle, msg_lines):
+def check_heavydutyboots(battle, messages: list[Message]):
     side_to_check = battle.opponent
 
     if (
@@ -668,15 +676,12 @@ def check_heavydutyboots(battle, msg_lines):
 
     if side_to_check.side_conditions[constants.STEALTH_ROCK] > 0:
         pkmn_took_stealthrock_damage = False
-        for line in msg_lines:
-            split_line = line.split("|")
-
+        for msg in messages:
             # |-damage|p2a: Weedle|88/100|[from] Stealth Rock
             if (
-                len(split_line) > 2
-                and split_line[1] == "-damage"
-                and split_line[2].startswith(side_to_check.name)
-                and KwArgs.parse(split_line).is_from(constants.STEALTH_ROCK)
+                isinstance(msg, Damage)
+                and msg.pokemon.side == side_to_check.name
+                and msg.kwargs.is_from(constants.STEALTH_ROCK)
             ):
                 pkmn_took_stealthrock_damage = True
 
@@ -703,15 +708,12 @@ def check_heavydutyboots(battle, msg_lines):
         and side_to_check.active.ability != "levitate"
     ):
         pkmn_took_spikes_damage = False
-        for line in msg_lines:
-            split_line = line.split("|")
-
+        for msg in messages:
             # |-damage|p2a: Weedle|88/100|[from] Spikes
             if (
-                len(split_line) > 2
-                and split_line[1] == "-damage"
-                and split_line[2].startswith(side_to_check.name)
-                and KwArgs.parse(split_line).is_from(constants.SPIKES)
+                isinstance(msg, Damage)
+                and msg.pokemon.side == side_to_check.name
+                and msg.kwargs.is_from(constants.SPIKES)
             ):
                 pkmn_took_spikes_damage = True
 
@@ -741,22 +743,20 @@ def check_heavydutyboots(battle, msg_lines):
         and side_to_check.active.ability not in constants.IMMUNE_TO_POISON_ABILITIES
     ):
         pkmn_took_toxicspikes_poison = False
-        for line in msg_lines:
-            split_line = line.split("|")
-
+        for msg in messages:
             # a pokemon can be toxic-ed from sources other than toxicspikes
-            # stopping at one of these strings ensures those other sources aren't considered
-            if len(split_line) < 2 or split_line[1] in {"move", "upkeep", ""}:
+            # stopping at one of these messages ensures those other sources aren't considered
+            if isinstance(msg, (Move, Upkeep)) or _is_turn_separator(msg):
                 break
 
             # |-status|p2a: Pikachu|psn
             if (
-                split_line[1] == "-status"
+                isinstance(msg, Status)
                 and (
-                    split_line[3] == constants.Status.POISON
-                    or split_line[3] == constants.Status.TOXIC
+                    msg.status == constants.Status.POISON
+                    or msg.status == constants.Status.TOXIC
                 )
-                and split_line[2].startswith(side_to_check.name)
+                and msg.pokemon.side == side_to_check.name
             ):
                 pkmn_took_toxicspikes_poison = True
 
@@ -782,15 +782,12 @@ def check_heavydutyboots(battle, msg_lines):
         ]
     ):
         pkmn_was_affected_by_stickyweb = False
-        for line in msg_lines:
-            split_line = line.split("|")
-
+        for msg in messages:
             # |-activate|p2a: Gengar|move: Sticky Web
             if (
-                len(split_line) == 4
-                and split_line[1] == "-activate"
-                and split_line[2].startswith(side_to_check.name)
-                and split_line[3] == "move: Sticky Web"
+                isinstance(msg, Activate)
+                and msg.pokemon.side == side_to_check.name
+                and msg.effect.id == constants.STICKY_WEB
             ):
                 pkmn_was_affected_by_stickyweb = True
 
