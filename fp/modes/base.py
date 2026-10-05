@@ -1,13 +1,25 @@
 import asyncio
 import concurrent.futures
-import json
 import logging
 import random
 from copy import copy, deepcopy
 
 from fp import constants
 from fp.battle.state import Battle, Battler, LastUsedMove, Pokemon
-from fp.battle.protocol_messages import Move
+from fp.battle.helpers import to_id
+from fp.battle.protocol_messages import (
+    BattleStart,
+    ClearPoke,
+    Move,
+    Player,
+    Poke,
+    RequestMessage,
+    Switch,
+    Title,
+    parse_line,
+    parse_lines,
+)
+from fp.battle.protocol_types import Details
 from fp.config import FoulPlayConfig
 from fp.constants import BattleType
 from fp.data.sets import SmogonSets
@@ -136,16 +148,17 @@ class BattleMode:
         battle.battle_type = battle.format_spec.battle_type
         battle.mode = self
 
-        # wait until the opponent's identifier is received. This will be `p1` or `p2`.
+        # wait until the bot's identifier is received. This will be `p1` or `p2`.
         #
         # e.g.
         # '>battle-gen9randombattle-44733
-        # |player|p1|OpponentName|2|'
+        # |player|p1|BotName|2|'
         while True:
             msg = await ps_websocket_client.receive_message()
-            if "|player|" in msg and battle.opponent.account_name in msg:
-                battle.opponent.name = msg.split("|")[2]
-                battle.user.name = constants.ID_LOOKUP[battle.opponent.name]
+            user_side = _find_user_side(msg)
+            if user_side is not None:
+                battle.user.name = user_side
+                battle.opponent.name = constants.ID_LOOKUP[user_side]
                 break
 
         return battle, msg
@@ -200,7 +213,7 @@ def format_decision(battle, decision):
 async def async_pick_move(battle):
     battle_copy = deepcopy(battle)
     if not battle_copy.team_preview:
-        battle_copy.user.update_from_request_json(battle_copy.request_json)
+        battle_copy.user.update_from_request(battle_copy.request)
 
     loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -241,33 +254,100 @@ async def handle_team_preview(battle, ps_websocket_client):
     await ps_websocket_client.send_message(battle.battle_tag, message)
 
 
+def _find_user_side(msg: str) -> str | None:
+    for parsed in parse_lines(msg.split("\n")):
+        if (
+            isinstance(parsed, Player)
+            and parsed.username is not None
+            and to_id(parsed.username) == to_id(FoulPlayConfig.username)
+        ):
+            return parsed.side.value
+    return None
+
+
+def lines_after_battle_start(msg: str, user_side: str) -> list[str] | None:
+    """
+    The protocol lines after `|start`, or None if the battle has not started in `msg`
+
+    The bot's own switch-in is omitted: parsing the request JSON sets the bot's active pkmn
+    """
+    lines = msg.split("\n")
+    start_index = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if isinstance(parse_line(line), BattleStart)
+        ),
+        None,
+    )
+    if start_index is None:
+        return None
+
+    remaining_lines = []
+    for line in lines[start_index + 1 :]:
+        parsed = parse_line(line)
+        if (
+            isinstance(parsed, Switch)
+            and not parsed.is_drag
+            and parsed.pokemon.side == user_side
+        ):
+            continue
+        remaining_lines.append(line)
+    return remaining_lines
+
+
+def team_preview_pokemon(msg: str, side: str) -> list[Details] | None:
+    """
+    The pokemon `side` revealed in team preview, or None if team preview has not started in `msg`
+    """
+    messages = parse_lines(msg.split("\n"))
+    clear_poke_indices = [i for i, m in enumerate(messages) if isinstance(m, ClearPoke)]
+    if not clear_poke_indices:
+        return None
+
+    return [
+        m.details
+        for m in messages[clear_poke_indices[-1] + 1 :]
+        if isinstance(m, Poke) and m.side == side
+    ]
+
+
+def _opponent_name_from_title(title: str) -> str:
+    # |title|Player One vs. Player Two
+    opponent_names = [
+        name.strip()
+        for name in title.split(" vs. ")
+        if to_id(name) != to_id(FoulPlayConfig.username)
+    ]
+    return " vs. ".join(opponent_names)
+
+
 async def get_battle_tag_and_opponent(ps_websocket_client: PSWebsocketClient):
     while True:
         msg = await ps_websocket_client.receive_message()
-        split_msg = msg.split("|")
-        first_msg = split_msg[0]
-        if "battle" in first_msg:
-            battle_tag = first_msg.replace(">", "").strip()
-            user_name = FoulPlayConfig.username
-            opponent_name = (
-                split_msg[4].replace(user_name, "").replace("vs.", "").strip()
-            )
-            logger.info("Initialized {} against: {}".format(battle_tag, opponent_name))
-            return battle_tag, opponent_name
+        lines = msg.split("\n")
+        if not lines[0].startswith(">battle-"):
+            continue
+
+        title = next((m for m in parse_lines(lines) if isinstance(m, Title)), None)
+        if title is None:
+            continue
+
+        battle_tag = lines[0].removeprefix(">").strip()
+        opponent_name = _opponent_name_from_title(title.title)
+        logger.info("Initialized {} against: {}".format(battle_tag, opponent_name))
+        return battle_tag, opponent_name
 
 
-async def get_first_request_json(
-    ps_websocket_client: PSWebsocketClient, battle: Battle
-):
+async def get_first_request(ps_websocket_client: PSWebsocketClient, battle: Battle):
     while True:
         msg = await ps_websocket_client.receive_message()
-        msg_split = msg.split("|")
-        if msg_split[1].strip() == "request" and msg_split[2].strip():
-            user_json = json.loads(msg_split[2].strip("'"))
-            battle.request_json = user_json
-            battle.user.initialize_first_turn_user_from_json(user_json)
-            battle.rqid = user_json[constants.RQID]
-            return
+        for parsed in parse_lines(msg.split("\n")):
+            if isinstance(parsed, RequestMessage) and parsed.request is not None:
+                battle.request = parsed.request
+                battle.user.initialize_first_turn_user_from_request(parsed.request)
+                battle.rqid = parsed.request.rqid
+                return
 
 
 def _switch_active_with_zoroark_from_reserves(

@@ -17,6 +17,7 @@ from fp.data.sets import (
 )
 from fp.battle.helpers import calculate_stats
 
+from fp.battle.request import Request
 from fp.battle.state import Battle
 from fp.battle.state import Pokemon
 from fp.battle.state import Move
@@ -251,28 +252,40 @@ class TestRequestMessage:
 
     def test_request_sets_force_switch_to_false(self):
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert False is self.battle.force_switch
 
     def test_force_switch_properly_sets_the_force_switch_flag(self):
         self.request_json.pop("active")
-        self.request_json[constants.FORCE_SWITCH] = [True]
+        self.request_json["forceSwitch"] = [True]
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert True is self.battle.force_switch
 
     def test_wait_properly_sets_wait_flag(self):
         self.request_json.pop("active")
-        self.request_json[constants.WAIT] = [True]
+        self.request_json["wait"] = True
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert True is self.battle.wait
 
     def test_wait_does_not_initialize_pokemon(self):
         self.request_json.pop("active")
-        self.request_json[constants.WAIT] = [True]
+        self.request_json["wait"] = True
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert 0 == len(self.battle.user.reserve)
 
 
@@ -360,40 +373,45 @@ class TestSwitchOrDrag:
         assert "cramorantgulping" not in [p.name for p in self.battle.opponent.reserve]
 
     def test_user_switching_in_zaciancrowned_properly_re_initializes_stats(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zacian",
-                        "details": "Zacian-Crowned",
-                        "condition": "211/325",
-                        "active": True,
-                        "stats": {
-                            "atk": 399,
-                            "def": 267,
-                            "spa": 176,
-                            "spd": 266,
-                            "spe": 434,
-                        },
-                        "moves": [
-                            "behemothblade",
-                            "swordsdance",
-                            "wildcharge",
-                            "closecombat",
-                        ],
-                        "baseAbility": "intrepidsword",
-                        "item": "rustedsword",
-                        "pokeball": "pokeball",
-                        "ability": "intrepidsword",
-                        "commanding": False,
-                        "reviving": False,
-                        "teraType": "Flying",
-                        "terastallized": "",
-                    }
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zacian",
+                            "details": "Zacian-Crowned",
+                            "condition": "211/325",
+                            "active": True,
+                            "stats": {
+                                "atk": 399,
+                                "def": 267,
+                                "spa": 176,
+                                "spd": 266,
+                                "spe": 434,
+                            },
+                            "moves": [
+                                "behemothblade",
+                                "swordsdance",
+                                "wildcharge",
+                                "closecombat",
+                            ],
+                            "baseAbility": "intrepidsword",
+                            "item": "rustedsword",
+                            "pokeball": "pokeball",
+                            "ability": "intrepidsword",
+                            "commanding": False,
+                            "reviving": False,
+                            "teraType": "Flying",
+                            "terastallized": "",
+                        }
+                    ],
+                },
+            }
+        )
         self.battle.user.active = Pokemon("weedle", 100)
         zacian_crowned_reserve = Pokemon("zaciancrowned", 100)
         zacian_crowned_reserve.stats = {
@@ -411,23 +429,38 @@ class TestSwitchOrDrag:
     def test_switch_properly_switches_zoroark_for_user_when_last_selected_move_was_zoroark(
         self,
     ):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": True,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": False,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -441,23 +474,38 @@ class TestSwitchOrDrag:
         assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_zoroark_properly_sets_zoroark(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": True,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": False,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -468,23 +516,38 @@ class TestSwitchOrDrag:
         assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_not_zoroark_properly_sets_not_zoroark(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": False,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": True,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -4288,6 +4351,7 @@ class TestTransform:
             "fireblast",
         ]
         self.request_json = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -4367,7 +4431,7 @@ class TestTransform:
             },
         }
 
-        self.battle.request_json = self.request_json
+        self.battle.request = Request.from_json(self.request_json)
 
     def test_transform_sets_ability_to_opposing_pokemons_ability(self):
         self.battle.user.active.ability = self.user_active_ability
@@ -4836,16 +4900,6 @@ class TestCheckSpeedRanges:
         self.username = "CoolUsername"
 
         self.battle.username = self.username
-
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
 
     def test_protosynthesis_speed_is_accounted_for_in_speed_range_check(self):
         self.battle.user.active.stats[constants.SPEED] = 300
@@ -5470,16 +5524,6 @@ class TestGuessChoiceScarf:
 
         self.battle.username = self.username
 
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
-
     def test_fainting_pkmn_with_priority_modified_does_not_infer_scarf(self):
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed should not be greater than 207 (max speed caterpie)
@@ -5982,16 +6026,6 @@ class TestCheckHeavyDutyBoots:
 
         self.battle.username = self.username
         self.battle.generation = "gen9"
-
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
 
     def test_basic_case_of_switching_in_and_not_taking_damage_sets_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
@@ -6940,16 +6974,6 @@ class TestInactiveOff:
 
         self.battle.user.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
-
     def test_turns_timer_off(self):
         self.battle.time_remaining = 60
         self.battle.msg_list = [
@@ -7650,7 +7674,9 @@ class TestUpdateBattle:
         ] == self.battle.msg_list
 
     def test_request_message_processes_queued_lines_and_returns_true(self):
-        msg = "|faint|p2a: Pikachu\n|request|{}".format(json.dumps({"rqid": 2}))
+        msg = "|faint|p2a: Pikachu\n|request|{}".format(
+            json.dumps({"rqid": 2, "side": {"name": "Bot", "id": "p1", "pokemon": []}})
+        )
         result = update_battle(self.battle, msg)
 
         assert True is result
@@ -7658,7 +7684,15 @@ class TestUpdateBattle:
         assert [] == self.battle.msg_list
 
     def test_request_with_wait_returns_false(self):
-        msg = "|request|{}".format(json.dumps({"rqid": 2, "wait": True}))
+        msg = "|request|{}".format(
+            json.dumps(
+                {
+                    "rqid": 2,
+                    "wait": True,
+                    "side": {"name": "Bot", "id": "p1", "pokemon": []},
+                }
+            )
+        )
         result = update_battle(self.battle, msg)
 
         assert False is result
@@ -7692,7 +7726,9 @@ class TestAsyncUpdateBattle:
         assert ["|faint|p2a: Pikachu"] == self.battle.msg_list
 
     def test_returns_true_for_request_message_requiring_action(self):
-        msg = "|request|{}".format(json.dumps({"rqid": 2}))
+        msg = "|request|{}".format(
+            json.dumps({"rqid": 2, "side": {"name": "Bot", "id": "p1", "pokemon": []}})
+        )
         result = asyncio.run(async_update_battle(self.battle, msg))
 
         assert True is result

@@ -8,13 +8,13 @@ from fp.data import all_move_json
 from fp.data import pokedex
 
 from fp.battle.helpers import (
-    get_pokemon_info_from_condition,
     possible_hidden_power_types,
     random_battles_evs,
 )
 from fp.battle.helpers import normalize_name
 from fp.battle.helpers import calculate_stats
 from fp.battle.protocol_types import Details, PokemonIdent
+from fp.battle.request import Request, RequestPokemon
 from fp.format_spec import FormatSpec
 from fp.generations import (
     GenerationMechanics,
@@ -97,7 +97,7 @@ class Battle:
         self.generation = None
         self.time_remaining = None
 
-        self.request_json = None
+        self.request: Request | None = None
         self.msg_list = []
         self.opponent_team_preview_affinities = None
 
@@ -118,12 +118,12 @@ class Battle:
     def is_opponent_side(self, side_id: str) -> bool:
         return self.side(side_id) is self.opponent
 
-    def initialize_team_preview(self, opponent_pokemon, battle_type):
+    def initialize_team_preview(self, opponent_pokemon: list[Details], battle_type):
         self.user.reserve.insert(0, self.user.active)
         self.user.active = None
 
-        for pkmn_string in opponent_pokemon:
-            pokemon = Pokemon.from_switch_string(pkmn_string)
+        for details in opponent_pokemon:
+            pokemon = Pokemon.from_details(details)
 
             if pokemon.name in smart_team_preview.get(battle_type, {}):
                 new_pokemon_name = smart_team_preview[battle_type][pokemon.name]
@@ -134,7 +134,7 @@ class Battle:
                 )
                 pokemon = Pokemon(new_pokemon_name, pokemon.level)
 
-            elif pkmn_string.endswith("-*"):
+            elif details.unknown_forme:
                 pokemon.unknown_forme = True
 
             self.opponent.reserve.append(pokemon)
@@ -142,16 +142,6 @@ class Battle:
         self.started = True
 
     def during_team_preview(self): ...
-
-    def start_non_team_preview_battle(self, user_json, opponent_switch_string):
-        self.user.initialize_first_turn_user_from_json(user_json)
-
-        pkmn_information = opponent_switch_string.split("|")[3]
-        pkmn = Pokemon.from_switch_string(pkmn_information)
-        self.opponent.active = pkmn
-
-        self.started = True
-        self.rqid = user_json[constants.RQID]
 
     def mega_evolve_possible(self):
         return self.gen.megas_exist or self.format_spec.national_dex
@@ -212,6 +202,12 @@ class Battle:
             boosted_speed *= 1.5
 
         return int(boosted_speed)
+
+
+def _ability_from_request(request_pkmn: RequestPokemon) -> str | None:
+    if current_generation_mechanics().request_has_current_ability:
+        return request_pkmn.ability
+    return request_pkmn.base_ability
 
 
 class Battler:
@@ -348,34 +344,25 @@ class Battler:
         self.taunt_lock_moves()
         self.locked_move_lock()
 
-    def _initialize_user_active_from_request_json(self, request_json):
-        self.active.can_mega_evo = request_json[constants.ACTIVE][0].get(
-            constants.CAN_MEGA_EVO, False
-        )
-        self.active.can_ultra_burst = request_json[constants.ACTIVE][0].get(
-            constants.CAN_ULTRA_BURST, False
-        )
-        self.active.can_dynamax = request_json[constants.ACTIVE][0].get(
-            constants.CAN_DYNAMAX, False
-        )
-        self.active.can_terastallize = request_json[constants.ACTIVE][0].get(
-            constants.CAN_TERASTALLIZE, False
-        )
+    def _initialize_user_active_from_request(self, request: Request):
+        active_request = request.active_pokemon_request
+        self.active.can_mega_evo = active_request.can_mega_evo
+        self.active.can_ultra_burst = active_request.can_ultra_burst
+        self.active.can_dynamax = active_request.can_dynamax
+        self.active.can_terastallize = active_request.can_terastallize or False
 
         # request JSON gives detailed information about the moves
         # available to the active pkmn. Take those as the source of truth
         self.active.moves.clear()
-        for index, move in enumerate(
-            request_json[constants.ACTIVE][0][constants.MOVES]
-        ):
+        for index, move in enumerate(active_request.moves):
             # hidden power's ID is always 'hiddenpower' regardless of the type
             # parse it separately from the 'move' key
-            if move[constants.ID] == constants.HIDDEN_POWER:
-                self.active.add_move(normalize_name(move["move"]))
+            if move.id == constants.HIDDEN_POWER:
+                self.active.add_move(normalize_name(move.move))
             else:
-                self.active.add_move(move[constants.ID])
-            self.active.moves[-1].disabled = move.get(constants.DISABLED, False)
-            self.active.moves[-1].current_pp = move.get(constants.PP, 1)
+                self.active.add_move(move.id)
+            self.active.moves[-1].disabled = move.disabled
+            self.active.moves[-1].current_pp = move.pp if move.pp is not None else 1
 
             # PokemonShowdown disables these moves in the protocol after they are used once,
             # but poke-engine does not expect them to be disabled
@@ -385,37 +372,29 @@ class Battler:
                     if m.name == self.last_used_move.move and m.disabled:
                         m.disabled = False
 
-            try:
-                self.active.moves[index].can_z = request_json[constants.ACTIVE][0][
-                    constants.CAN_Z_MOVE
-                ][index]
-            except KeyError:
-                pass
+            if active_request.can_z_move is not None:
+                self.active.moves[index].can_z = active_request.can_z_move[index]
 
-    def update_from_request_json(self, request_json):
+    def _set_trapped_from_request(self, request: Request):
+        active_request = request.active_pokemon_request
+        if active_request is None:
+            self.trapped = False
+        else:
+            self.trapped = active_request.trapped or active_request.maybe_trapped
+
+    def update_from_request(self, request: Request):
         """
         Updates the battler's information based on the request JSON
         This should be called with a cloned battle/battler so that the original is not modified
         """
-        try:
-            trapped = request_json[constants.ACTIVE][0].get(constants.TRAPPED, False)
-            maybe_trapped = request_json[constants.ACTIVE][0].get(
-                constants.MAYBE_TRAPPED, False
-            )
-            self.trapped = trapped or maybe_trapped
-        except KeyError:
-            self.trapped = False
+        self._set_trapped_from_request(request)
 
-        for index, pkmn_dict in enumerate(
-            request_json[constants.SIDE][constants.POKEMON]
-        ):
-            switch_string_pkmn = Pokemon.from_switch_string(
-                pkmn_dict[constants.DETAILS]
-            )
-            pkmn_name = switch_string_pkmn.name
-            pkmn_level = switch_string_pkmn.level
-            pkmn_status = switch_string_pkmn.status
-            if pkmn_dict[constants.ACTIVE]:
+        for index, request_pkmn in enumerate(request.side.pokemon):
+            details_pkmn = Pokemon.from_details(request_pkmn.details)
+            pkmn_name = details_pkmn.name
+            pkmn_level = details_pkmn.level
+            pkmn_status = details_pkmn.status
+            if request_pkmn.active:
                 if self.active.name != pkmn_name and self.active.base_name != pkmn_name:
                     raise ValueError(
                         "Active pokemon mismatch: expected {} or {}, got {}".format(
@@ -423,88 +402,69 @@ class Battler:
                         )
                     )
 
-                if constants.ACTIVE in request_json:
-                    self._initialize_user_active_from_request_json(request_json)
+                if request.active is not None:
+                    self._initialize_user_active_from_request(request)
 
                 pkmn = self.active
             else:
                 pkmn = self.find_pokemon_in_reserves(pkmn_name)
-                for move_name in pkmn_dict[constants.MOVES]:
+                for move_name in request_pkmn.moves:
                     if not pkmn.get_move(move_name):
                         pkmn.add_move(move_name)
 
             pkmn.index = index + 1
             pkmn.level = pkmn_level
             pkmn.status = pkmn_status
-            pkmn.nickname = self.active.extract_nickname_from_pokemonshowdown_string(
-                pkmn_dict[constants.IDENT]
-            )
-            pkmn.reviving = pkmn_dict.get(constants.REVIVING, False)
-            pkmn.hp, pkmn.max_hp, pkmn.status = get_pokemon_info_from_condition(
-                pkmn_dict[constants.CONDITION]
-            )
-            pkmn.ability = pkmn_dict[
-                current_generation_mechanics().request_dict_ability
-            ]
-            pkmn.item = pkmn_dict[constants.ITEM] if pkmn_dict[constants.ITEM] else None
-            for stat, number in pkmn_dict[constants.STATS].items():
+            pkmn.nickname = request_pkmn.ident.nickname
+            pkmn.reviving = request_pkmn.reviving
+            pkmn.hp = request_pkmn.condition.hp
+            pkmn.max_hp = request_pkmn.condition.max_hp
+            pkmn.status = request_pkmn.condition.status
+            pkmn.ability = _ability_from_request(request_pkmn)
+            pkmn.item = request_pkmn.item or None
+            for stat, number in request_pkmn.stats.items():
                 pkmn.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
 
-    def re_initialize_active_pokemon_from_request_json(self, request_json):
+    def re_initialize_active_pokemon_from_request(self, request: Request):
         """
         Re-initializes the active pokemon based on the last request JSON that was received
         This is useful when the bot's active pkmn has mega-evolved. We need to get the new stats/hp
         """
         pokedex_name = normalize_name(pokedex[self.active.name][constants.NAME])
-        request_json_active_pkmn = [
+        request_active_pkmn = [
             p
-            for p in request_json["side"]["pokemon"]
-            if normalize_name(p[constants.DETAILS]).split(",")[0] == pokedex_name
-            or normalize_name(p[constants.DETAILS]).split(",")[0]
-            == self.active.base_name
+            for p in request.side.pokemon
+            if normalize_name(p.details.species) == pokedex_name
+            or normalize_name(p.details.species) == self.active.base_name
         ]
-        if pokedex_name == "terapagosstellar" and len(request_json_active_pkmn) == 0:
-            request_json_active_pkmn = [
+        if pokedex_name == "terapagosstellar" and len(request_active_pkmn) == 0:
+            request_active_pkmn = [
                 p
-                for p in request_json["side"]["pokemon"]
-                if normalize_name(p[constants.DETAILS]).split(",")[0]
-                == "terapagosterastal"
-                or normalize_name(p[constants.DETAILS]).split(",")[0]
-                == self.active.base_name
+                for p in request.side.pokemon
+                if normalize_name(p.details.species) == "terapagosterastal"
+                or normalize_name(p.details.species) == self.active.base_name
             ]
         assert (
-            len(request_json_active_pkmn) == 1
-        ), f"Didn't find exactly 1 {pokedex_name}, pokemon: {request_json}"
-        pkmn_info = request_json_active_pkmn[0]
-        for stat, number in pkmn_info[constants.STATS].items():
+            len(request_active_pkmn) == 1
+        ), f"Didn't find exactly 1 {pokedex_name}, pokemon: {request.side.pokemon}"
+        pkmn_info = request_active_pkmn[0]
+        for stat, number in pkmn_info.stats.items():
             self.active.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
-        self.active.hp, _, _ = get_pokemon_info_from_condition(
-            pkmn_info[constants.CONDITION]
-        )
+        self.active.hp = pkmn_info.condition.hp
 
-    def initialize_first_turn_user_from_json(self, request_json):
+    def initialize_first_turn_user_from_request(self, request: Request):
         """
-        Similar to `update_from_request_json`, but meant to be used on the first `request_json` that is seen
+        Similar to `update_from_request`, but meant to be used on the first request that is seen
         This function differs in that it adds new pokemon to the Side rather than modifying existing ones
         """
-        try:
-            trapped = request_json[constants.ACTIVE][0].get(constants.TRAPPED, False)
-            maybe_trapped = request_json[constants.ACTIVE][0].get(
-                constants.MAYBE_TRAPPED, False
-            )
-            self.trapped = trapped or maybe_trapped
-        except KeyError:
-            self.trapped = False
+        self._set_trapped_from_request(request)
 
-        self.name = request_json[constants.SIDE][constants.ID]
+        self.name = request.side.id
         self.reserve.clear()
-        for index, pkmn_dict in enumerate(
-            request_json[constants.SIDE][constants.POKEMON]
-        ):
-            nickname = pkmn_dict[constants.IDENT]
-            pkmn_details = pkmn_dict[constants.DETAILS]
-            pkmn_item = pkmn_dict[constants.ITEM] if pkmn_dict[constants.ITEM] else None
-            pkmn = Pokemon.from_switch_string(pkmn_details, nickname=nickname)
+        for index, request_pkmn in enumerate(request.side.pokemon):
+            nickname = request_pkmn.ident.nickname
+            pkmn_item = request_pkmn.item or None
+            pkmn = Pokemon.from_details(request_pkmn.details, nickname=nickname)
 
             # For some reason PS sends "zacian" during team preview
             # when you have a zacian with a rusted sword
@@ -512,27 +472,25 @@ class Battler:
                 pkmn = Pokemon("zaciancrowned", pkmn.level)
                 pkmn.nickname = nickname
 
-            pkmn.ability = pkmn_dict[
-                current_generation_mechanics().request_dict_ability
-            ]
+            pkmn.ability = _ability_from_request(request_pkmn)
             pkmn.index = index + 1
-            pkmn.reviving = pkmn_dict.get(constants.REVIVING, False)
-            pkmn.hp, pkmn.max_hp, pkmn.status = get_pokemon_info_from_condition(
-                pkmn_dict[constants.CONDITION]
-            )
-            for stat, number in pkmn_dict[constants.STATS].items():
+            pkmn.reviving = request_pkmn.reviving
+            pkmn.hp = request_pkmn.condition.hp
+            pkmn.max_hp = request_pkmn.condition.max_hp
+            pkmn.status = request_pkmn.condition.status
+            for stat, number in request_pkmn.stats.items():
                 pkmn.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
 
             pkmn.item = pkmn_item
-            if constants.TERA_TYPE in pkmn_dict:
-                pkmn.tera_type = normalize_name(pkmn_dict[constants.TERA_TYPE])
+            if request_pkmn.tera_type is not None:
+                pkmn.tera_type = normalize_name(request_pkmn.tera_type)
 
-            if pkmn_dict[constants.ACTIVE]:
+            if request_pkmn.active:
                 self.active = pkmn
             else:
                 self.reserve.append(pkmn)
 
-            for move_name in pkmn_dict[constants.MOVES]:
+            for move_name in request_pkmn.moves:
                 if (
                     pkmn.name.startswith("zacian")
                     and pkmn_item == "rustedsword"
@@ -554,8 +512,8 @@ class Battler:
                 pkmn.add_move(move_name)
 
         # if there is an active pokemon, we want to look through it's moves
-        if constants.ACTIVE in request_json:
-            self._initialize_user_active_from_request_json(request_json)
+        if request.active is not None:
+            self._initialize_user_active_from_request(request)
 
         # if a team_dict exists, meaning we are playing a format where we selected our own team,
         # set the nature/evs for each pokmeon

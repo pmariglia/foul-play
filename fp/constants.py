@@ -8,16 +8,7 @@ class BattleType(StrEnum):
     BSS = "bss"
 
 
-START_STRING = "|start"
-RQID = "rqid"
-TEAM_PREVIEW_POKE = "poke"
-START_TEAM_PREVIEW = "clearpoke"
-
-MOVES = "moves"
 ABILITIES = "abilities"
-ITEMS = "items"
-COUNT = "count"
-SETS = "sets"
 
 UNKNOWN_ITEM = "unknownitem"
 
@@ -25,15 +16,9 @@ UNKNOWN_ITEM = "unknownitem"
 # this has to do with the Pokemon-Showdown PROTOCOL
 ID_LOOKUP = {"p1": "p2", "p2": "p1"}
 
-FORCE_SWITCH = "forceSwitch"
-REVIVING = "reviving"
-WAIT = "wait"
-TRAPPED = "trapped"
-MAYBE_TRAPPED = "maybeTrapped"
 ITEM = "item"
 
 CONDITION = "condition"
-DISABLED = "disabled"
 PP = "pp"
 
 SELF = "self"
@@ -47,7 +32,6 @@ TYPES = "types"
 TYPE = "type"
 WEIGHT = "weightkg"
 
-SIDE = "side"
 POKEMON = "pokemon"
 FNT = "fnt"
 
@@ -56,23 +40,13 @@ WIN_STRING = "|win|"
 TIE_STRING = "|tie"
 CHAT_STRING = "|c|"
 TIME_LEFT = "Time left:"
-DETAILS = "details"
-IDENT = "ident"
-TERA_TYPE = "teraType"
 
-CAN_MEGA_EVO = "canMegaEvo"
-CAN_ULTRA_BURST = "canUltraBurst"
-CAN_DYNAMAX = "canDynamax"
-CAN_TERASTALLIZE = "canTerastallize"
-CAN_Z_MOVE = "canZMove"
 ZMOVE = "zmove"
 ULTRA_BURST = "ultra"
 MEGA = "mega"
 
-ACTIVE = "active"
 
 PRIORITY = "priority"
-STATS = "stats"
 BOOSTS = "boosts"
 
 HITPOINTS = "hp"
@@ -112,7 +86,6 @@ class MoveTarget(StrEnum):
     NORMAL = "normal"
 
 
-BASE_POWER = "basePower"
 CATEGORY = "category"
 TARGET = "target"
 

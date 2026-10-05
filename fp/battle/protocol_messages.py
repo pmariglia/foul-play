@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from fp.battle.helpers import normalize_name
+from fp.battle.request import Request
 from fp.battle.protocol_types import (
     Condition,
     Details,
@@ -319,6 +320,42 @@ class NoInit(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class Player(Message):
+    # |player|p1| is sent with no username when a player leaves
+    side: SideId
+    username: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class Title(Message):
+    title: str
+
+
+@dataclass(frozen=True, slots=True)
+class ClearPoke(Message):
+    """Team preview is starting"""
+
+
+@dataclass(frozen=True, slots=True)
+class Poke(Message):
+    """A pokemon revealed during team preview"""
+
+    side: SideId
+    details: Details
+
+
+@dataclass(frozen=True, slots=True)
+class BattleStart(Message):
+    """`|start`: the battle is starting (not to be confused with `-start`)"""
+
+
+@dataclass(frozen=True, slots=True)
+class RequestMessage(Message):
+    # an empty `|request|` is sent when there is nothing to choose
+    request: Request | None
+
+
+@dataclass(frozen=True, slots=True)
 class Unknown(Message):
     type: str
     args: tuple[str, ...]
@@ -521,6 +558,14 @@ def _parse_cant(args, kwargs, raw, _):
     )
 
 
+def _parse_player(args, kwargs, raw, _):
+    return Player(parse_side_id(args[0]), _optional(args, 1), kwargs=kwargs, raw=raw)
+
+
+def _parse_poke(args, kwargs, raw, _):
+    return Poke(parse_side_id(args[0]), Details.parse(args[1]), kwargs=kwargs, raw=raw)
+
+
 def _parse_turn(args, kwargs, raw, _):
     return Turn(int(args[0]), kwargs=kwargs, raw=raw)
 
@@ -580,6 +625,10 @@ PARSERS = {
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,
     "noinit": _parse_noinit,
+    "player": _parse_player,
+    "clearpoke": _parse_no_args(ClearPoke),
+    "poke": _parse_poke,
+    "start": _parse_no_args(BattleStart),
 }
 
 
@@ -595,12 +644,18 @@ def parse_split(split_msg: list[str]) -> Message | None:
     msg_type = split_msg[1].strip()
     raw = "|".join(split_msg)
 
-    # free-text messages may contain "|" themselves
+    # free-text and JSON payloads may contain "|" themselves
     # |inactive|Time left: 150 sec this turn | 290 sec total
+    payload = "|".join(split_msg[2:])
     if msg_type == "inactive":
-        return Inactive("|".join(split_msg[2:]), raw=raw)
+        return Inactive(payload, raw=raw)
     if msg_type == "inactiveoff":
-        return InactiveOff("|".join(split_msg[2:]), raw=raw)
+        return InactiveOff(payload, raw=raw)
+    if msg_type == "title":
+        return Title(payload, raw=raw)
+    if msg_type == "request":
+        request = Request.parse(payload) if payload.strip() else None
+        return RequestMessage(request, raw=raw)
 
     kwargs = KwArgs.parse(split_msg)
     args = positional_args(split_msg)

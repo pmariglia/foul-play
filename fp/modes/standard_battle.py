@@ -1,6 +1,5 @@
 import logging
 
-from fp import constants
 from fp.battle.protocol_messages import Move
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
@@ -12,7 +11,9 @@ from fp.modes.base import (
     BattleMode,
     _switch_active_with_zoroark_from_reserves,
     async_pick_move,
-    get_first_request_json,
+    get_first_request,
+    lines_after_battle_start,
+    team_preview_pokemon,
 )
 from fp.search import standard_battles
 from fp.websocket_client import PSWebsocketClient
@@ -38,23 +39,16 @@ class StandardBattleMode(BattleMode):
 
         if not battle.gen.has_team_preview:
             while True:
-                if constants.START_STRING in msg:
+                msg_list = lines_after_battle_start(msg, battle.user.name)
+                if msg_list is not None:
                     battle.started = True
 
                     # hold onto some messages to apply after we get the request JSON
-                    # omit the bot's switch-in message because we won't need that
-                    # parsing the request JSON will set the bot's active pkmn
-                    battle.msg_list = [
-                        m
-                        for m in msg.split(constants.START_STRING)[1]
-                        .strip()
-                        .split("\n")
-                        if not (m.startswith("|switch|{}".format(battle.user.name)))
-                    ]
+                    battle.msg_list = msg_list
                     break
                 msg = await ps_websocket_client.receive_message()
 
-            await get_first_request_json(ps_websocket_client, battle)
+            await get_first_request(ps_websocket_client, battle)
 
             unique_pkmn_names = set(
                 [p.name for p in battle.user.reserve] + [battle.user.active.name]
@@ -74,26 +68,12 @@ class StandardBattleMode(BattleMode):
             await ps_websocket_client.send_message(battle.battle_tag, best_move)
 
         else:
-            while constants.START_TEAM_PREVIEW not in msg:
+            opponent_pokemon = team_preview_pokemon(msg, battle.opponent.name)
+            while opponent_pokemon is None:
                 msg = await ps_websocket_client.receive_message()
+                opponent_pokemon = team_preview_pokemon(msg, battle.opponent.name)
 
-            preview_string_lines = msg.split(constants.START_TEAM_PREVIEW)[-1].split(
-                "\n"
-            )
-
-            opponent_pokemon = []
-            for line in preview_string_lines:
-                if not line:
-                    continue
-
-                split_line = line.split("|")
-                if (
-                    split_line[1] == constants.TEAM_PREVIEW_POKE
-                    and split_line[2].strip() == battle.opponent.name
-                ):
-                    opponent_pokemon.append(split_line[3])
-
-            await get_first_request_json(ps_websocket_client, battle)
+            await get_first_request(ps_websocket_client, battle)
             battle.initialize_team_preview(opponent_pokemon, pokemon_battle_type)
             battle.during_team_preview()
 

@@ -63,8 +63,9 @@ class GenerationMechanics:
     randombattle_evs: tuple[int, int, int, int, int, int] = (85,) * 6
     max_ev: int = 252
 
-    # the key for a pokemon's ability in the request JSON: gen1-6 use "baseAbility"
-    request_dict_ability: str = "ability"
+    # the request JSON only includes a pokemon's current ability in gen7+
+    # gen1-6 only include its base ability
+    request_has_current_ability: bool = True
 
     # the base power appended to hiddenpower move names (e.g. hiddenpowerice60):
     # gen1-5 hiddenpower has 70 base power
@@ -86,7 +87,7 @@ GEN9CHAMPIONS = replace(
 )
 GEN8 = replace(GEN9)
 GEN7 = replace(GEN8, heavy_duty_boots_exists=False, megas_exist=True)
-GEN6 = replace(GEN7, paralysis_speed_divisor=4, request_dict_ability="baseAbility")
+GEN6 = replace(GEN7, paralysis_speed_divisor=4, request_has_current_ability=False)
 GEN5 = replace(
     GEN6,
     megas_exist=False,

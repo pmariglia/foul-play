@@ -1,5 +1,4 @@
 import re
-import json
 from copy import deepcopy
 from dataclasses import replace
 import logging
@@ -15,7 +14,7 @@ from fp.battle.helpers import (
     type_effectiveness_modifier,
 )
 from fp.battle.helpers import calculate_stats
-from fp.battle.protocol_types import Details, EffectKind, PokemonIdent
+from fp.battle.protocol_types import EffectKind
 from fp.battle.protocol_messages import (
     Ability,
     Activate,
@@ -63,6 +62,8 @@ from fp.battle.protocol_messages import (
     Upkeep,
     Weather,
     ZPower,
+    RequestMessage,
+    parse_line,
     parse_lines,
 )
 from fp.battle.inference import check_speed_ranges
@@ -122,23 +123,13 @@ def unlikely_to_have_choice_item(move_name):
     return False
 
 
-def request(battle, split_msg):
-    if len(split_msg) >= 2:
-        battle_json = json.loads(split_msg[2].strip("'"))
-        logger.debug("Received battle JSON from server: {}".format(battle_json))
-        battle.rqid = battle_json[constants.RQID]
-
-        if battle_json.get(constants.FORCE_SWITCH):
-            battle.force_switch = True
-        else:
-            battle.force_switch = False
-
-        if battle_json.get(constants.WAIT):
-            battle.wait = True
-        else:
-            battle.wait = False
-
-        battle.request_json = battle_json
+def request(battle, msg: RequestMessage):
+    battle_request = msg.request
+    logger.debug("Received battle request from server: {}".format(battle_request))
+    battle.rqid = battle_request.rqid
+    battle.force_switch = bool(battle_request.force_switch)
+    battle.wait = battle_request.wait
+    battle.request = battle_request
 
 
 def inactive(battle, msg: Inactive):
@@ -174,7 +165,7 @@ def user_just_switched_into_zoroark(battle, is_drag):
         zoroark as active but our switch needs to have been into zoroark.
 
     This doesn't need to deal with the first-turn switch-in of the user's Zoroark because the first-turn is
-    instantiated from the request_json
+    instantiated from the request
     """
 
     return (
@@ -186,13 +177,9 @@ def user_just_switched_into_zoroark(battle, is_drag):
         # Scenario 2
         or (
             is_drag
-            and battle.request_json is not None
-            and battle.request_json[constants.SIDE][constants.POKEMON][0][
-                constants.DETAILS
-            ].startswith("Zoroark")
-            and battle.request_json[constants.SIDE][constants.POKEMON][0][
-                constants.ACTIVE
-            ]
+            and battle.request is not None
+            and battle.request.side.pokemon[0].details.species.startswith("Zoroark")
+            and battle.request.side.pokemon[0].active
         )
     )
 
@@ -352,17 +339,15 @@ def switch_or_drag(battle, msg: Switch):
             "User switched/dragged into Zoroark - replacing the message pokemon"
         )
         logger.info("Starting message: {}".format(msg))
-        request_json_zoroark = [
+        request_zoroark = [
             p
-            for p in battle.request_json[constants.SIDE][constants.POKEMON]
-            if p[constants.DETAILS].startswith("Zoroark")
+            for p in battle.request.side.pokemon
+            if p.details.species.startswith("Zoroark")
         ]
-        assert len(request_json_zoroark) == 1
-        request_json_zoroark = request_json_zoroark[0]
+        assert len(request_zoroark) == 1
+        request_zoroark = request_zoroark[0]
         msg = replace(
-            msg,
-            pokemon=PokemonIdent.parse(request_json_zoroark[constants.IDENT]),
-            details=Details.parse(request_json_zoroark[constants.DETAILS]),
+            msg, pokemon=request_zoroark.ident, details=request_zoroark.details
         )
         logger.info("New message: {}".format(msg))
 
@@ -439,7 +424,7 @@ def switch_or_drag(battle, msg: Switch):
     # need to re-apply the stats that the P.S. server sends us because prior to the first
     # switch-in the stats would be for zacian, not zacian-crowned
     if side_name == "user" and pkmn.name in ["zaciancrowned", "zamazentacrowned"]:
-        battle.user.re_initialize_active_pokemon_from_request_json(battle.request_json)
+        battle.user.re_initialize_active_pokemon_from_request(battle.request)
 
     for ability in ABILITIES_REVEALED_ON_SWITCH_IN:
         if not battle.gen.pressure_revealed_on_switch_in and ability == "pressure":
@@ -1748,7 +1733,7 @@ def form_change(battle, msg: FormeChange):
     logger.info("Form Change: {} -> {}".format(side.active.name, msg.details.species))
     side.active.forme_change(msg.details.species)
     if side is battle.user:
-        side.re_initialize_active_pokemon_from_request_json(battle.request_json)
+        side.re_initialize_active_pokemon_from_request(battle.request)
 
 
 def zpower(battle, msg: ZPower):
@@ -2221,13 +2206,17 @@ def noinit(battle, msg: NoInit):
 def update_battle(battle: Battle, msg: str):
     msg_lines = msg.split("\n")
     for line in msg_lines:
-        split_msg = line.split("|")
-        if len(split_msg) < 2:
+        parsed = parse_line(line)
+        if parsed is None:
             continue
 
-        action = split_msg[1].strip()
-        if action == "request":
-            request(battle, split_msg)
+        if isinstance(parsed, RequestMessage):
+            # an empty request means there is nothing to decide
+            if parsed.request is None:
+                process_battle_updates(battle)
+                return False
+
+            request(battle, parsed)
             process_battle_updates(battle)
             return not battle.wait
         else:
