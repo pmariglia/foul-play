@@ -5,8 +5,10 @@ from fp.battle.protocol import apply_message
 from fp.battle.protocol_messages import (
     Ability,
     Activate,
+    Anim,
     Boost,
     Cant,
+    ClearPositiveBoost,
     Crit,
     Damage,
     FormeChange,
@@ -77,6 +79,38 @@ class TestParseLine:
         msg = parse_line("|move|p1a: Clefable|Wish||[still]")
         assert msg.target is None
         assert "still" in msg.kwargs
+
+    def test_move_with_null_target_has_no_target(self):
+        msg = parse_line(
+            "|move|p1a: Charizard|Z-Hold Hands|null|[anim]Hold Hands|[notarget]"
+        )
+        assert isinstance(msg, Move)
+        assert msg.target is None
+        assert "Z-Hold Hands" == msg.move
+        assert "notarget" in msg.kwargs
+
+    def test_anim_with_null_target_has_no_target(self):
+        msg = parse_line("|-anim|p1a: Charizard|Hold Hands|null")
+        assert isinstance(msg, Anim)
+        assert msg.target is None
+
+    def test_miss_with_null_target_has_no_target(self):
+        msg = parse_line("|-miss|p1a: Charizard|null")
+        assert isinstance(msg, Miss)
+        assert msg.target is None
+
+    def test_clearpositiveboost(self):
+        msg = parse_line(
+            "|-clearpositiveboost|p2a: Primeape|p1a: Marshadow|move: Spectral Thief"
+        )
+        assert (
+            ClearPositiveBoost(
+                PokemonIdent(SideId.P2, "a", "Primeape"),
+                PokemonIdent(SideId.P1, "a", "Marshadow"),
+                Effect(EffectKind.MOVE, "Spectral Thief", "spectralthief"),
+            )
+            == msg
+        )
 
     def test_heal_and_damage_are_different_types(self):
         assert isinstance(parse_line("|-heal|p1a: X|50/100"), Heal)
@@ -193,6 +227,30 @@ class TestApplyMessage:
     def test_routes_status(self):
         apply_message(self.battle, parse_line("|-status|p2a: Caterpie|par"))
         assert constants.Status.PARALYZED == self.battle.opponent.active.status
+
+    def test_routes_clearpositiveboost(self):
+        self.battle.opponent.active.boosts = {
+            constants.ATTACK: 2,
+            constants.DEFENSE: -1,
+        }
+        apply_message(
+            self.battle,
+            parse_line(
+                "|-clearpositiveboost|p2a: Caterpie|p1a: Weedle|move: Spectral Thief"
+            ),
+        )
+        assert {
+            constants.ATTACK: 0,
+            constants.DEFENSE: -1,
+        } == self.battle.opponent.active.boosts
+
+    def test_routes_move_with_null_target(self):
+        apply_message(
+            self.battle,
+            parse_line(
+                "|move|p2a: Caterpie|Z-Hold Hands|null|[anim]Hold Hands|[notarget]"
+            ),
+        )
 
     def test_unknown_messages_are_ignored(self):
         apply_message(self.battle, parse_line("|t:|1727800000"))

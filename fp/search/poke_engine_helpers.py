@@ -235,6 +235,8 @@ def get_weather_string(weather):
         return "harshsun"
     elif weather == constants.Weather.HEAVY_RAIN:
         return "heavyrain"
+    elif weather == constants.Weather.DELTA_STREAM:
+        return "deltastream"
     elif weather is None:
         return "none"
     elif weather == "none":

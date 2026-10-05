@@ -1,3 +1,5 @@
+import logging
+from copy import deepcopy
 import pytest
 
 import asyncio
@@ -16,7 +18,9 @@ from fp.data.sets import (
     PokemonMoveset,
 )
 from fp.battle.helpers import calculate_stats
+from fp.battle.helpers import normalize_name
 
+from fp.battle.request import Request
 from fp.battle.state import Battle
 from fp.battle.state import Pokemon
 from fp.battle.state import Move
@@ -61,6 +65,7 @@ from fp.battle.protocol import update_ability
 from fp.battle.protocol import form_change
 from fp.battle.protocol import zpower
 from fp.battle.protocol import clearnegativeboost
+from fp.battle.protocol import clearpositiveboost
 from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_choicescarf
 from fp.battle.inference import check_heavydutyboots
@@ -251,28 +256,40 @@ class TestRequestMessage:
 
     def test_request_sets_force_switch_to_false(self):
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert False is self.battle.force_switch
 
     def test_force_switch_properly_sets_the_force_switch_flag(self):
         self.request_json.pop("active")
-        self.request_json[constants.FORCE_SWITCH] = [True]
+        self.request_json["forceSwitch"] = [True]
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert True is self.battle.force_switch
 
     def test_wait_properly_sets_wait_flag(self):
         self.request_json.pop("active")
-        self.request_json[constants.WAIT] = [True]
+        self.request_json["wait"] = True
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert True is self.battle.wait
 
     def test_wait_does_not_initialize_pokemon(self):
         self.request_json.pop("active")
-        self.request_json[constants.WAIT] = [True]
+        self.request_json["wait"] = True
         split_request_message = ["", "request", json.dumps(self.request_json)]
-        request(self.battle, split_request_message)
+        request(
+            self.battle,
+            parse_as(protocol_messages.RequestMessage, split_request_message),
+        )
         assert 0 == len(self.battle.user.reserve)
 
 
@@ -322,6 +339,19 @@ class TestSwitchOrDrag:
         assert "caterpie" == self.battle.opponent.active.name
         assert "sandstream" not in self.battle.opponent.active.impossible_abilities
 
+    @pytest.mark.parametrize(
+        "ability", ["drought", "drizzle", "sandstream", "snowwarning"]
+    )
+    def test_does_not_add_weather_ability_to_impossible_abilities_in_strong_winds(
+        self, ability
+    ):
+        split_msg = ["", "switch", "p2a: caterpie", "Caterpie, L100, M", "100/100"]
+        self.battle.weather = constants.Weather.DELTA_STREAM
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
+
+        assert "caterpie" == self.battle.opponent.active.name
+        assert ability not in self.battle.opponent.active.impossible_abilities
+
     def test_does_not_add_pressure_to_impossible_abilities_gen3(self):
         self.battle.generation = "gen3"
         self.battle.mode = RandomBattleMode()
@@ -360,40 +390,45 @@ class TestSwitchOrDrag:
         assert "cramorantgulping" not in [p.name for p in self.battle.opponent.reserve]
 
     def test_user_switching_in_zaciancrowned_properly_re_initializes_stats(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zacian",
-                        "details": "Zacian-Crowned",
-                        "condition": "211/325",
-                        "active": True,
-                        "stats": {
-                            "atk": 399,
-                            "def": 267,
-                            "spa": 176,
-                            "spd": 266,
-                            "spe": 434,
-                        },
-                        "moves": [
-                            "behemothblade",
-                            "swordsdance",
-                            "wildcharge",
-                            "closecombat",
-                        ],
-                        "baseAbility": "intrepidsword",
-                        "item": "rustedsword",
-                        "pokeball": "pokeball",
-                        "ability": "intrepidsword",
-                        "commanding": False,
-                        "reviving": False,
-                        "teraType": "Flying",
-                        "terastallized": "",
-                    }
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zacian",
+                            "details": "Zacian-Crowned",
+                            "condition": "211/325",
+                            "active": True,
+                            "stats": {
+                                "atk": 399,
+                                "def": 267,
+                                "spa": 176,
+                                "spd": 266,
+                                "spe": 434,
+                            },
+                            "moves": [
+                                "behemothblade",
+                                "swordsdance",
+                                "wildcharge",
+                                "closecombat",
+                            ],
+                            "baseAbility": "intrepidsword",
+                            "item": "rustedsword",
+                            "pokeball": "pokeball",
+                            "ability": "intrepidsword",
+                            "commanding": False,
+                            "reviving": False,
+                            "teraType": "Flying",
+                            "terastallized": "",
+                        }
+                    ],
+                },
+            }
+        )
         self.battle.user.active = Pokemon("weedle", 100)
         zacian_crowned_reserve = Pokemon("zaciancrowned", 100)
         zacian_crowned_reserve.stats = {
@@ -411,23 +446,38 @@ class TestSwitchOrDrag:
     def test_switch_properly_switches_zoroark_for_user_when_last_selected_move_was_zoroark(
         self,
     ):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": True,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": False,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -441,23 +491,38 @@ class TestSwitchOrDrag:
         assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_zoroark_properly_sets_zoroark(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": True,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": False,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -468,23 +533,38 @@ class TestSwitchOrDrag:
         assert "zoroark" == self.battle.user.active.name
 
     def test_being_dragged_into_not_zoroark_properly_sets_not_zoroark(self):
-        self.battle.request_json = {
-            "active": [],
-            "side": {
-                "pokemon": [
-                    {
-                        "ident": "p1: Zoroark",
-                        "details": "Zoroark, L100, M",
-                        "active": False,
-                    },
-                    {
-                        "ident": "p1: Weedle",
-                        "details": "Weedle, L100, M",
-                        "active": True,
-                    },
-                ]
-            },
-        }
+        self.battle.request = Request.from_json(
+            {
+                "rqid": 1,
+                "wait": True,
+                "side": {
+                    "name": "Bot",
+                    "id": "p1",
+                    "pokemon": [
+                        {
+                            "ident": "p1: Zoroark",
+                            "details": "Zoroark, L100, M",
+                            "condition": "100/100",
+                            "active": False,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                        {
+                            "ident": "p1: Weedle",
+                            "details": "Weedle, L100, M",
+                            "condition": "100/100",
+                            "active": True,
+                            "stats": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+                            "moves": ["tackle"],
+                            "baseAbility": "illusion",
+                            "item": "",
+                        },
+                    ],
+                },
+            }
+        )
         self.battle.reserve = [
             Pokemon("zoroark", 100),
             Pokemon("weedle", 100),
@@ -1590,6 +1670,31 @@ class TestMove:
         assert [] == self.battle.opponent.reserve[0].moves
         assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
+    def test_infer_zoroark_regular_from_move_in_gen7_randbats_without_zoroarkhisui(
+        self,
+    ):
+        # gen7randombattle has no zoroarkhisui, but it shares regular zoroark's sets
+        # through the base-species fallback
+        self.battle.mode = RandomBattleMode()
+        self.battle.generation = "gen7"
+        self.battle.mode.datasets.initialize(
+            FormatSpec.from_format_string("gen7randombattle")
+        )
+
+        self.battle.opponent.active = Pokemon("ninjask", 88)
+
+        split_msg = [
+            "",
+            "move",
+            "p2a: Ninjask",
+            "Trick",
+            "p1a: Weedle",
+        ]  # Ninjask does not get Trick in gen7randbats
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert "zoroark" == self.battle.opponent.active.name
+        assert ["ninjask"] == [p.name for p in self.battle.opponent.reserve]
+
     def test_does_not_infer_zoroark_if_move_can_be_on_active_pkmn(
         self,
     ):
@@ -1954,6 +2059,32 @@ class TestMove:
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
+    def test_removes_chillyreception_volatile_from_prepare_when_using_move(self):
+        self.battle.opponent.active.volatile_statuses = ["chillyreception"]
+        split_msg = ["", "move", "p2a: Caterpie", "Chilly Reception", "p2a: Caterpie"]
+
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert [] == self.battle.opponent.active.volatile_statuses
+
+    def test_using_substitute_again_does_not_remove_existing_substitute(self):
+        # |move|p1a: Girafarig|Substitute|p1a: Girafarig
+        # |-fail|p1a: Girafarig|move: Substitute
+        self.battle.opponent.active.volatile_statuses = [constants.SUBSTITUTE]
+        split_msg = ["", "move", "p2a: Caterpie", "Substitute", "p2a: Caterpie"]
+
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert [constants.SUBSTITUTE] == self.battle.opponent.active.volatile_statuses
+
+    def test_using_leechseed_while_seeded_does_not_remove_leechseed(self):
+        self.battle.opponent.active.volatile_statuses = [constants.LEECH_SEED]
+        split_msg = ["", "move", "p2a: Caterpie", "Leech Seed", "p1a: Pikachu"]
+
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert [constants.LEECH_SEED] == self.battle.opponent.active.volatile_statuses
+
     def test_increments_encore_duration_when_using_move_having_been_encored(self):
         self.battle.opponent.active.volatile_statuses = ["encore"]
         self.battle.opponent.active.volatile_status_durations["encore"] = 0
@@ -1998,6 +2129,18 @@ class TestMove:
         move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
         assert not self.battle.opponent.active.can_have_choice_item
+
+    def test_using_a_different_move_after_transform_keeps_inferred_choice_item(self):
+        self.battle.opponent.active.can_have_choice_item = True
+        self.battle.opponent.active.item = "choicescarf"
+        self.battle.opponent.active.item_inferred = True
+        split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
+        self.battle.opponent.last_used_move = LastUsedMove("caterpie", "transform", 0)
+
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert self.battle.opponent.active.can_have_choice_item
+        assert "choicescarf" == self.battle.opponent.active.item
 
     def test_using_a_boosting_status_move_sets_can_have_choice_item_to_false(self):
         self.battle.opponent.active.can_have_choice_item = True
@@ -2286,6 +2429,37 @@ class TestWeather:
 
         assert "raindance" == self.battle.weather
         assert "opponent:caterpie" == self.battle.weather_source
+
+    @pytest.mark.parametrize(
+        "weather_message,ability,expected_weather",
+        [
+            ("DesolateLand", "Desolate Land", constants.Weather.DESOLATE_LAND),
+            ("PrimordialSea", "Primordial Sea", constants.Weather.HEAVY_RAIN),
+            ("DeltaStream", "Delta Stream", constants.Weather.DELTA_STREAM),
+        ],
+    )
+    def test_primal_weather_lasts_until_its_source_leaves(
+        self, weather_message, ability, expected_weather
+    ):
+        split_msg = [
+            "",
+            "-weather",
+            weather_message,
+            "[from] ability: {}".format(ability),
+            "[of] p2a: Caterpie",
+        ]
+        weather(self.battle, parse_as(protocol_messages.Weather, split_msg))
+
+        assert expected_weather == self.battle.weather
+        assert -1 == self.battle.weather_turns_remaining
+        assert normalize_name(ability) == self.battle.opponent.active.ability
+
+        for _ in range(8):
+            upkeep_msg = ["", "-weather", weather_message, "[upkeep]"]
+            weather(self.battle, parse_as(protocol_messages.Weather, upkeep_msg))
+
+        assert expected_weather == self.battle.weather
+        assert -1 == self.battle.weather_turns_remaining
 
     def test_weather_source_is_not_confused_by_nickname_containing_side_id(self):
         split_msg = [
@@ -3260,6 +3434,26 @@ class TestEndVolatileStatus:
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
+    def test_futuresight_end_does_not_warn_about_missing_volatile(self, caplog):
+        self.battle.user.future_sight = (1, "weedle")
+        split_msg = ["", "-end", "p2a: Caterpie", "move: Future Sight"]
+        with caplog.at_level(logging.WARNING):
+            end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
+
+        assert "does not have the volatile status" not in caplog.text
+        assert [] == self.battle.opponent.active.volatile_statuses
+        # the counter is decremented by `upkeep`, not by the `-end`
+        assert (1, "weedle") == self.battle.user.future_sight
+
+    def test_illusion_end_does_not_warn_about_missing_volatile(self, caplog):
+        self.battle.opponent.active = Pokemon("zoroark", 84)
+        split_msg = ["", "-end", "p2a: Zoroark", "Illusion"]
+        with caplog.at_level(logging.WARNING):
+            end_volatile_status(self.battle, parse_as(protocol_messages.End, split_msg))
+
+        assert "does not have the volatile status" not in caplog.text
+        assert [] == self.battle.opponent.active.volatile_statuses
+
     def test_removes_partiallytrapped_silent(self):
         self.battle.opponent.active.volatile_statuses = [constants.PARTIALLY_TRAPPED]
         split_msg = [
@@ -4073,6 +4267,69 @@ class TestClearNegativeBoost:
         assert expected_boosts == self.battle.opponent.active.boosts
 
 
+class TestClearPositiveBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+        self.battle.user.name = "p1"
+        self.battle.opponent.name = "p2"
+
+        self.user_active = Pokemon("marshadow", 100)
+        self.battle.user.active = self.user_active
+
+        self.opponent_active = Pokemon("primeape", 100)
+        self.battle.opponent.active = self.opponent_active
+
+    def clearpositiveboost(self, target, source):
+        split_msg = [
+            "",
+            "-clearpositiveboost",
+            target,
+            source,
+            "move: Spectral Thief",
+        ]
+        clearpositiveboost(
+            self.battle, parse_as(protocol_messages.ClearPositiveBoost, split_msg)
+        )
+
+    def test_clears_positive_boosts(self):
+        self.battle.opponent.active.boosts = {
+            constants.ATTACK: 2,
+            constants.SPEED: 1,
+        }
+        self.clearpositiveboost("p2a: Primeape", "p1a: Marshadow")
+
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 0 == self.battle.opponent.active.boosts[constants.SPEED]
+
+    def test_does_not_clear_negative_boosts(self):
+        self.battle.opponent.active.boosts = {
+            constants.ATTACK: 2,
+            constants.DEFENSE: -1,
+        }
+        self.clearpositiveboost("p2a: Primeape", "p1a: Marshadow")
+
+        assert {
+            constants.ATTACK: 0,
+            constants.DEFENSE: -1,
+        } == self.battle.opponent.active.boosts
+
+    def test_does_not_change_the_source(self):
+        self.battle.user.active.boosts = {constants.ATTACK: 1}
+        self.battle.opponent.active.boosts = {constants.ATTACK: 2}
+        self.clearpositiveboost("p2a: Primeape", "p1a: Marshadow")
+
+        assert 1 == self.battle.user.active.boosts[constants.ATTACK]
+
+    def test_clears_the_users_boosts_when_the_user_is_the_target(self):
+        self.battle.user.active.boosts = {constants.SPECIAL_ATTACK: 6}
+        self.clearpositiveboost("p1a: Marshadow", "p2a: Primeape")
+
+        assert 0 == self.battle.user.active.boosts[constants.SPECIAL_ATTACK]
+
+
 class TestClearBoost:
     @pytest.fixture(autouse=True)
     def _setup(self):
@@ -4288,6 +4545,7 @@ class TestTransform:
             "fireblast",
         ]
         self.request_json = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -4367,7 +4625,7 @@ class TestTransform:
             },
         }
 
-        self.battle.request_json = self.request_json
+        self.battle.request = Request.from_json(self.request_json)
 
     def test_transform_sets_ability_to_opposing_pokemons_ability(self):
         self.battle.user.active.ability = self.user_active_ability
@@ -4837,15 +5095,42 @@ class TestCheckSpeedRanges:
 
         self.battle.username = self.username
 
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
+    def test_user_slowstart_halves_speed_threshold(self):
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.active.volatile_statuses.append(constants.SLOW_START)
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert 150 == self.battle.opponent.active.speed_range.min
+
+    def test_opponent_slowstart_doubles_speed_threshold(self):
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.opponent.active.volatile_statuses.append(constants.SLOW_START)
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert 600 == self.battle.opponent.active.speed_range.min
+
+    def test_neutralizing_gas_makes_this_check_not_happen(self):
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.opponent.active.ability = "neutralizinggas"
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
 
     def test_protosynthesis_speed_is_accounted_for_in_speed_range_check(self):
         self.battle.user.active.stats[constants.SPEED] = 300
@@ -4862,6 +5147,25 @@ class TestCheckSpeedRanges:
         ]
         check_speed_ranges(self.battle, parse_lines(messages))
         assert 300 == self.battle.opponent.active.speed_range.min  # unchanged
+
+    def test_revival_blessing_makes_this_check_not_happen(self):
+        # the bot used revival blessing first, then picked a target in a separate request,
+        # so only the opponent's move is in the messages that follow
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove(
+            "caterpie", "revivalblessing", 0
+        )
+        self.battle.user.reserve = [Pokemon("pikachu", 100)]
+        self.battle.user.reserve[0].nickname = "Pikachu"
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|-heal|p1: Pikachu|50/100|[from] move: Revival Blessing",
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|-damage|p1a: Caterpie|50/100",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
 
     def test_recharging_makes_this_check_not_happen(self):
         self.battle.user.active.stats[constants.SPEED] = 150
@@ -5470,16 +5774,6 @@ class TestGuessChoiceScarf:
 
         self.battle.username = self.username
 
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
-
     def test_fainting_pkmn_with_priority_modified_does_not_infer_scarf(self):
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed should not be greater than 207 (max speed caterpie)
@@ -5493,6 +5787,66 @@ class TestGuessChoiceScarf:
             "|-supereffective|p1a: Toedscruel",
             "|-damage|p1a: Toedscruel|0 fnt",
             "|faint|p1a: Toedscruel",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_does_not_guess_choicescarf_when_user_slowstart_halves_its_speed(self):
+        # regigigas with slowstart is slower than it's stats suggest
+        self.battle.user.active.stats[constants.SPEED] = (
+            210  # without slowstart, faster than max speed caterpie (207)
+        )
+        self.battle.user.active.volatile_statuses.append(constants.SLOW_START)
+
+        messages = [
+            "|move|p2a: Caterpie|Stealth Rock|",
+            "|move|p1a: Caterpie|Stealth Rock|",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_does_not_guess_choicescarf_when_user_paralysis_quarters_speed_in_gen5(
+        self,
+    ):
+        # paralysis quarters speed before gen7: 420 / 4 = 105, slower than max speed caterpie (207)
+        self.battle.generation = "gen5"
+        self.battle.user.active.stats[constants.SPEED] = 420
+        self.battle.user.active.status = constants.Status.PARALYZED
+
+        messages = [
+            "|move|p2a: Caterpie|Stealth Rock|",
+            "|move|p1a: Caterpie|Stealth Rock|",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_guesses_choicescarf_when_user_paralysis_halves_speed_in_gen9(self):
+        # paralysis halves speed from gen7: 420 / 2 = 210, faster than max speed caterpie (207)
+        self.battle.user.active.stats[constants.SPEED] = 420
+        self.battle.user.active.status = constants.Status.PARALYZED
+
+        messages = [
+            "|move|p2a: Caterpie|Stealth Rock|",
+            "|move|p1a: Caterpie|Stealth Rock|",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert "choicescarf" == self.battle.opponent.active.item
+
+    def test_does_not_guess_choicescarf_when_neutralizing_gas_is_active(self):
+        self.battle.user.active.stats[constants.SPEED] = 210
+        self.battle.user.active.ability = "neutralizinggas"
+
+        messages = [
+            "|move|p2a: Caterpie|Stealth Rock|",
+            "|move|p1a: Caterpie|Stealth Rock|",
         ]
 
         check_choicescarf(self.battle, parse_lines(messages))
@@ -5982,16 +6336,6 @@ class TestCheckHeavyDutyBoots:
 
         self.battle.username = self.username
         self.battle.generation = "gen9"
-
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
 
     def test_basic_case_of_switching_in_and_not_taking_damage_sets_heavydutyboots(self):
         self.battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
@@ -6940,16 +7284,6 @@ class TestInactiveOff:
 
         self.battle.user.last_used_move = LastUsedMove("caterpie", "tackle", 0)
 
-        self.battle.request_json = {
-            constants.ACTIVE: [{constants.MOVES: []}],
-            constants.SIDE: {
-                constants.ID: None,
-                constants.NAME: None,
-                constants.POKEMON: [],
-                constants.RQID: None,
-            },
-        }
-
     def test_turns_timer_off(self):
         self.battle.time_remaining = 60
         self.battle.msg_list = [
@@ -7639,6 +7973,58 @@ class TestUpdateBattle:
         self.battle.opponent.name = "p2"
         self.battle.opponent.active = Pokemon("pikachu", 100)
 
+    def test_user_forme_change_matches_request_pokemon_that_has_since_reverted(self):
+        # the request reflects the end of the turn: Terapagos terastallized to Stellar and
+        # then fainted, which reverts it to plain Terapagos before the request is sent
+        terapagos = Pokemon("terapagosterastal", 77)
+        terapagos.nickname = "Terapagos"
+        self.battle.user.active = terapagos
+        request = {
+            "rqid": 3,
+            "forceSwitch": [True],
+            "side": {
+                "name": "Bot",
+                "id": "p1",
+                "pokemon": [
+                    {
+                        "ident": "p1: Terapagos",
+                        "details": "Terapagos, L77, F",
+                        "condition": "0 fnt",
+                        "active": True,
+                        "stats": {
+                            "atk": 145,
+                            "def": 175,
+                            "spa": 145,
+                            "spd": 175,
+                            "spe": 137,
+                        },
+                        "moves": [
+                            "terastarstorm",
+                            "calmmind",
+                            "darkpulse",
+                            "rapidspin",
+                        ],
+                        "baseAbility": "terashift",
+                        "item": "heavydutyboots",
+                        "ability": "terashift",
+                        "teraType": "Stellar",
+                    }
+                ],
+            },
+        }
+        msg = "\n".join(
+            [
+                "|detailschange|p1a: Terapagos|Terapagos-Stellar, L77, F, tera:Stellar",
+                "|faint|p1a: Terapagos",
+                "|detailschange|p1: Terapagos|Terapagos, L77, F|[silent]",
+                "|request|{}".format(json.dumps(request)),
+            ]
+        )
+        update_battle(self.battle, msg)
+
+        assert "terapagos" == self.battle.user.active.name
+        assert 0 == self.battle.user.active.hp
+
     def test_non_request_messages_are_queued_and_false_is_returned(self):
         msg = "|move|p1a: Caterpie|Tackle|p2a: Pikachu\n|-damage|p2a: Pikachu|85/100"
         result = update_battle(self.battle, msg)
@@ -7650,7 +8036,9 @@ class TestUpdateBattle:
         ] == self.battle.msg_list
 
     def test_request_message_processes_queued_lines_and_returns_true(self):
-        msg = "|faint|p2a: Pikachu\n|request|{}".format(json.dumps({"rqid": 2}))
+        msg = "|faint|p2a: Pikachu\n|request|{}".format(
+            json.dumps({"rqid": 2, "side": {"name": "Bot", "id": "p1", "pokemon": []}})
+        )
         result = update_battle(self.battle, msg)
 
         assert True is result
@@ -7658,7 +8046,15 @@ class TestUpdateBattle:
         assert [] == self.battle.msg_list
 
     def test_request_with_wait_returns_false(self):
-        msg = "|request|{}".format(json.dumps({"rqid": 2, "wait": True}))
+        msg = "|request|{}".format(
+            json.dumps(
+                {
+                    "rqid": 2,
+                    "wait": True,
+                    "side": {"name": "Bot", "id": "p1", "pokemon": []},
+                }
+            )
+        )
         result = update_battle(self.battle, msg)
 
         assert False is result
@@ -7692,7 +8088,9 @@ class TestAsyncUpdateBattle:
         assert ["|faint|p2a: Pikachu"] == self.battle.msg_list
 
     def test_returns_true_for_request_message_requiring_action(self):
-        msg = "|request|{}".format(json.dumps({"rqid": 2}))
+        msg = "|request|{}".format(
+            json.dumps({"rqid": 2, "side": {"name": "Bot", "id": "p1", "pokemon": []}})
+        )
         result = asyncio.run(async_update_battle(self.battle, msg))
 
         assert True is result

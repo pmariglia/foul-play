@@ -16,12 +16,14 @@ from fp.battle.helpers import (
     is_neutral_effectiveness,
 )
 from fp.battle.state import boost_multiplier_lookup
+from fp.battle.protocol_types import EffectKind
 from fp.battle.protocol_messages import (
     Activate,
     Cant,
     Crit,
     Damage,
     EndItem,
+    Heal,
     Message,
     Miss,
     Move,
@@ -67,6 +69,12 @@ def _changes_turn_order(msg: Message) -> bool:
     )
 
 
+def _is_revival_blessing_heal(msg: Message) -> bool:
+    return isinstance(msg, Heal) and msg.kwargs.is_from(
+        "revivalblessing", EffectKind.MOVE
+    )
+
+
 def can_have_priority_modified(battle, pokemon, move_name):
     return (
         "prankster"
@@ -85,6 +93,15 @@ def can_have_priority_modified(battle, pokemon, move_name):
                 for a in pokedex[pokemon.name][constants.ABILITIES].values()
             ]
         )
+    )
+
+
+def neutralizing_gas_is_active(battle):
+    # neutralizing gas suppresses abilities that modify speed (e.g. slowstart, swiftswim),
+    # so turn order cannot be reasoned about without knowing exactly which are suppressed
+    return any(
+        side.active is not None and side.active.ability == "neutralizinggas"
+        for side in (battle.user, battle.opponent)
     )
 
 
@@ -191,7 +208,11 @@ def check_speed_ranges(battle, messages: list[Message]):
             - the opponent COULD have a speed-boosting weather ability AND that weather is up
             - the opponent COULD have prankster and it used a status move
             - Grassy Glide is used when Grassy Terrain is up
+            - neutralizing gas is active
     """
+    if neutralizing_gas_is_active(battle):
+        return
+
     for msg in messages:
         # If either side switched this turn - don't do this check
         if _is_switch(msg):
@@ -204,6 +225,11 @@ def check_speed_ranges(battle, messages: list[Message]):
 
         # If anyone had quick claw, quick draw, or custap berry activate, skip this check
         if _changes_turn_order(msg):
+            return
+
+        # choosing a revival blessing target splits the turn across two requests,
+        # so the moves seen here are not the whole turn
+        if _is_revival_blessing_heal(msg):
             return
 
     moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
@@ -263,6 +289,9 @@ def check_speed_ranges(battle, messages: list[Message]):
     if "protosynthesisspe" in battle.opponent.active.volatile_statuses:
         speed_threshold = int(speed_threshold / 1.5)
 
+    if constants.SLOW_START in battle.opponent.active.volatile_statuses:
+        speed_threshold = int(speed_threshold * 2)
+
     if battle.opponent.side_conditions[constants.TAILWIND]:
         speed_threshold = int(speed_threshold / 2)
 
@@ -280,6 +309,9 @@ def check_speed_ranges(battle, messages: list[Message]):
 
     if "protosynthesisspe" in battle.user.active.volatile_statuses:
         speed_threshold = int(speed_threshold * 1.5)
+
+    if constants.SLOW_START in battle.user.active.volatile_statuses:
+        speed_threshold = int(speed_threshold / 2)
 
     # we want to swap which attribute gets updated in trickroom because the slower pokemon goes first
     if battle.trick_room:
@@ -369,6 +401,9 @@ def check_choicescarf(battle, messages: list[Message]):
         or _is_confusion_activation(msg)
         for msg in messages
     ) or battle.user.last_selected_move.move.startswith("switch "):
+        return
+
+    if neutralizing_gas_is_active(battle):
         return
 
     moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
@@ -550,7 +585,7 @@ def _do_check(
 
     if len(indicies_to_remove) == num_starting_possibilites and not allow_emptying:
         logger.warning("Would remove all possibilities, not removing any")
-        logger.warning(f"{actual_damage_dealt=}")
+        logger.info(f"{actual_damage_dealt=}")
         return
 
     for i in reversed(indicies_to_remove):

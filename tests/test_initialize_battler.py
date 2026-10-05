@@ -3,6 +3,7 @@ import pytest
 from fp import constants
 from fp.battle.state import Battler, Move, LastUsedMove
 from fp.battle.state import Pokemon
+from fp.battle.request import Request
 
 
 class TestUpdateFromRequestJson:
@@ -12,6 +13,7 @@ class TestUpdateFromRequestJson:
 
     def test_basic_updating_attributes_for_active_pkmn(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -81,7 +83,7 @@ class TestUpdateFromRequestJson:
         }
         self.battler.active = Pokemon("pikachu", 100)
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert self.battler.active.nickname == "PikachuNickname"
         assert self.battler.active.status is None
@@ -106,6 +108,7 @@ class TestUpdateFromRequestJson:
 
     def test_gigatonhammer_un_disabled_if_it_is_last_used_move(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -178,7 +181,7 @@ class TestUpdateFromRequestJson:
             pokemon_name="pikachu", move="gigatonhammer", turn=0
         )
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert self.battler.active.get_move("gigatonhammer").disabled is False
 
@@ -186,6 +189,7 @@ class TestUpdateFromRequestJson:
         self,
     ):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -258,12 +262,13 @@ class TestUpdateFromRequestJson:
             pokemon_name="pikachu", move="thunderbolt", turn=0
         )
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert self.battler.active.get_move("gigatonhammer").disabled is True
 
     def test_sets_trapped(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "trapped": True,
@@ -334,18 +339,19 @@ class TestUpdateFromRequestJson:
         }
         self.battler.active = Pokemon("pikachu", 100)
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert self.battler.trapped
 
     def test_active_optional_attributes(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
-                    constants.CAN_MEGA_EVO: True,
-                    constants.CAN_ULTRA_BURST: True,
-                    constants.CAN_DYNAMAX: True,
-                    constants.CAN_TERASTALLIZE: True,
+                    "canMegaEvo": True,
+                    "canUltraBurst": True,
+                    "canDynamax": True,
+                    "canTerastallize": "Electric",
                     "moves": [
                         {
                             "move": "Volt Tackle",
@@ -413,7 +419,7 @@ class TestUpdateFromRequestJson:
         }
         self.battler.active = Pokemon("pikachu", 100)
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert self.battler.active.can_mega_evo
         assert self.battler.active.can_ultra_burst
@@ -422,6 +428,7 @@ class TestUpdateFromRequestJson:
 
     def test_basic_updating_attributes_for_reserve_pkmn(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -515,7 +522,7 @@ class TestUpdateFromRequestJson:
         rattata = Pokemon("rattata", 50)
         self.battler.reserve.append(rattata)
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert rattata.level == 100
         assert rattata.status == constants.Status.PARALYZED
@@ -538,6 +545,7 @@ class TestUpdateFromRequestJson:
 
     def test_reserve_pkmn_has_pp_preserved(self):
         request_dict = {
+            "rqid": 1,
             "active": [
                 {
                     "moves": [
@@ -635,6 +643,6 @@ class TestUpdateFromRequestJson:
         rattata.moves.append(tackle)
         self.battler.reserve.append(rattata)
 
-        self.battler.update_from_request_json(request_dict)
+        self.battler.update_from_request(Request.from_json(request_dict))
 
         assert 16 == rattata.get_move("tackle").current_pp

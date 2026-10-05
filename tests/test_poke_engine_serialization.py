@@ -107,6 +107,7 @@ class TestStringMappings:
         assert "snow" == get_weather_string(constants.Weather.SNOW)
         assert "harshsun" == get_weather_string(constants.Weather.DESOLATE_LAND)
         assert "heavyrain" == get_weather_string(constants.Weather.HEAVY_RAIN)
+        assert "deltastream" == get_weather_string(constants.Weather.DELTA_STREAM)
         assert "none" == get_weather_string(None)
         assert "none" == get_weather_string("none")
         with pytest.raises(ValueError):

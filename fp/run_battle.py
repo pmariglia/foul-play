@@ -10,6 +10,17 @@ from fp.modes.base import async_pick_move
 logger = logging.getLogger(__name__)
 
 
+def is_revival_blessing_prompt(battle) -> bool:
+    # after using revival blessing, PS sends a `forceSwitch` request with the active pokemon
+    # flagged `reviving`, asking which fainted pokemon to revive
+    request = battle.request
+    return (
+        request is not None
+        and bool(request.force_switch)
+        and any(p.reviving for p in request.side.pokemon)
+    )
+
+
 def battle_is_finished(battle_tag, msg):
     return (
         msg.startswith(">{}".format(battle_tag))
@@ -59,5 +70,10 @@ async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
         else:
             action_required = await async_update_battle(battle, msg)
             if action_required and not battle.wait:
-                best_move = await async_pick_move(battle)
+                # choosing a revival blessing target is not implemented here or in poke-engine,
+                # so let PS pick (`default` revives the first fainted pokemon)
+                if is_revival_blessing_prompt(battle):
+                    best_move = ["/choose default", str(battle.rqid)]
+                else:
+                    best_move = await async_pick_move(battle)
                 await ps_websocket_client.send_message(battle.battle_tag, best_move)

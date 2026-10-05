@@ -46,25 +46,9 @@ def champions_stat_point_to_effective_ev(stat_point: int) -> int:
         return 8 * stat_point - 4
 
 
-def get_pokemon_info_from_condition(condition_string: str):
-    def remove_maxhp_chars(val: str):
-        chars = {"g", "y", "r"}
-        while val and val[-1] in chars:
-            val = val[:-1]
-        return val
-
-    if constants.FNT in condition_string:
-        return 0, 0, None
-
-    split_string = condition_string.split("/")
-    hp = int(split_string[0])
-    if any(s in condition_string for s in constants.NON_VOLATILE_STATUSES):
-        maxhp, status = split_string[1].split(" ")
-        maxhp = int(remove_maxhp_chars(maxhp))
-        return hp, maxhp, status
-    else:
-        maxhp = int(remove_maxhp_chars(split_string[1]))
-        return hp, maxhp, None
+def to_id(name: str) -> str:
+    """PS's `toID`: lowercase, keeping only a-z and 0-9"""
+    return "".join(c for c in name.lower() if c.isascii() and c.isalnum())
 
 
 def normalize_name(name):

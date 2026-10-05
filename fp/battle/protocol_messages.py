@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from fp.battle.helpers import normalize_name
+from fp.battle.request import Request
 from fp.battle.protocol_types import (
     Condition,
     Details,
@@ -265,6 +266,15 @@ class ClearNegativeBoost(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class ClearPositiveBoost(Message):
+    """`target`'s positive boosts are cleared by `source` e.g. spectral thief"""
+
+    target: PokemonIdent
+    source: PokemonIdent
+    effect: Effect
+
+
+@dataclass(frozen=True, slots=True)
 class ClearBoost(Message):
     pokemon: PokemonIdent
 
@@ -319,6 +329,42 @@ class NoInit(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class Player(Message):
+    # |player|p1| is sent with no username when a player leaves
+    side: SideId
+    username: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class Title(Message):
+    title: str
+
+
+@dataclass(frozen=True, slots=True)
+class ClearPoke(Message):
+    """Team preview is starting"""
+
+
+@dataclass(frozen=True, slots=True)
+class Poke(Message):
+    """A pokemon revealed during team preview"""
+
+    side: SideId
+    details: Details
+
+
+@dataclass(frozen=True, slots=True)
+class BattleStart(Message):
+    """`|start`: the battle is starting (not to be confused with `-start`)"""
+
+
+@dataclass(frozen=True, slots=True)
+class RequestMessage(Message):
+    # an empty `|request|` is sent when there is nothing to choose
+    request: Request | None
+
+
+@dataclass(frozen=True, slots=True)
 class Unknown(Message):
     type: str
     args: tuple[str, ...]
@@ -332,7 +378,11 @@ def _optional(args: list[str], index: int) -> str | None:
 
 def _optional_ident(args: list[str], index: int) -> PokemonIdent | None:
     value = _optional(args, index)
-    return PokemonIdent.parse(value) if value is not None else None
+    # PS writes a missing target as "null", e.g. a z-move with no target:
+    # |move|p1a: Charizard|Z-Hold Hands|null|[anim]Hold Hands|[notarget]
+    if value is None or value == "null":
+        return None
+    return PokemonIdent.parse(value)
 
 
 def _parse_switch(args, kwargs, raw, msg_type):
@@ -521,6 +571,24 @@ def _parse_cant(args, kwargs, raw, _):
     )
 
 
+def _parse_clear_positive_boost(args, kwargs, raw, _):
+    return ClearPositiveBoost(
+        PokemonIdent.parse(args[0]),
+        PokemonIdent.parse(args[1]),
+        Effect.parse(args[2]),
+        kwargs=kwargs,
+        raw=raw,
+    )
+
+
+def _parse_player(args, kwargs, raw, _):
+    return Player(parse_side_id(args[0]), _optional(args, 1), kwargs=kwargs, raw=raw)
+
+
+def _parse_poke(args, kwargs, raw, _):
+    return Poke(parse_side_id(args[0]), Details.parse(args[1]), kwargs=kwargs, raw=raw)
+
+
 def _parse_turn(args, kwargs, raw, _):
     return Turn(int(args[0]), kwargs=kwargs, raw=raw)
 
@@ -572,6 +640,7 @@ PARSERS = {
     "-terastallize": _parse_pokemon_and_string(Terastallize),
     "-zpower": _parse_pokemon_only(ZPower),
     "-clearnegativeboost": _parse_pokemon_only(ClearNegativeBoost),
+    "-clearpositiveboost": _parse_clear_positive_boost,
     "-clearboost": _parse_pokemon_only(ClearBoost),
     "-clearallboost": _parse_no_args(ClearAllBoost),
     "-singleturn": _parse_pokemon_and_effect(SingleTurn),
@@ -580,6 +649,10 @@ PARSERS = {
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,
     "noinit": _parse_noinit,
+    "player": _parse_player,
+    "clearpoke": _parse_no_args(ClearPoke),
+    "poke": _parse_poke,
+    "start": _parse_no_args(BattleStart),
 }
 
 
@@ -595,12 +668,18 @@ def parse_split(split_msg: list[str]) -> Message | None:
     msg_type = split_msg[1].strip()
     raw = "|".join(split_msg)
 
-    # free-text messages may contain "|" themselves
+    # free-text and JSON payloads may contain "|" themselves
     # |inactive|Time left: 150 sec this turn | 290 sec total
+    payload = "|".join(split_msg[2:])
     if msg_type == "inactive":
-        return Inactive("|".join(split_msg[2:]), raw=raw)
+        return Inactive(payload, raw=raw)
     if msg_type == "inactiveoff":
-        return InactiveOff("|".join(split_msg[2:]), raw=raw)
+        return InactiveOff(payload, raw=raw)
+    if msg_type == "title":
+        return Title(payload, raw=raw)
+    if msg_type == "request":
+        request = Request.parse(payload) if payload.strip() else None
+        return RequestMessage(request, raw=raw)
 
     kwargs = KwArgs.parse(split_msg)
     args = positional_args(split_msg)
