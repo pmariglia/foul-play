@@ -154,6 +154,9 @@ class BattleMode:
 
 
 def format_decision(battle, decision):
+    if decision == "struggle":
+        return ["/choose move 1", str(battle.rqid)]
+
     # Formats a decision for communication with Pokemon-Showdown
     # If the move can be used as a Z-Move, it will be
 

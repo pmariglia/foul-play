@@ -13,6 +13,46 @@ from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 logger = logging.getLogger(__name__)
 
 
+class EngineSearchError(RuntimeError):
+    """Serializable native-engine failure that can cross the process boundary."""
+
+
+def emergency_move(battle: Battle) -> str:
+    """Choose a legal action from the parsed server request after all samples fail."""
+    if battle.team_preview:
+        return "switch " + battle.user.active.name
+    if battle.force_switch or battle.user.active.hp <= 0:
+        for pokemon in battle.user.reserve:
+            if pokemon.is_alive():
+                return "switch " + pokemon.name
+        raise EngineSearchError("No living replacement available after search failure")
+    for move in battle.user.active.moves:
+        if not move.disabled and move.current_pp > 0:
+            return move.name
+    return "struggle"
+
+
+def collect_search_results(futures):
+    results = []
+    for future, chance, index in futures:
+        try:
+            result = future.result()
+        except EngineSearchError:
+            logger.error(
+                "Native engine failed for sample %s; excluding this sample", index
+            )
+            continue
+        logger.info("Iterations %s: %s", index, result.total_visits)
+        results.append((result, chance, index))
+    # Preserve the relative probabilities of the surviving hidden-team samples.
+    total_chance = sum(chance for _, chance, _ in results)
+    if results and total_chance > 0:
+        return [
+            (result, chance / total_chance, index) for result, chance, index in results
+        ]
+    return []
+
+
 def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) -> str:
     final_policy = {}
     for mcts_result, sample_chance, index in mcts_results:
@@ -48,9 +88,22 @@ def get_result_from_mcts(
     state: str, search_time_ms: int, index: int, threads: int
 ) -> MctsResult:
     logger.debug("Calling with {} state: {}".format(index, state))
-    poke_engine_state = PokeEngineState.from_string(state)
-
-    res = monte_carlo_tree_search(poke_engine_state, search_time_ms, threads=threads)
+    try:
+        poke_engine_state = PokeEngineState.from_string(state)
+        res = monte_carlo_tree_search(
+            poke_engine_state, search_time_ms, threads=threads
+        )
+    except BaseException as error:
+        # PyO3's PanicException inherits BaseException and lives in a virtual
+        # module. Letting it escape a worker causes a second, unpicklable error.
+        if (
+            type(error).__module__ == "pyo3_runtime"
+            and type(error).__name__ == "PanicException"
+        ):
+            raise EngineSearchError(
+                f"Native engine panicked in sample {index}"
+            ) from None
+        raise
     logger.info("Iterations {}: {}".format(index, res.total_visits))
     return res
 
@@ -82,12 +135,13 @@ def find_best_move(battle: Battle) -> str:
             )
             futures.append((fut, chance, index))
 
-    mcts_results = []
-    for fut, chance, index in futures:
-        res = fut.result()
-        logger.info("Iterations {}: {}".format(index, res.total_visits))
-        mcts_results.append((res, chance, index))
-
-    choice = select_move_from_mcts_results(mcts_results)
+    mcts_results = collect_search_results(futures)
+    if mcts_results:
+        choice = select_move_from_mcts_results(mcts_results)
+    else:
+        choice = emergency_move(battle)
+        logger.error(
+            "All native search samples failed; using legal fallback: %s", choice
+        )
     logger.info("Choice: {}".format(choice))
     return choice
