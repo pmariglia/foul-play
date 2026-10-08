@@ -17,6 +17,11 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     final_policy = {}
     for mcts_result, sample_chance, index in mcts_results:
         this_policy = max(mcts_result.side_one, key=lambda x: x.visits)
+        if this_policy.visits == 0:
+            logger.warning(
+                "Policy {}: search returned no visits, skipping".format(index)
+            )
+            continue
         logger.info(
             "Policy {}: {} visited {}% avg_score={} sample_chance_multiplier={}".format(
                 index,
@@ -30,6 +35,13 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
             final_policy[s1_option.move_choice] = final_policy.get(
                 s1_option.move_choice, 0
             ) + (sample_chance * (s1_option.visits / mcts_result.total_visits))
+
+    if not final_policy:
+        choice = mcts_results[0][0].side_one[0].move_choice
+        logger.warning(
+            "No search produced any visits, falling back to {}".format(choice)
+        )
+        return choice
 
     final_policy = sorted(final_policy.items(), key=lambda x: x[1], reverse=True)
 
