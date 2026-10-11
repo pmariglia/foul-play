@@ -685,6 +685,13 @@ def update_dataset_possibilities(
             "ragefist",
             "shellsidearm",
             "futuresight",
+            "beatup",
+            "avalanche",
+            "endeavor",
+            "finalgambit",
+            "superfang",
+            "naturesmadness",
+            "ruination",
         ]
     ):
         return

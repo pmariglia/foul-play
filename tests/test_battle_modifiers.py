@@ -71,6 +71,7 @@ from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_choicescarf
 from fp.battle.inference import check_heavydutyboots
 from fp.battle.inference import get_damage_dealt
+from fp.battle.inference import update_dataset_possibilities
 from fp.battle.protocol import singleturn
 from fp.battle.protocol import transform
 from fp.battle.protocol import process_battle_updates
@@ -8237,6 +8238,61 @@ class TestGetDamageDealt:
         )
 
         assert damage_dealt is None
+
+
+class TestUpdateDatasetPossibilities:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = RandomBattleMode()
+        self.dataset_possibilities_calls = 0
+
+        def dataset_possibilities(_battle):
+            self.dataset_possibilities_calls += 1
+            return [], None, False
+
+        self.battle.mode.dataset_possibilities = dataset_possibilities
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("Caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("Pikachu", 100)
+
+    def _damage_dealt(self, move):
+        self.battle.opponent.last_used_move = LastUsedMove("pikachu", move, 1)
+        return DamageDealt(
+            attacker="pikachu",
+            defender="caterpie",
+            move=move,
+            percent_damage=0.2,
+            crit=False,
+        )
+
+    def test_checks_a_regular_damaging_move(self):
+        update_dataset_possibilities(
+            self.battle, self._damage_dealt("tackle"), "damage_dealt"
+        )
+        assert self.dataset_possibilities_calls == 1
+
+    @pytest.mark.parametrize(
+        "move",
+        [
+            "beatup",
+            "avalanche",
+            "endeavor",
+            "finalgambit",
+            "superfang",
+            "naturesmadness",
+            "ruination",
+        ],
+    )
+    def test_skips_moves_the_damage_calc_cannot_reproduce(self, move):
+        update_dataset_possibilities(
+            self.battle, self._damage_dealt(move), "damage_dealt"
+        )
+        assert self.dataset_possibilities_calls == 0
 
 
 class TestNoInit:
