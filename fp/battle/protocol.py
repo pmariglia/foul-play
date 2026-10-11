@@ -1596,6 +1596,9 @@ def set_item(battle, msg: Item):
     logger.info("Setting {}'s item to {}".format(side.active.name, item))
     side.active.item = item
 
+    # a pokemon that had its item knocked off can be given a new one, e.g. by trick
+    side.active.knocked_off = False
+
     # if we inferred an item but the item was overwritten, unset this flag
     side.active.item_inferred = False
 

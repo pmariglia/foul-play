@@ -3251,6 +3251,33 @@ class TestSetItem:
         # unchanged because removed_item was already set
         assert "choicespecs" == self.battle.opponent.active.removed_item
 
+    def test_receiving_an_item_after_being_knocked_off_clears_knocked_off(self):
+        self.battle.user.active.item = "choiceband"
+        remove_item(
+            self.battle,
+            parse_as(
+                protocol_messages.EndItem,
+                [
+                    "",
+                    "-enditem",
+                    "p1a: Weedle",
+                    "Choice Band",
+                    "[from] move: Knock Off",
+                    "[of] p2a: Caterpie",
+                ],
+            ),
+        )
+        set_item(
+            self.battle,
+            parse_as(
+                protocol_messages.Item,
+                ["", "-item", "p1a: Weedle", "Sitrus Berry", "[from] move: Trick"],
+            ),
+        )
+
+        assert "sitrusberry" == self.battle.user.active.item
+        assert not self.battle.user.active.knocked_off
+
 
 class TestStartVolatileStatus:
     @pytest.fixture(autouse=True)
