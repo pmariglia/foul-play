@@ -85,6 +85,7 @@ from fp.battle.protocol import sideend
 from fp.battle.protocol import mustrecharge
 from fp.battle.protocol import endability
 from fp.battle.protocol import copyboost
+from fp.battle.protocol import swapboost
 from fp.battle.protocol import mega
 from fp.battle.protocol import update_battle
 from fp.battle.protocol import async_update_battle
@@ -9069,6 +9070,70 @@ class TestCopyBoost:
         self._copyboost("p1a: Dragonite", "p2a: Garchomp")
 
         assert ["focusenergy"] == self.battle.user.active.volatile_statuses
+
+
+class TestSwapBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("shuckle", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("dragonite", 100)
+
+    def _swapboost(self, *args):
+        split_msg = ["", "-swapboost", *args]
+        swapboost(self.battle, parse_as(protocol_messages.SwapBoost, split_msg))
+
+    def test_guard_swap_only_swaps_defense_and_special_defense(self):
+        self.battle.user.active.boosts[constants.DEFENSE] = 2
+        self.battle.user.active.boosts[constants.SPECIAL_DEFENSE] = 1
+        self.battle.user.active.boosts[constants.ATTACK] = 1
+        self.battle.opponent.active.boosts[constants.DEFENSE] = -1
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+
+        self._swapboost(
+            "p1a: Shuckle", "p2a: Dragonite", "def, spd", "[from] move: Guard Swap"
+        )
+
+        assert -1 == self.battle.user.active.boosts[constants.DEFENSE]
+        assert 0 == self.battle.user.active.boosts[constants.SPECIAL_DEFENSE]
+        assert 1 == self.battle.user.active.boosts[constants.ATTACK]
+        assert 2 == self.battle.opponent.active.boosts[constants.DEFENSE]
+        assert 1 == self.battle.opponent.active.boosts[constants.SPECIAL_DEFENSE]
+        assert 2 == self.battle.opponent.active.boosts[constants.ATTACK]
+
+    def test_power_swap_only_swaps_attack_and_special_attack(self):
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+        self.battle.opponent.active.boosts[constants.SPECIAL_ATTACK] = 1
+        self.battle.opponent.active.boosts[constants.SPEED] = 1
+
+        self._swapboost(
+            "p2a: Dragonite", "p1a: Shuckle", "atk, spa", "[from] move: Power Swap"
+        )
+
+        assert 2 == self.battle.user.active.boosts[constants.ATTACK]
+        assert 1 == self.battle.user.active.boosts[constants.SPECIAL_ATTACK]
+        assert 0 == self.battle.user.active.boosts[constants.SPEED]
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 1 == self.battle.opponent.active.boosts[constants.SPEED]
+
+    def test_heart_swap_swaps_every_boost(self):
+        self.battle.user.active.boosts[constants.EVASION] = 1
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+        self.battle.opponent.active.boosts[constants.ACCURACY] = -1
+
+        self._swapboost("p1a: Shuckle", "p2a: Dragonite", "[from] move: Heart Swap")
+
+        assert 2 == self.battle.user.active.boosts[constants.ATTACK]
+        assert -1 == self.battle.user.active.boosts[constants.ACCURACY]
+        assert 0 == self.battle.user.active.boosts[constants.EVASION]
+        assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 1 == self.battle.opponent.active.boosts[constants.EVASION]
 
 
 class TestEndAbility:

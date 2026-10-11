@@ -24,6 +24,7 @@ from fp.battle.protocol_messages import (
     Start,
     SuperEffective,
     Switch,
+    SwapBoost,
     Turn,
     Unknown,
     Upkeep,
@@ -139,6 +140,17 @@ class TestParseLine:
         assert isinstance(msg, CopyBoost)
         assert PokemonIdent(SideId.P1, "a", "X") == msg.pokemon
         assert PokemonIdent(SideId.P2, "a", "Y") == msg.target
+
+    def test_swapboost_with_stats(self):
+        msg = parse_line("|-swapboost|p1a: X|p2a: Y|def, spd|[from] move: Guard Swap")
+        assert isinstance(msg, SwapBoost)
+        assert PokemonIdent(SideId.P1, "a", "X") == msg.pokemon
+        assert PokemonIdent(SideId.P2, "a", "Y") == msg.target
+        assert ("def", "spd") == msg.stats
+
+    def test_swapboost_without_stats_swaps_everything(self):
+        msg = parse_line("|-swapboost|p1a: X|p2a: Y|[from] move: Heart Swap")
+        assert msg.stats is None
 
     def test_endability(self):
         msg = parse_line("|-endability|p2a: Rotom")

@@ -56,6 +56,7 @@ from fp.battle.protocol_messages import (
     SingleTurn,
     Start,
     Status,
+    SwapBoost,
     SwapSideConditions,
     Switch,
     Terastallize,
@@ -1988,6 +1989,20 @@ def copyboost(battle, msg: CopyBoost):
                 pkmn.volatile_statuses.append(volatile)
 
 
+def swapboost(battle, msg: SwapBoost):
+    # |-swapboost|p1a: Shuckle|p2a: Dragonite|def, spd|[from] move: Guard Swap
+    pkmn = battle.side(msg.pokemon.side).active
+    target = battle.side(msg.target.side).active
+    if msg.stats is None:
+        stats = list(constants.STAT_ABBREVIATION_LOOKUPS.values())
+    else:
+        stats = [constants.STAT_ABBREVIATION_LOOKUPS[s] for s in msg.stats]
+
+    for stat in stats:
+        pkmn.boosts[stat], target.boosts[stat] = target.boosts[stat], pkmn.boosts[stat]
+    logger.info("{} and {} swapped boosts: {}".format(pkmn.name, target.name, stats))
+
+
 def endability(battle, msg: EndAbility):
     # |-endability|p2a: Pawmot
     # gastro acid suppresses the ability until the pokemon switches out
@@ -2478,6 +2493,7 @@ MESSAGE_HANDLERS = {
     MustRecharge: mustrecharge,
     EndAbility: endability,
     CopyBoost: copyboost,
+    SwapBoost: swapboost,
     Upkeep: upkeep,
     Cant: cant,
     Inactive: inactive,

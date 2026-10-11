@@ -324,6 +324,14 @@ class CopyBoost(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class SwapBoost(Message):
+    pokemon: PokemonIdent
+    target: PokemonIdent
+    # None means every boost is swapped
+    stats: tuple[str, ...] | None
+
+
+@dataclass(frozen=True, slots=True)
 class EndAbility(Message):
     pokemon: PokemonIdent
 
@@ -593,6 +601,19 @@ def _parse_copy_boost(args, kwargs, raw, _):
     )
 
 
+def _parse_swap_boost(args, kwargs, raw, _):
+    # |-swapboost|p1a: Shuckle|p2a: Dragonite|def, spd|[from] move: Guard Swap
+    # |-swapboost|p1a: Manaphy|p2a: Dragonite|[from] move: Heart Swap
+    stats = _optional(args, 2)
+    return SwapBoost(
+        PokemonIdent.parse(args[0]),
+        PokemonIdent.parse(args[1]),
+        tuple(s.strip() for s in stats.split(",")) if stats else None,
+        kwargs=kwargs,
+        raw=raw,
+    )
+
+
 def _parse_mega(args, kwargs, raw, _):
     return Mega(
         PokemonIdent.parse(args[0]),
@@ -689,6 +710,7 @@ PARSERS = {
     "-mustrecharge": _parse_pokemon_only(MustRecharge),
     "-endability": _parse_pokemon_only(EndAbility),
     "-copyboost": _parse_copy_boost,
+    "-swapboost": _parse_swap_boost,
     "cant": _parse_cant,
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,

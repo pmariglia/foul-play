@@ -67,7 +67,6 @@ IGNORED_MESSAGE_TYPES = {
 # message types that DO change state foul-play tracks, but are not handled yet.
 # reported as known gaps rather than drift
 KNOWN_UNHANDLED_MESSAGE_TYPES = {
-    "-swapboost": "heart swap / power swap / guard swap swap boosts",
     "-invertboost": "topsy-turvy inverts boosts",
     "swap": "doubles only: allies swap positions",
 }
