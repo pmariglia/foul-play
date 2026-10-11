@@ -1,0 +1,79 @@
+{
+ "forceSwitch": [
+  true
+ ],
+ "side": {
+  "name": "Bot",
+  "id": "p1",
+  "pokemon": [
+   {
+    "ident": "p1: Pawmot",
+    "details": "Pawmot, L50, M",
+    "condition": "145/145",
+    "active": true,
+    "stats": {
+     "atk": 135,
+     "def": 90,
+     "spa": 90,
+     "spd": 80,
+     "spe": 125
+    },
+    "moves": [
+     "revivalblessing",
+     "doubleshock"
+    ],
+    "baseAbility": "",
+    "item": "",
+    "pokeball": "pokeball",
+    "ability": "",
+    "commanding": false,
+    "reviving": true
+   },
+   {
+    "ident": "p1: Gyarados",
+    "details": "Gyarados, L50, F",
+    "condition": "170/170",
+    "active": false,
+    "stats": {
+     "atk": 145,
+     "def": 99,
+     "spa": 80,
+     "spd": 120,
+     "spe": 101
+    },
+    "moves": [
+     "waterfall"
+    ],
+    "baseAbility": "",
+    "item": "",
+    "pokeball": "pokeball",
+    "ability": "",
+    "commanding": false,
+    "reviving": false
+   },
+   {
+    "ident": "p1: Banette",
+    "details": "Banette, L50, F",
+    "condition": "0 fnt",
+    "active": false,
+    "stats": {
+     "atk": 135,
+     "def": 85,
+     "spa": 103,
+     "spd": 83,
+     "spe": 85
+    },
+    "moves": [
+     "shadowclaw"
+    ],
+    "baseAbility": "",
+    "item": "",
+    "pokeball": "pokeball",
+    "ability": "",
+    "commanding": false,
+    "reviving": false
+   }
+  ]
+ },
+ "noCancel": true
+}

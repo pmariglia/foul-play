@@ -3,6 +3,7 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
+from fp import constants
 from fp.battle.state import Battle
 from fp.config import FoulPlayConfig
 
@@ -55,8 +56,37 @@ def get_result_from_mcts(
     return res
 
 
+def revival_blessing_choice(battle: Battle):
+    """The revive pick after Revival Blessing, or None if this request is not one.
+
+    Showdown asks the user of Revival Blessing to pick a FAINTED ally (the request marks the active
+    Pokemon `reviving`), and rejects a living one ("You have to pass to a fainted Pokemon"). The search
+    only knows ordinary switches among living Pokemon, so it used to pick a living ally, the choice was
+    rejected, the turn timer ran down and Showdown revived its own default. The engine does not model
+    this choice, so it is made here: the only fainted ally if there is one, otherwise the first in team
+    order - which is Showdown's own default for this prompt.
+    """
+    if not getattr(battle.user.active, "reviving", False):
+        return None
+    fainted = sorted(
+        (p for p in battle.user.reserve if p.hp <= 0), key=lambda p: p.index
+    )
+    if not fainted:
+        return None
+    logger.info(
+        "Revival Blessing: reviving {} (fainted allies: {})".format(
+            fainted[0].name, [p.name for p in fainted]
+        )
+    )
+    return "{} {}".format(constants.SWITCH_STRING, fainted[0].name)
+
+
 def find_best_move(battle: Battle) -> str:
     battle = deepcopy(battle)
+    revive = revival_blessing_choice(battle)
+    if revive is not None:
+        logger.info("Choice: {}".format(revive))
+        return revive
     if battle.team_preview:
         battle.user.active = battle.user.reserve.pop(0)
         battle.opponent.active = battle.opponent.reserve.pop(0)
