@@ -291,8 +291,8 @@ class Battler:
         return None
 
     def lock_active_pkmn_first_turn_moves(self):
-        # disable firstimpression and fakeout if the last_used_move was not a switch
-        if self.last_used_move.pokemon_name == self.active.name:
+        # disable firstimpression and fakeout if the active pokemon has had a turn
+        if self.active.acted_since_switch_in:
             for m in self.active.moves:
                 if m.name in constants.FIRST_TURN_MOVES:
                     m.disabled = True
@@ -599,6 +599,7 @@ class Pokemon:
         self.unknown_forme = False
 
         self.moves_used_since_switch_in = set()
+        self.acted_since_switch_in = False
         self.zoroark_disguised_as = None
         self.hp_at_switch_in = self.max_hp
         self.status_at_switch_in = None

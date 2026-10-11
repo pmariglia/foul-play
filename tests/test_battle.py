@@ -52,15 +52,9 @@ class TestBattlerActiveLockedIntoMove:
         assert self.battler.active.get_move("agility").disabled
         assert self.battler.active.get_move("doubleteam").disabled
 
-    def test_firstimpression_gets_locked_when_last_used_move_was_by_the_active_pokemon(
-        self,
-    ):
+    def test_firstimpression_gets_locked_when_the_active_pokemon_has_acted(self):
         self.battler.active.moves.append(Move("firstimpression"))
-        self.battler.last_used_move = LastUsedMove(
-            pokemon_name="pikachu",  # the current active pokemon
-            move="volttackle",
-            turn=0,
-        )
+        self.battler.active.acted_since_switch_in = True
 
         self.battler.lock_moves()
 
@@ -118,13 +112,9 @@ class TestBattlerActiveLockedIntoMove:
 
         assert not self.battler.active.get_move("tackle").disabled
 
-    def test_fakeout_gets_locked_when_last_used_move_was_by_the_active_pokemon(self):
+    def test_fakeout_gets_locked_when_the_active_pokemon_has_acted(self):
         self.battler.active.moves.append(Move("fakeout"))
-        self.battler.last_used_move = LastUsedMove(
-            pokemon_name="pikachu",  # the current active pokemon
-            move="volttackle",
-            turn=0,
-        )
+        self.battler.active.acted_since_switch_in = True
 
         self.battler.lock_moves()
 

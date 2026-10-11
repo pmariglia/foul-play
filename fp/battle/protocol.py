@@ -304,6 +304,7 @@ def switch_or_drag(battle, msg: Switch):
         side.active.gen_3_consecutive_sleep_talks = 0
 
         side.active.moves_used_since_switch_in.clear()
+        side.active.acted_since_switch_in = False
 
         # reset the boost of the pokemon being replaced
         side.active.boosts.clear()
@@ -896,6 +897,9 @@ def move(battle, msg: Move):
             pkmn.impossible_items.add(constants.ASSAULT_VEST)
     except KeyError:
         pass
+
+    if not from_sleeptalk:
+        pkmn.acted_since_switch_in = True
 
     try:
         category = all_move_json[move_name][constants.CATEGORY]
@@ -1727,6 +1731,9 @@ def illusion_end(battle, msg: Replace):
             if side.active.get_move(mv) is None:
                 side.active.add_move(mv)
 
+        side.active.acted_since_switch_in = pkmn_disguised_as.acted_since_switch_in
+        pkmn_disguised_as.acted_since_switch_in = False
+
         # the pokemon that we thought was active needs some attributes reset to
         # whatever the values were at switch-in as any changes that happened to zoroark
         # since switching in have not happened to the actual pokemon
@@ -1865,11 +1872,15 @@ def cant(battle, msg: Cant):
     other_side = battle.other_side(side)
     opponent = side is battle.opponent
 
+    # a pokemon that could not move is still locked into the move it used last.
+    # the last used move is not changed to belong to it: if this pokemon has just
+    # switched in that would make the switch look like a move used by this pokemon
     side.last_used_move = LastUsedMove(
-        pokemon_name=side.active.name,
+        pokemon_name=side.last_used_move.pokemon_name,
         move=side.last_used_move.move,
         turn=battle.turn,
     )
+    side.active.acted_since_switch_in = True
 
     reason = msg.reason
 

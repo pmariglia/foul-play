@@ -383,10 +383,12 @@ def _switch_active_with_zoroark_from_reserves(
     zoroark_from_reserves.volatile_statuses = copy(pkmn.volatile_statuses)
     zoroark_from_reserves.terastallized = pkmn.terastallized
     zoroark_from_reserves.tera_type = pkmn.tera_type
+    zoroark_from_reserves.acted_since_switch_in = pkmn.acted_since_switch_in
     pkmn.boosts.clear()
     pkmn.status = None
     pkmn.volatile_statuses.clear()
     pkmn.volatile_status_durations.clear()
+    pkmn.acted_since_switch_in = False
 
     if pkmn.terastallized:
         pkmn.terastallized = False

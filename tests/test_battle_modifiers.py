@@ -52,6 +52,7 @@ from fp.battle.protocol_messages import Upkeep, parse_as, parse_lines
 from fp.battle.protocol import swapsideconditions
 from fp.battle.protocol import move
 from fp.battle.protocol import cant
+from fp.battle.protocol import apply_message
 from fp.battle.protocol import boost
 from fp.battle.protocol import setboost
 from fp.battle.protocol import unboost
@@ -4809,6 +4810,118 @@ class TestTransform:
         transform(self.battle, parse_as(protocol_messages.Transform, split_msg))
 
         assert constants.TRANSFORM in self.battle.user.active.volatile_statuses
+
+
+class TestCantAfterSwitchIn:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+        self.battle.user.name = "p1"
+        self.battle.opponent.name = "p2"
+
+        self.battle.user.active = Pokemon("weedle", 100)
+
+        self.battle.opponent.active = Pokemon("caterpie", 100)
+        self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
+
+        krookodile = Pokemon("krookodile", 79)
+        krookodile.add_move("stoneedge")
+        krookodile.add_move("earthquake")
+        krookodile.add_move("fakeout")
+        krookodile.item = "choicescarf"
+        krookodile.item_inferred = True
+        self.battle.opponent.reserve = [krookodile]
+
+    def _apply(self, lines):
+        for line in lines:
+            apply_message(self.battle, parse_lines([line])[0])
+
+    def test_choice_item_is_kept_when_locked_move_is_used_after_cant(self):
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|cant|p2a: Krookodile|slp",
+                "|move|p2a: Krookodile|Stone Edge|p1a: Weedle",
+            ]
+        )
+
+        assert "choicescarf" == self.battle.opponent.active.item
+        assert self.battle.opponent.active.can_have_choice_item
+
+    def test_moves_are_not_choice_locked_after_cant(self):
+        # switching in ended the choice lock, and `cant` does not start a new one
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|cant|p2a: Krookodile|slp",
+            ]
+        )
+
+        self.battle.opponent.choice_lock_moves()
+
+        assert not self.battle.opponent.active.get_move("stoneedge").disabled
+        assert not self.battle.opponent.active.get_move("earthquake").disabled
+
+    def test_moves_are_choice_locked_after_cant_following_a_move(self):
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|move|p2a: Krookodile|Stone Edge|p1a: Weedle",
+                "|cant|p2a: Krookodile|par",
+            ]
+        )
+
+        self.battle.opponent.choice_lock_moves()
+
+        assert not self.battle.opponent.active.get_move("stoneedge").disabled
+        assert self.battle.opponent.active.get_move("earthquake").disabled
+
+    def test_first_turn_moves_are_usable_after_switching_in(self):
+        self._apply(["|switch|p2a: Krookodile|Krookodile, L79, F|100/100"])
+
+        self.battle.opponent.lock_active_pkmn_first_turn_moves()
+
+        assert not self.battle.opponent.active.get_move("fakeout").disabled
+
+    def test_first_turn_moves_are_locked_after_cant(self):
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|cant|p2a: Krookodile|slp",
+            ]
+        )
+
+        self.battle.opponent.lock_active_pkmn_first_turn_moves()
+
+        assert self.battle.opponent.active.get_move("fakeout").disabled
+
+    def test_first_turn_moves_are_locked_after_a_move(self):
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|move|p2a: Krookodile|Stone Edge|p1a: Weedle",
+            ]
+        )
+
+        self.battle.opponent.lock_active_pkmn_first_turn_moves()
+
+        assert self.battle.opponent.active.get_move("fakeout").disabled
+
+    def test_first_turn_moves_are_usable_after_switching_back_in(self):
+        self._apply(
+            [
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+                "|move|p2a: Krookodile|Stone Edge|p1a: Weedle",
+                "|switch|p2a: Caterpie|Caterpie, L100|100/100",
+                "|switch|p2a: Krookodile|Krookodile, L79, F|100/100",
+            ]
+        )
+
+        self.battle.opponent.lock_active_pkmn_first_turn_moves()
+
+        assert not self.battle.opponent.active.get_move("fakeout").disabled
 
 
 class TestCant:
