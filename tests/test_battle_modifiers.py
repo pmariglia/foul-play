@@ -8000,6 +8000,51 @@ class TestGetDamageDealt:
         )
         assert expected_damage_amount_dealt == damage_dealt
 
+    def test_crit_that_broke_a_substitute_does_not_set_crit_flag(self):
+        self.battle.user.active.max_hp = 240
+        self.battle.user.active.hp = 56
+
+        messages = [
+            "|move|p2a: Pikachu|Scale Shot|p1a: Caterpie",
+            "|-crit|p1a: Caterpie",
+            "|-activate|p1a: Caterpie|move: Substitute|[damage]",
+            "|-end|p1a: Caterpie|Substitute",
+            "|-damage|p1a: Caterpie|25/240",
+            "|-damage|p1a: Caterpie|0 fnt",
+            "|faint|p1a: Caterpie",
+            "|-hitcount|p1: Caterpie|4",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, messages[0].split("|")),
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt.percent_damage == round(31 / 240, 4)
+        assert not damage_dealt.crit
+
+    def test_crit_after_a_substitute_broke_sets_crit_flag(self):
+        self.battle.user.active.max_hp = 240
+        self.battle.user.active.hp = 56
+
+        messages = [
+            "|move|p2a: Pikachu|Scale Shot|p1a: Caterpie",
+            "|-activate|p1a: Caterpie|move: Substitute|[damage]",
+            "|-end|p1a: Caterpie|Substitute",
+            "|-crit|p1a: Caterpie",
+            "|-damage|p1a: Caterpie|25/240",
+            "|-hitcount|p1: Caterpie|2",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, messages[0].split("|")),
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt.crit
+
     def test_stop_after_the_end_of_this_move(self):
         self.battle.user.active.max_hp = 250
         self.battle.user.active.hp = 250

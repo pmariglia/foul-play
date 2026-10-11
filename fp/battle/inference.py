@@ -529,6 +529,15 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
         elif isinstance(next_msg, Crit):
             critical_hit = True
 
+        # a multi-hit move's earlier hit landed on a substitute, so a crit seen so far
+        # belongs to that hit and not to the first one that damages the pokemon
+        elif (
+            isinstance(next_msg, Activate)
+            and next_msg.effect.id == constants.SUBSTITUTE
+            and next_msg.pokemon.side == defending_side.name
+        ):
+            critical_hit = False
+
         # the hit broke an illusion: the damage was dealt to zoroark, not the pokemon it was disguised as
         elif (
             isinstance(next_msg, Replace)
