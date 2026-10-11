@@ -8711,6 +8711,33 @@ class TestUpdateDatasetPossibilities:
         assert self.dataset_possibilities_calls == 0
 
     @pytest.mark.parametrize(
+        "disguised_as,expected_calls",
+        [
+            ("florgesorange", 0),  # inferred from a move: forme and level are guesses
+            (None, 1),  # its illusion ended, so the details are known
+        ],
+    )
+    @pytest.mark.parametrize("check_type", ["damage_dealt", "damage_received"])
+    def test_skips_zoroark_inferred_from_a_move_until_its_illusion_ends(
+        self, disguised_as, expected_calls, check_type
+    ):
+        self.battle.opponent.active = Pokemon("zoroarkhisui", 80)
+        self.battle.opponent.active.zoroark_disguised_as = disguised_as
+        self.battle.opponent.last_used_move = LastUsedMove(
+            "zoroarkhisui", "focusblast", 1
+        )
+        self.battle.user.last_used_move = LastUsedMove("caterpie", "focusblast", 1)
+        damage_dealt = DamageDealt(
+            attacker="zoroarkhisui",
+            defender="caterpie",
+            move="focusblast",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, check_type)
+        assert self.dataset_possibilities_calls == expected_calls
+
+    @pytest.mark.parametrize(
         "percent_hp,expected_calls",
         [
             (34, 0),  # true HP is 33-34%: overgrow may or may not be active

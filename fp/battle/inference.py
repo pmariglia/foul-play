@@ -731,6 +731,9 @@ def update_dataset_possibilities(
             "meloetta",
             "meloettapirouette",
         ]
+        # zoroark was inferred from a move: which zoroark it is (and its level) is a guess
+        # until its illusion ends
+        or battle.opponent.active.zoroark_disguised_as is not None
         or damage_dealt.move not in all_move_json
         or all_move_json[damage_dealt.move][constants.CATEGORY]
         == constants.MoveCategory.STATUS
