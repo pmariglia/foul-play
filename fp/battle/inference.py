@@ -569,11 +569,14 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
             logger.info("Illusion broken by {}, ignoring its damage".format(move_name))
             return None
 
-        # if '-damage' appears, we want to parse the percentage damage dealt
+        # if '-damage' appears, we want to parse the percentage damage dealt.
+        # damage with a `[from]` did not come from the move, e.g. the target hitting itself in confusion
+        # |-damage|p2a: Goodra|63/100|[from] confusion
         elif (
             damage_dealt is None
             and isinstance(next_msg, Damage)
             and next_msg.pokemon.side == defending_side.name
+            and next_msg.kwargs.from_ is None
         ):
             condition = next_msg.condition
             final_health = condition.hp

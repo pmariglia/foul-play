@@ -8197,6 +8197,27 @@ class TestGetDamageDealt:
         )
         assert expected_damage_amount_dealt == damage_dealt
 
+    def test_confusion_damage_after_an_absorbed_move_is_not_damage_dealt(self):
+        # sap sipper absorbs giga drain, then the target hits itself in confusion
+        self.battle.opponent.active = Pokemon("goodrahisui", 82)
+        messages = [
+            "|move|p1a: Caterpie|Giga Drain|p2a: Goodra",
+            "|-ability|p2a: Goodra|Sap Sipper|boost",
+            "|-boost|p2a: Goodra|atk|1",
+            "|-activate|p2a: Goodra|confusion",
+            "|-damage|p2a: Goodra|63/100|[from] confusion",
+            "|",
+            "|upkeep",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_as(protocol_messages.Move, messages[0].split("|")),
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt is None
+
     def test_assigns_damage_when_bots_pokemon_has_no_last_used_move(self):
         self.battle.user.active.max_hp = 250
         self.battle.user.active.hp = 250
