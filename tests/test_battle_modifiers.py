@@ -8617,6 +8617,8 @@ class TestUpdateDatasetPossibilities:
             "superfang",
             "naturesmadness",
             "ruination",
+            "stompingtantrum",
+            "temperflare",
         ],
     )
     def test_skips_moves_the_damage_calc_cannot_reproduce(self, move):
