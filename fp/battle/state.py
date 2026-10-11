@@ -600,6 +600,7 @@ class Pokemon:
         self.zoroark_disguised_as = None
         self.hp_at_switch_in = self.max_hp
         self.status_at_switch_in = None
+        self.terastallized_at_switch_in = False
         self.terastallized = False
         self.tera_type = None
         self.forme_changed = False

@@ -1650,6 +1650,38 @@ class TestMove:
         assert [] == self.battle.opponent.reserve[0].moves
         assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
+    @pytest.mark.parametrize(
+        "terastallized_at_switch_in,zoroark_terastallized",
+        [
+            (False, True),  # zoroark terastallized while disguised
+            (True, False),  # the real gyarados terastallized earlier in the battle
+        ],
+    )
+    def test_inferring_zoroark_from_move_moves_tera_only_if_it_happened_while_disguised(
+        self, terastallized_at_switch_in, zoroark_terastallized
+    ):
+        self.battle.mode = RandomBattleMode()
+        self.battle.generation = "gen9"
+        self.battle.mode.datasets.initialize(
+            FormatSpec.from_format_string("gen9randombattle")
+        )
+
+        gyarados = Pokemon("gyarados", 79)
+        gyarados.terastallized = True
+        gyarados.tera_type = "ground"
+        gyarados.terastallized_at_switch_in = terastallized_at_switch_in
+        self.battle.opponent.active = gyarados
+
+        split_msg = ["", "move", "p2a: Gyarados", "Poltergeist"]
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        zoroark = self.battle.opponent.active
+        assert "zoroarkhisui" == zoroark.name
+        assert zoroark_terastallized == zoroark.terastallized
+        assert (zoroark.tera_type == "ground") == zoroark_terastallized
+        assert gyarados.terastallized != zoroark_terastallized
+        assert (gyarados.tera_type == "ground") != zoroark_terastallized
+
     def test_infer_zoroark_regular_from_move_not_possible_on_pkmn_randbats_when_zoroark_unrevealed(
         self,
     ):
@@ -4023,6 +4055,35 @@ class TestIllusionEnd:
 
         assert "meloetta" == self.battle.opponent.reserve[0].name
         assert self.battle.opponent.reserve[0].status is None
+
+    def test_terastallizing_while_disguised_moves_tera_to_zoroark(self):
+        meloetta = Pokemon("meloetta", 100)
+        meloetta.terastallized = True
+        meloetta.tera_type = "poison"
+        meloetta.terastallized_at_switch_in = False
+        self.battle.opponent.active = meloetta
+        self.battle.opponent.reserve = []
+        split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
+
+        assert self.battle.opponent.active.terastallized
+        assert "poison" == self.battle.opponent.active.tera_type
+        assert not meloetta.terastallized
+        assert meloetta.tera_type is None
+
+    def test_disguise_terastallized_before_switching_in_keeps_its_tera(self):
+        meloetta = Pokemon("meloetta", 100)
+        meloetta.terastallized = True
+        meloetta.tera_type = "poison"
+        meloetta.terastallized_at_switch_in = True
+        self.battle.opponent.active = meloetta
+        self.battle.opponent.reserve = []
+        split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L82, M"]
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
+
+        assert not self.battle.opponent.active.terastallized
+        assert meloetta.terastallized
+        assert "poison" == meloetta.tera_type
 
     def test_zoroark_disguising_as_pokemon_results_in_that_pkmn_in_reserve(
         self,

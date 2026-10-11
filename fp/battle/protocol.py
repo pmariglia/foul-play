@@ -382,6 +382,7 @@ def switch_or_drag(battle, msg: Switch):
         # turns out to be zoroark
         pkmn.hp_at_switch_in = pkmn.hp
         pkmn.status_at_switch_in = pkmn.status
+        pkmn.terastallized_at_switch_in = pkmn.terastallized
 
         side.reserve.remove(pkmn)
 
@@ -1794,6 +1795,24 @@ def illusion_end(battle, msg: Replace):
                 )
             )
             pkmn_disguised_as.status = pkmn_disguised_as.status_at_switch_in
+
+        # if zoroark terastallized while disguised, it looked like the disguise terastallizing
+        # fix that here
+        if (
+            pkmn_disguised_as.terastallized
+            and not pkmn_disguised_as.terastallized_at_switch_in
+        ):
+            logger.info(
+                "Moving terastallization ({}) from {} to {}".format(
+                    pkmn_disguised_as.tera_type,
+                    pkmn_disguised_as.name,
+                    side.active.name,
+                )
+            )
+            side.active.terastallized = True
+            side.active.tera_type = pkmn_disguised_as.tera_type
+            pkmn_disguised_as.terastallized = False
+            pkmn_disguised_as.tera_type = None
 
         side.active.hp = hp_percent * side.active.max_hp
         side.active.boosts = previous_boosts

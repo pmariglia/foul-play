@@ -381,8 +381,6 @@ def _switch_active_with_zoroark_from_reserves(
     zoroark_from_reserves.boosts = copy(pkmn.boosts)
     zoroark_from_reserves.status = pkmn.status
     zoroark_from_reserves.volatile_statuses = copy(pkmn.volatile_statuses)
-    zoroark_from_reserves.terastallized = pkmn.terastallized
-    zoroark_from_reserves.tera_type = pkmn.tera_type
     zoroark_from_reserves.acted_since_switch_in = pkmn.acted_since_switch_in
     pkmn.boosts.clear()
     pkmn.status = None
@@ -390,7 +388,11 @@ def _switch_active_with_zoroark_from_reserves(
     pkmn.volatile_status_durations.clear()
     pkmn.acted_since_switch_in = False
 
-    if pkmn.terastallized:
+    # only a terastallization since switching in was zoroark's,
+    # one from before that belongs to the pokemon it is disguised as
+    if pkmn.terastallized and not pkmn.terastallized_at_switch_in:
+        zoroark_from_reserves.terastallized = True
+        zoroark_from_reserves.tera_type = pkmn.tera_type
         pkmn.terastallized = False
         pkmn.tera_type = None
 
