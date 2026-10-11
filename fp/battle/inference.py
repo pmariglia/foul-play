@@ -172,13 +172,39 @@ def can_have_speed_modified(battle, pokemon):
     )
 
 
-def get_move_information(msg: Move):
+def get_used_move_id(battle, msg: Move) -> str | None:
+    """
+    The move that was chosen for a |move| message, or None if it cannot be known.
+    A generic damaging Z-Move does not say which move it came from, but the bot
+    knows which move it chose itself
+    """
+    # the only way this _doesn't_ return is if the move from the protocol does
+    # not map to a base move with 100% certainty. e.g. "inferno overdrive"
+    if msg.base_move_id is not None:
+        return msg.base_move_id
+
+    # the bot only knows the move it chose itself, and a move called by another
+    # move (e.g. a damaging move called by Z-Sleep Talk) was not the one it chose
+    if battle.is_opponent_side(msg.user.side) or msg.kwargs.from_ is not None:
+        return None
+
+    selected_move = battle.user.last_selected_move.move
+    if selected_move.startswith(constants.SWITCH_STRING + " "):
+        return None
+    return normalize_name(selected_move)
+
+
+def get_move_information(battle, msg: Move):
     # Given a |move| message, extract the side that used the move and the move object
+    # The move object is None if the move that was chosen cannot be known
+    move_id = get_used_move_id(battle, msg)
+    if move_id is None:
+        return msg.user.side, None
     try:
-        return msg.user.side, all_move_json[msg.move_id]
+        return msg.user.side, all_move_json[move_id]
     except KeyError:
         logger.warning(
-            "Unknown move {} - using standard 0 priority move".format(msg.move_id)
+            "Unknown move {} - using standard 0 priority move".format(move_id)
         )
         return msg.user.side, {constants.ID: "unknown", constants.PRIORITY: 0}
 
@@ -232,9 +258,15 @@ def check_speed_ranges(battle, messages: list[Message]):
         if _is_revival_blessing_heal(msg):
             return
 
-    moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
+    moves = [get_move_information(battle, m) for m in messages if isinstance(m, Move)]
     number_of_moves = len(moves)
     if number_of_moves not in [1, 2]:
+        return
+
+    # `mv is None` means a damaging z-move with an unknown base move
+    # a Z-Move has the priority of the move it came from, so if that move
+    # is unknown, it cannot be known whether both moves had the same priority
+    if any(mv is None for _, mv in moves):
         return
 
     if (
@@ -406,11 +438,17 @@ def check_choicescarf(battle, messages: list[Message]):
     if neutralizing_gas_is_active(battle):
         return
 
-    moves = [get_move_information(m) for m in messages if isinstance(m, Move)]
+    moves = [get_move_information(battle, m) for m in messages if isinstance(m, Move)]
     number_of_moves = len(moves)
 
     # if the bot went first we cannot ever infer a choicescarf
     if number_of_moves not in [1, 2] or moves[0][0] == battle.user.name:
+        return
+
+    # `mv is None` means a damaging z-move with an unknown base move
+    # a Z-Move has the priority of the move it came from, so if that move
+    # is unknown, it cannot be known whether both moves had the same priority
+    if any(mv is None for _, mv in moves):
         return
 
     elif number_of_moves == 1:
@@ -463,6 +501,10 @@ def check_choicescarf(battle, messages: list[Message]):
 
 
 def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
+    # the damage of a Z-Move cannot be compared to the damage of the move it came from
+    if msg.is_z_move:
+        return None
+
     move_name = msg.move_id
     critical_hit = False
 

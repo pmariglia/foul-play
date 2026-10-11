@@ -133,11 +133,10 @@ class StandardBattleMode(BattleMode):
         return standard_battles.prepare_battles(battle, num_battles)
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, move_name: str, zoroark_from_reserves
     ):
         # in battle factory we can deduce that there is a zoroark in front of us
         # if we see a move that is not in the known moveset and a zoroark is in the reserves
-        move_name = msg.move_id
         if (
             battle.is_opponent_side(msg.user.side)
             and zoroark_from_reserves is not None

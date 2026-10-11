@@ -92,12 +92,11 @@ class RandomBattleMode(BattleMode):
         return self.datasets.get_all_remaining_sets(pkmn)
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, move_name: str, zoroark_from_reserves
     ):
         # in randombattles we can deduce that there is a zoroark in front of us
         # if we see a move that is not in the known moveset, even if there is no
         # zoroark is in the reserves
-        move_name = msg.move_id
         if (
             battle.is_opponent_side(msg.user.side)
             and "transform" not in pkmn.volatile_statuses

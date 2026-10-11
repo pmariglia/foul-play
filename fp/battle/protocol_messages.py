@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from fp.battle.helpers import normalize_name
+from fp.data import z_move_json
 from fp.battle.request import Request
 from fp.battle.protocol_types import (
     Condition,
@@ -82,6 +83,27 @@ class Move(Message):
     @property
     def move_id(self) -> str:
         return normalize_name(self.move)
+
+    @property
+    def is_z_move(self) -> bool:
+        return self.move.startswith("Z-") or self.move_id in z_move_json
+
+    @property
+    def base_move_id(self) -> str | None:
+        """
+        The move that was chosen, which is not the same as the move shown for a Z-Move.
+        None when the protocol does not say which move a Z-Move came from
+
+        |move|p1a: Charizard|Flamethrower|p2a: Venusaur                -> flamethrower
+        |move|p1a: Charizard|Z-Hold Hands|null|[anim]Hold Hands        -> holdhands
+        |move|p1a: Pikachu|Catastropika|p2a: Venusaur|[zeffect]        -> volttackle
+        |move|p1a: Charizard|Inferno Overdrive|p2a: Venusaur|[zeffect] -> None
+        """
+        if self.move.startswith("Z-"):
+            return normalize_name(self.kwargs.get("anim") or self.move[2:])
+        if self.move_id in z_move_json:
+            return z_move_json[self.move_id]["base"]
+        return self.move_id
 
 
 @dataclass(frozen=True, slots=True)

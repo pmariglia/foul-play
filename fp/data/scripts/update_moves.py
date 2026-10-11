@@ -24,53 +24,85 @@ Version 4.2.3
 """
 
 
-# Fetch latest version
-data = requests.get(
-    "https://raw.githubusercontent.com/smogon/pokemon-showdown/master/data/moves.ts"
-).text
+def load_ps_data(filename, export_name):
+    # Fetch latest version
+    data = requests.get(
+        "https://raw.githubusercontent.com/smogon/pokemon-showdown/master/data/{}.ts".format(
+            filename
+        )
+    ).text
 
-# write .ts temp file
-with open("/tmp/moves.ts", "w") as f:
-    f.write(data)
+    # write .ts temp file
+    with open("/tmp/{}.ts".format(filename), "w") as f:
+        f.write(data)
 
-# compile the .ts file into .js. Requires `tsc` on your system
-p = subprocess.Popen(
-    ["tsc", "--module", "commonjs", "/tmp/moves.ts"],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-)
-stdout = p.stdout.read()
-stderr = p.stderr.read()
+    # compile the .ts file into .js. Requires `tsc` on your system
+    p = subprocess.Popen(
+        ["tsc", "--module", "commonjs", "/tmp/{}.ts".format(filename)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout = p.stdout.read()
+    stderr = p.stderr.read()
 
-# exit if stderr is not empty
-if stderr:
-    print("Something went wrong? stderr: {}".format(stderr))
+    # exit if stderr is not empty
+    if stderr:
+        print("Something went wrong? stderr: {}".format(stderr))
 
-p.wait()
-os.rename("/tmp/moves.js", "/tmp/moves.cjs")
+    p.wait()
+    os.rename("/tmp/{}.js".format(filename), "/tmp/{}.cjs".format(filename))
 
-# add a console log to the .cjs file. This will error if the file doesn't exist
-with open("/tmp/moves.cjs", "a") as f:
-    f.write("console.log(JSON.stringify(exports.Moves));")
+    # add a console log to the .cjs file. This will error if the file doesn't exist
+    with open("/tmp/{}.cjs".format(filename), "a") as f:
+        f.write("console.log(JSON.stringify(exports.{}));".format(export_name))
 
-# run node on the .cjs file to get the console log we added
-# Requires `node` on your system
-p = subprocess.Popen(
-    ["node", "/tmp/moves.cjs"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-)
-stdout = p.stdout.read()
-stderr = p.stderr.read()
+    # run node on the .cjs file to get the console log we added
+    # Requires `node` on your system
+    p = subprocess.Popen(
+        ["node", "/tmp/{}.cjs".format(filename)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout = p.stdout.read()
+    stderr = p.stderr.read()
 
-if stderr:
-    print("Something went wrong? stderr: {}".format(stderr))
+    if stderr:
+        print("Something went wrong? stderr: {}".format(stderr))
 
-# stdout should now be parse-able as JSON
-moves_dict = json.loads(stdout)
+    # stdout should now be parse-able as JSON
+    return json.loads(stdout)
+
+
+def normalize(name):
+    return "".join(c for c in name.lower() if c.isalnum())
+
+
+moves_dict = load_ps_data("moves", "Moves")
+items_dict = load_ps_data("items", "Items")
+
+# Z-Moves are omitted from the moves, but the bot needs to recognize them in the protocol.
+# A signature Z-Move comes from one specific move (`zMoveFrom` on its Z-Crystal) so that
+# move is known when the Z-Move is seen
+signature_z_move_bases = {
+    normalize(v["zMove"]): normalize(v["zMoveFrom"])
+    for v in items_dict.values()
+    if v.get("zMoveFrom")
+}
+z_moves_dict = {
+    k: {
+        "name": v["name"],
+        "type": v["type"].lower(),
+        "base": signature_z_move_bases.get(k),
+    }
+    for k, v in moves_dict.items()
+    if v.get("isZ")
+}
+
 
 # make modifications to some values for the bot
 # shallow copy the dictionary because we might delete things from it
 for k, v in moves_dict.copy().items():
-    # the bot doesn't care about Z-Moves or Gmax moves. They're omitted entirely
+    # Z-Moves are kept separately in z_moves.json and the bot does not care about Gmax moves atm
     if v.get("isZ") or v.get("isMax"):
         del [moves_dict[k]]
         continue
@@ -304,4 +336,7 @@ moves_dict["axekick"]["crash"] = [1, 2]
 
 with open("fp/data/new_moves.json", "w") as f:
     json.dump(moves_dict, f, indent=4, sort_keys=True)
+
+with open("fp/data/z_moves.json", "w") as f:
+    json.dump(z_moves_dict, f, indent=4, sort_keys=True)
 a = 5

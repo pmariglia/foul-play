@@ -123,7 +123,7 @@ class BattleMode:
         pass
 
     def check_zoroark_from_move(
-        self, battle, side, pkmn, msg: Move, zoroark_from_reserves
+        self, battle, side, pkmn, msg: Move, move_name: str, zoroark_from_reserves
     ) -> Pokemon:
         return pkmn
 

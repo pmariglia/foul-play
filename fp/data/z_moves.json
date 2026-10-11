@@ -1,0 +1,177 @@
+{
+    "10000000voltthunderbolt": {
+        "base": "thunderbolt",
+        "name": "10,000,000 Volt Thunderbolt",
+        "type": "electric"
+    },
+    "aciddownpour": {
+        "base": null,
+        "name": "Acid Downpour",
+        "type": "poison"
+    },
+    "alloutpummeling": {
+        "base": null,
+        "name": "All-Out Pummeling",
+        "type": "fighting"
+    },
+    "blackholeeclipse": {
+        "base": null,
+        "name": "Black Hole Eclipse",
+        "type": "dark"
+    },
+    "bloomdoom": {
+        "base": null,
+        "name": "Bloom Doom",
+        "type": "grass"
+    },
+    "breakneckblitz": {
+        "base": null,
+        "name": "Breakneck Blitz",
+        "type": "normal"
+    },
+    "catastropika": {
+        "base": "volttackle",
+        "name": "Catastropika",
+        "type": "electric"
+    },
+    "clangoroussoulblaze": {
+        "base": "clangingscales",
+        "name": "Clangorous Soulblaze",
+        "type": "dragon"
+    },
+    "continentalcrush": {
+        "base": null,
+        "name": "Continental Crush",
+        "type": "rock"
+    },
+    "corkscrewcrash": {
+        "base": null,
+        "name": "Corkscrew Crash",
+        "type": "steel"
+    },
+    "devastatingdrake": {
+        "base": null,
+        "name": "Devastating Drake",
+        "type": "dragon"
+    },
+    "extremeevoboost": {
+        "base": "lastresort",
+        "name": "Extreme Evoboost",
+        "type": "normal"
+    },
+    "genesissupernova": {
+        "base": "psychic",
+        "name": "Genesis Supernova",
+        "type": "psychic"
+    },
+    "gigavolthavoc": {
+        "base": null,
+        "name": "Gigavolt Havoc",
+        "type": "electric"
+    },
+    "guardianofalola": {
+        "base": "naturesmadness",
+        "name": "Guardian of Alola",
+        "type": "fairy"
+    },
+    "hydrovortex": {
+        "base": null,
+        "name": "Hydro Vortex",
+        "type": "water"
+    },
+    "infernooverdrive": {
+        "base": null,
+        "name": "Inferno Overdrive",
+        "type": "fire"
+    },
+    "letssnuggleforever": {
+        "base": "playrough",
+        "name": "Let's Snuggle Forever",
+        "type": "fairy"
+    },
+    "lightthatburnsthesky": {
+        "base": "photongeyser",
+        "name": "Light That Burns the Sky",
+        "type": "psychic"
+    },
+    "maliciousmoonsault": {
+        "base": "darkestlariat",
+        "name": "Malicious Moonsault",
+        "type": "dark"
+    },
+    "menacingmoonrazemaelstrom": {
+        "base": "moongeistbeam",
+        "name": "Menacing Moonraze Maelstrom",
+        "type": "ghost"
+    },
+    "neverendingnightmare": {
+        "base": null,
+        "name": "Never-Ending Nightmare",
+        "type": "ghost"
+    },
+    "oceanicoperetta": {
+        "base": "sparklingaria",
+        "name": "Oceanic Operetta",
+        "type": "water"
+    },
+    "pulverizingpancake": {
+        "base": "gigaimpact",
+        "name": "Pulverizing Pancake",
+        "type": "normal"
+    },
+    "savagespinout": {
+        "base": null,
+        "name": "Savage Spin-Out",
+        "type": "bug"
+    },
+    "searingsunrazesmash": {
+        "base": "sunsteelstrike",
+        "name": "Searing Sunraze Smash",
+        "type": "steel"
+    },
+    "shatteredpsyche": {
+        "base": null,
+        "name": "Shattered Psyche",
+        "type": "psychic"
+    },
+    "sinisterarrowraid": {
+        "base": "spiritshackle",
+        "name": "Sinister Arrow Raid",
+        "type": "ghost"
+    },
+    "soulstealing7starstrike": {
+        "base": "spectralthief",
+        "name": "Soul-Stealing 7-Star Strike",
+        "type": "ghost"
+    },
+    "splinteredstormshards": {
+        "base": "stoneedge",
+        "name": "Splintered Stormshards",
+        "type": "rock"
+    },
+    "stokedsparksurfer": {
+        "base": "thunderbolt",
+        "name": "Stoked Sparksurfer",
+        "type": "electric"
+    },
+    "subzeroslammer": {
+        "base": null,
+        "name": "Subzero Slammer",
+        "type": "ice"
+    },
+    "supersonicskystrike": {
+        "base": null,
+        "name": "Supersonic Skystrike",
+        "type": "flying"
+    },
+    "tectonicrage": {
+        "base": null,
+        "name": "Tectonic Rage",
+        "type": "ground"
+    },
+    "twinkletackle": {
+        "base": null,
+        "name": "Twinkle Tackle",
+        "type": "fairy"
+    }
+}

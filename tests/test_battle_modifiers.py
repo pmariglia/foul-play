@@ -2363,6 +2363,80 @@ class TestMove:
             ]
         )
 
+    def test_opponent_status_z_move_reveals_and_decrements_the_base_move(self):
+        move(
+            self.battle,
+            parse_lines(
+                ["|move|p2a: Caterpie|Z-Hold Hands|null|[anim]Hold Hands|[notarget]"]
+            )[0],
+        )
+
+        assert [Move("holdhands")] == self.battle.opponent.active.moves
+        holdhands = self.battle.opponent.active.get_move("holdhands")
+        assert holdhands.max_pp - 1 == holdhands.current_pp
+        assert "holdhands" == self.battle.opponent.last_used_move.move
+
+    def test_opponent_signature_z_move_reveals_the_base_move(self):
+        self.battle.opponent.active = Pokemon("pikachu", 100)
+        move(
+            self.battle,
+            parse_lines(["|move|p2a: Pikachu|Catastropika|p1a: Clefable|[zeffect]"])[0],
+        )
+
+        assert [Move("volttackle")] == self.battle.opponent.active.moves
+        assert "volttackle" == self.battle.opponent.last_used_move.move
+
+    def test_opponent_damaging_z_move_does_not_reveal_a_move(self):
+        move(
+            self.battle,
+            parse_lines(
+                ["|move|p2a: Caterpie|Inferno Overdrive|p1a: Clefable|[zeffect]"]
+            )[0],
+        )
+
+        assert [] == self.battle.opponent.active.moves
+        assert set() == self.battle.opponent.active.moves_used_since_switch_in
+        assert constants.DO_NOTHING_MOVE == self.battle.opponent.last_used_move.move
+
+    def test_opponent_damaging_z_move_does_not_rule_out_choice_item_from_last_move(
+        self,
+    ):
+        self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 0)
+        move(
+            self.battle,
+            parse_lines(
+                ["|move|p2a: Caterpie|Inferno Overdrive|p1a: Clefable|[zeffect]"]
+            )[0],
+        )
+
+        assert self.battle.opponent.active.can_have_choice_item
+
+    def test_damaging_move_called_by_opponent_z_sleep_talk_does_not_reveal_a_move(
+        self,
+    ):
+        move(
+            self.battle,
+            parse_lines(
+                [
+                    "|move|p2a: Caterpie|Inferno Overdrive|p1a: Clefable|[from]move: Sleep Talk"
+                ]
+            )[0],
+        )
+
+        assert [] == self.battle.opponent.active.moves
+
+    def test_bot_damaging_z_move_uses_the_selected_move(self):
+        self.battle.user.last_selected_move = LastUsedMove("clefable", "moonblast", 0)
+        move(
+            self.battle,
+            parse_lines(["|move|p1a: Clefable|Twinkle Tackle|p2a: Caterpie|[zeffect]"])[
+                0
+            ],
+        )
+
+        assert [Move("moonblast")] == self.battle.user.active.moves
+        assert "moonblast" == self.battle.user.last_used_move.move
+
 
 class TestTrickRoom:
     @pytest.fixture(autouse=True)
@@ -5753,6 +5827,59 @@ class TestCheckSpeedRanges:
         assert float("inf") == self.battle.opponent.active.speed_range.max
         assert 0 == self.battle.opponent.active.speed_range.min
 
+    def test_opponent_status_z_move_uses_the_base_move_priority(self):
+        # Baby-Doll Eyes has +1 priority, so moving first says nothing about speed
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|-zpower|p2a: Caterpie",
+            "|move|p2a: Caterpie|Z-Baby-Doll Eyes|p1a: Caterpie|[anim]Baby-Doll Eyes",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
+    def test_opponent_damaging_z_move_skips_the_check(self):
+        # the priority of the move that Inferno Overdrive came from is unknown
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|-zpower|p2a: Caterpie",
+            "|move|p2a: Caterpie|Inferno Overdrive|p1a: Caterpie|[zeffect]",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
+    def test_bot_damaging_z_move_uses_the_selected_move_priority(self):
+        self.battle.user.active.stats[constants.SPEED] = 150
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|-zpower|p1a: Caterpie",
+            "|move|p1a: Caterpie|Breakneck Blitz|p2a: Caterpie|[zeffect]",
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert 150 == self.battle.opponent.active.speed_range.max
+
+    def test_bot_damaging_z_move_from_priority_move_skips_the_check(self):
+        self.battle.user.active.stats[constants.SPEED] = 150
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "quickattack", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|-zpower|p1a: Caterpie",
+            "|move|p1a: Caterpie|Breakneck Blitz|p2a: Caterpie|[zeffect]",
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
 
 class TestGuessChoiceScarf:
     @pytest.fixture(autouse=True)
@@ -6302,6 +6429,21 @@ class TestGuessChoiceScarf:
             "|switch|p1a: Caterpie|Caterpie, F|255/255",
             "|move|p2a: Caterpie|Stealth Rock|",
             "|move|p1a: Caterpie|Stealth Rock|p2a: Caterpie|[from] ability: Magic Bounce",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_opponent_damaging_z_move_does_not_infer_scarf(self):
+        # max speed caterpie is 207, but Inferno Overdrive may have come from a priority move
+        self.battle.user.active.stats[constants.SPEED] = 210
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|-zpower|p2a: Caterpie",
+            "|move|p2a: Caterpie|Inferno Overdrive|p1a: Caterpie|[zeffect]",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
         ]
 
         check_choicescarf(self.battle, parse_lines(messages))
@@ -7720,6 +7862,39 @@ class TestGetDamageDealt:
         damage_dealt = get_damage_dealt(
             self.battle,
             parse_as(protocol_messages.Move, split_msg),
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt is None
+
+    def test_opponent_z_move_has_no_damage_dealt(self):
+        self.battle.user.active.max_hp = 250
+        self.battle.user.active.hp = 250
+
+        messages = [
+            "|move|p2a: Pikachu|Catastropika|p1a: Caterpie|[zeffect]",
+            "|-damage|p1a: Caterpie|50/250",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_lines(messages)[0],
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt is None
+
+    def test_bot_z_move_has_no_damage_dealt(self):
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p1a: Caterpie|Breakneck Blitz|p2a: Pikachu|[zeffect]",
+            "|-damage|p2a: Pikachu|10/100",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_lines(messages)[0],
             parse_lines(messages[1:]),
         )
 

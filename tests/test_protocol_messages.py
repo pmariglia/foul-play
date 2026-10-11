@@ -185,6 +185,48 @@ class TestParseLine:
             "|-miss|p1a: X|p2a: Y"
         )
 
+    def test_move_is_its_own_base_move(self):
+        msg = parse_line("|move|p1a: Charizard|Flamethrower|p2a: Venusaur")
+        assert not msg.is_z_move
+        assert "flamethrower" == msg.base_move_id
+
+    def test_status_z_move_base_move_comes_from_anim(self):
+        msg = parse_line(
+            "|move|p1a: Charizard|Z-Hold Hands|null|[anim]Hold Hands|[notarget]"
+        )
+        assert msg.is_z_move
+        assert "zholdhands" == msg.move_id
+        assert "holdhands" == msg.base_move_id
+
+    def test_status_z_move_base_move_without_anim(self):
+        msg = parse_line("|move|p1a: Charizard|Z-Hold Hands|null|[notarget]")
+        assert msg.is_z_move
+        assert "holdhands" == msg.base_move_id
+
+    def test_damaging_z_move_has_no_base_move(self):
+        msg = parse_line(
+            "|move|p1a: Charizard|Inferno Overdrive|p2a: Venusaur|[zeffect]"
+        )
+        assert msg.is_z_move
+        assert msg.base_move_id is None
+
+    def test_damaging_z_move_called_by_another_move_has_no_base_move(self):
+        msg = parse_line(
+            "|move|p1a: Charizard|Inferno Overdrive|p2a: Venusaur|[from]move: Sleep Talk"
+        )
+        assert msg.is_z_move
+        assert msg.base_move_id is None
+
+    def test_signature_z_move_base_move_comes_from_its_z_crystal(self):
+        msg = parse_line("|move|p1a: Pikachu|Catastropika|p2a: Venusaur|[zeffect]")
+        assert msg.is_z_move
+        assert "volttackle" == msg.base_move_id
+
+    def test_signature_status_z_move_base_move_comes_from_its_z_crystal(self):
+        msg = parse_line("|move|p1a: Eevee|Extreme Evoboost|p1a: Eevee|[zeffect]")
+        assert msg.is_z_move
+        assert "lastresort" == msg.base_move_id
+
 
 class TestParseLines:
     def test_drops_non_protocol_lines(self):

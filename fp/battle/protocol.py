@@ -71,6 +71,7 @@ from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_opponent_hiddenpower
 from fp.battle.inference import check_choicescarf
 from fp.battle.inference import get_damage_dealt
+from fp.battle.inference import get_used_move_id
 from fp.battle.inference import update_dataset_possibilities
 from fp.battle.inference import check_heavydutyboots
 
@@ -657,17 +658,27 @@ def move(battle, msg: Move):
     pkmn = side.active
     opposing_pkmn = battle.other_side(side).active
 
-    move_name = msg.move_id
+    # `used_move` and `move_name` will be the same EXCEPT when an opponent's
+    # damaging z-move is used whose base-move cannot be known.
+    # e.g. Inferno Overdrive: `|move|p2a: Charizard|Inferno Overdrive|p1a: Venusaur|[zeffect]`
+    #  `used_move` would be None in this scenario
+    #
+    # Note "an opponent's damaging z-move":
+    #   If the bot itself used Twinkle Tackle from Moonblast, both will be set to Moonblast
+    used_move = get_used_move_id(battle, msg)
+    move_name = used_move if used_move is not None else msg.move_id
     kwargs = msg.kwargs
     from_sleeptalk = kwargs.is_from("sleeptalk")
 
-    zoroark_from_reserves = side.find_pokemon_in_reserves(
-        "zoroark"
-    ) or side.find_pokemon_in_reserves("zoroarkhisui")
+    # can only do zoroark check if we know the used_move
+    if used_move is not None:
+        zoroark_from_reserves = side.find_pokemon_in_reserves(
+            "zoroark"
+        ) or side.find_pokemon_in_reserves("zoroarkhisui")
 
-    pkmn = battle.mode.check_zoroark_from_move(
-        battle, side, pkmn, msg, zoroark_from_reserves
-    )
+        pkmn = battle.mode.check_zoroark_from_move(
+            battle, side, pkmn, msg, used_move, zoroark_from_reserves
+        )
 
     if from_sleeptalk and battle.gen.tracks_consecutive_sleep_talks:
         pkmn.gen_3_consecutive_sleep_talks += 1
@@ -730,7 +741,7 @@ def move(battle, msg: Move):
 
     if from_sleeptalk:
         move_object = pkmn.get_move(move_name)
-        if move_object is None:
+        if move_object is None and used_move is not None:
             pkmn.add_move(move_name)
             logger.info(
                 "Added unrevealed {} to {}'s moves because it was called by sleeptalk".format(
@@ -790,14 +801,22 @@ def move(battle, msg: Move):
         )
         side.side_conditions[constants.HEALING_WISH] = 1
 
-    pkmn.moves_used_since_switch_in.add(move_name)
+    # if used_move is None then we don't know what the opponent used: don't add a move
+    if used_move is not None:
+        pkmn.moves_used_since_switch_in.add(move_name)
 
     # add the move to it's moves if it hasn't been seen
     # decrement the PP by one
     # if the move is unknown, do nothing
     pp_to_decrement = 2 if opposing_pkmn.ability == "pressure" else 1
     move_object = pkmn.get_move(move_name)
-    if move_object is None:
+    if used_move is None:
+        logger.info(
+            "{} used {} without revealing which move it came from".format(
+                pkmn.name, move_name
+            )
+        )
+    elif move_object is None:
         new_move = pkmn.add_move(move_name)
         if new_move is not None:
             new_move.current_pp -= pp_to_decrement
@@ -814,6 +833,7 @@ def move(battle, msg: Move):
     # transform replaces the user's moves, which ends the choice lock on it
     if (
         side is battle.opponent
+        and used_move is not None
         and side.last_used_move.pokemon_name == side.active.name
         and side.last_used_move.move != move_name
         and side.last_used_move.move != "transform"
