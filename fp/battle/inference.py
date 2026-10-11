@@ -75,6 +75,30 @@ def _is_revival_blessing_heal(msg: Message) -> bool:
     )
 
 
+def _turn_order_is_unreliable(battle, messages: list[Message]) -> bool:
+    """
+    Whether the order of the moves in these messages may not come from speed and priority alone,
+    in which case it cannot be used to infer anything about speed
+    """
+    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
+        return True
+
+    return any(
+        # if either side switched, there is nothing to compare
+        _is_switch(msg)
+        # a pokemon that could not move or hit itself in confusion
+        # may have chosen a priority move
+        or isinstance(msg, Cant)
+        or _is_confusion_activation(msg)
+        # quick claw, quick draw, or custap berry
+        or _changes_turn_order(msg)
+        # choosing a revival blessing target splits the turn across two requests,
+        # so the moves seen here are not the whole turn
+        or _is_revival_blessing_heal(msg)
+        for msg in messages
+    )
+
+
 def can_have_priority_modified(battle, pokemon, move_name):
     return (
         "prankster"
@@ -245,27 +269,8 @@ def check_speed_ranges(battle, messages: list[Message]):
             - Grassy Glide is used when Grassy Terrain is up
             - neutralizing gas is active
     """
-    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
+    if _turn_order_is_unreliable(battle, messages):
         return
-
-    for msg in messages:
-        # If either side switched this turn - don't do this check
-        if _is_switch(msg):
-            return
-
-        # if anyone got `cant` or hit themselves in confusion
-        # skip this check as we don't know if they used a priority move
-        if isinstance(msg, Cant) or _is_confusion_activation(msg):
-            return
-
-        # If anyone had quick claw, quick draw, or custap berry activate, skip this check
-        if _changes_turn_order(msg):
-            return
-
-        # choosing a revival blessing target splits the turn across two requests,
-        # so the moves seen here are not the whole turn
-        if _is_revival_blessing_heal(msg):
-            return
 
     moves = [get_move_information(battle, m) for m in messages if isinstance(m, Move)]
     number_of_moves = len(moves)
@@ -434,17 +439,11 @@ def check_opponent_hiddenpower(battle, msg: Message):
 
 
 def check_choicescarf(battle, messages: list[Message]):
-    # If either side switched this turn - don't do this check
-    if any(
+    if (
         not battle.gen.choice_scarf_exists
-        or _is_switch(msg)
-        or isinstance(msg, Cant)
-        or _is_confusion_activation(msg)
-        for msg in messages
-    ) or battle.user.last_selected_move.move.startswith("switch "):
-        return
-
-    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
+        or battle.user.last_selected_move.move.startswith("switch ")
+        or _turn_order_is_unreliable(battle, messages)
+    ):
         return
 
     moves = [get_move_information(battle, m) for m in messages if isinstance(m, Move)]

@@ -6738,6 +6738,56 @@ class TestGuessChoiceScarf:
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
+    def test_infers_scarf_when_opponent_could_not_have_gone_first(self):
+        # max speed caterpie is 207
+        self.battle.user.active.stats[constants.SPEED] = 210
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert "choicescarf" == self.battle.opponent.active.item
+
+    def test_does_not_infer_scarf_after_revival_blessing_split_the_turn(self):
+        # the bot used revival blessing first, then picked a target in a separate request,
+        # so only the opponent's move is in the messages that follow
+        self.battle.user.active.stats[constants.SPEED] = 210
+        self.battle.user.last_selected_move = LastUsedMove(
+            "caterpie", "revivalblessing", 0
+        )
+        self.battle.user.reserve = [Pokemon("pikachu", 100)]
+        self.battle.user.reserve[0].nickname = "Pikachu"
+
+        messages = [
+            "|-heal|p1: Pikachu|50/100|[from] move: Revival Blessing",
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|-damage|p1a: Caterpie|50/100",
+            "|upkeep",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_does_not_infer_scarf_when_quick_draw_activates(self):
+        # quick draw is an ability, so the opponent's item is still unknown
+        self.battle.user.active.stats[constants.SPEED] = 210
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|-activate|p2a: Caterpie|ability: Quick Draw",
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
 
 class TestCheckHeavyDutyBoots:
     @pytest.fixture(autouse=True)
