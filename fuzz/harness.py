@@ -21,7 +21,7 @@ import fp.modes.standard_battle
 import fp.run_battle
 from fp.config import FoulPlayConfig, SaveReplay
 from fp.format_spec import FormatSpec
-from fp.modes import battle_mode
+from fp.modes import BATTLE_MODES, battle_mode
 
 from fuzz.detectors import ProtocolObserver
 from fuzz.policy import POLICY_RNG, random_pick_move
@@ -41,8 +41,22 @@ class _FuzzConfig(type(FoulPlayConfig)):
         return USERNAME.get()
 
 
+# foul-play keeps one battle mode per battle type for the whole process, and the modes hold
+# per-battle state such as the randbats sets the reverse damage calc narrows down. Both bots
+# share a process, so each bot gets its own modes
+_MODES_BY_USERNAME = {
+    username: {battle_type: type(mode)() for battle_type, mode in BATTLE_MODES.items()}
+    for username in USERNAMES.values()
+}
+
+
+def bot_battle_mode(battle_type):
+    return _MODES_BY_USERNAME[USERNAME.get()][battle_type]
+
+
 def configure_foulplay():
     FoulPlayConfig.__class__ = _FuzzConfig
+    fp.run_battle.battle_mode = bot_battle_mode
     FoulPlayConfig.save_replay = SaveReplay.never
     FoulPlayConfig.log_to_file = False
     FoulPlayConfig.file_log_handler = None
