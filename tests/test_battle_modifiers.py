@@ -8406,6 +8406,35 @@ class TestUpdateDatasetPossibilities:
         update_dataset_possibilities(self.battle, damage_dealt, "damage_received")
         assert self.dataset_possibilities_calls == 0
 
+    def test_skips_terapagos_stellar_attacking(self):
+        # poke-engine does not model the stellar tera type
+        self.battle.opponent.active = Pokemon("terapagosstellar", 100)
+        self.battle.opponent.last_used_move = LastUsedMove(
+            "terapagosstellar", "terastarstorm", 1
+        )
+        damage_dealt = DamageDealt(
+            attacker="terapagosstellar",
+            defender="caterpie",
+            move="terastarstorm",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, "damage_dealt")
+        assert self.dataset_possibilities_calls == 0
+
+    def test_skips_attacking_terapagos_stellar(self):
+        self.battle.opponent.active = Pokemon("terapagosstellar", 100)
+        self.battle.user.last_used_move = LastUsedMove("caterpie", "tackle", 1)
+        damage_dealt = DamageDealt(
+            attacker="caterpie",
+            defender="terapagosstellar",
+            move="tackle",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, "damage_received")
+        assert self.dataset_possibilities_calls == 0
+
 
 class TestNoInit:
     @pytest.fixture(autouse=True)

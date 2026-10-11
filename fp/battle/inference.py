@@ -678,9 +678,23 @@ def update_dataset_possibilities(
         or battle.opponent.active is None
         or battle.opponent.active.hp <= 0
         or battle.opponent.active.name
-        in ["ditto", "shedinja", "terapagosterastal", "meloetta", "meloettapirouette"]
+        in [
+            "ditto",
+            "shedinja",
+            "terapagosterastal",
+            "terapagosstellar",
+            "meloetta",
+            "meloettapirouette",
+        ]
         or battle.user.active.name
-        in ["ditto", "shedinja", "terapagosterastal", "meloetta", "meloettapirouette"]
+        in [
+            "ditto",
+            "shedinja",
+            "terapagosterastal",
+            "terapagosstellar",
+            "meloetta",
+            "meloettapirouette",
+        ]
         or damage_dealt.move not in all_move_json
         or all_move_json[damage_dealt.move][constants.CATEGORY]
         == constants.MoveCategory.STATUS
