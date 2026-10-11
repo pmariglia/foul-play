@@ -14,3 +14,4 @@ fp/data/smogon_stats_cache
 fp/data/pkmn_sets_cache
 fp/data/local_data
 run_forever.sh
+fuzz/out/
