@@ -132,6 +132,8 @@ def main(argv=None):
     print("Replaying {} {} as {}".format(artifact["format"], artifact["seed"], side))
     if artifact.get("errors"):
         print("Recorded errors: {}".format("; ".join(artifact["errors"])))
+    if artifact.get("stop_findings"):
+        print("Recorded findings: {}".format("; ".join(artifact["stop_findings"])))
 
     client = ReplayClient(artifact["frames"][side], observer, args.verbose)
     try:

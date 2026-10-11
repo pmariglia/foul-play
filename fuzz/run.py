@@ -2,14 +2,17 @@
 Fuzz foul-play's protocol parsing against a Pokemon Showdown checkout
 
     python -m fuzz.run --ps-dir ../pokemon-showdown --battles 50
+    python -m fuzz.run --ps-dir ../pokemon-showdown --until-finding --time-limit 600
 
 See fuzz/README.md
 """
 
 import argparse
 import asyncio
+import itertools
 import json
 import logging
+import multiprocessing
 import os
 import random
 import subprocess
@@ -30,6 +33,21 @@ from fuzz.detectors import (
 
 SEVERITY_ORDER = list(Severity)
 
+# new-signature findings come from comparing the whole run against --baseline at the end
+STOPPABLE_SEVERITIES = [s for s in Severity if s != Severity.NEW_SIGNATURE]
+
+
+def parse_severities(value: str) -> frozenset:
+    severities = frozenset(Severity(s.strip()) for s in value.split(",") if s.strip())
+    not_stoppable = severities - set(STOPPABLE_SEVERITIES)
+    if not_stoppable:
+        raise argparse.ArgumentTypeError(
+            "cannot stop on {}, choose from {}".format(
+                ",".join(sorted(not_stoppable)), ",".join(STOPPABLE_SEVERITIES)
+            )
+        )
+    return severities
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
@@ -45,7 +63,30 @@ def parse_args(argv=None):
         default="gen9randombattle",
         help="Comma separated formats, battles are spread across them round-robin",
     )
-    parser.add_argument("--battles", type=int, default=20)
+    parser.add_argument(
+        "--battles",
+        type=int,
+        default=None,
+        help="Number of battles to run (default: 20, or no limit with --until-finding)",
+    )
+    parser.add_argument(
+        "--until-finding",
+        action="store_true",
+        help="Keep running battles until one has a --stop-on finding, then stop. "
+        "Its artifact is always written so it can be replayed",
+    )
+    parser.add_argument(
+        "--stop-on",
+        type=parse_severities,
+        default="error,drift,info",
+        help="Comma separated severities that stop an --until-finding run (default: error,drift,info)",
+    )
+    parser.add_argument(
+        "--time-limit",
+        type=float,
+        default=None,
+        help="Stop starting new battles after this many seconds",
+    )
     parser.add_argument(
         "--seed",
         default=None,
@@ -82,23 +123,44 @@ def parse_args(argv=None):
     parser.add_argument(
         "--log-level", default="CRITICAL", help="foul-play's own log level"
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.battles is None and not args.until_finding:
+        args.battles = 20
+    return args
 
 
-def battle_plan(args) -> list[tuple[str, str]]:
-    formats = [f.strip() for f in args.formats.split(",") if f.strip()]
+def parse_formats(args) -> list[str]:
+    return [f.strip() for f in args.formats.split(",") if f.strip()]
+
+
+def battle_plan(args, worker_id=0, jobs=1):
+    """
+    The (format, seed) of every battle this worker runs. Battle `i` of the run always has the
+    same seed, so `--battles N` and `--until-finding` play the same battles for the same --seed
+    """
+    formats = parse_formats(args)
     if args.battle_seed:
-        return [(formats[0], args.battle_seed)]
+        if worker_id == 0:
+            yield formats[0], args.battle_seed
+        return
 
     from fuzz.harness import derived_seed
 
-    return [
-        (formats[i % len(formats)], derived_seed(args.seed, i))
-        for i in range(args.battles)
-    ]
+    if args.battles is None:
+        indices = itertools.count(worker_id, jobs)
+    else:
+        indices = range(worker_id, args.battles, jobs)
+    for i in indices:
+        yield formats[i % len(formats)], derived_seed(args.seed, i)
 
 
-async def _run_worker(args, plan, worker_id):
+def should_stop(args, stop_event) -> bool:
+    if stop_event.is_set():
+        return True
+    return args.deadline is not None and time.time() >= args.deadline
+
+
+async def _run_worker(args, worker_id, jobs, stop_event):
     from fuzz.harness import (
         PSDriver,
         configure_foulplay,
@@ -114,14 +176,16 @@ async def _run_worker(args, plan, worker_id):
     logging.basicConfig(level=logging.WARNING, handlers=[stream_handler], force=True)
     logging.getLogger().addHandler(FoulPlayLogCollector(observer))
 
-    for pokemon_format in sorted({f for f, _ in plan}):
+    for pokemon_format in sorted(set(parse_formats(args))):
         prepare_format(pokemon_format)
 
     driver = PSDriver(args.ps_dir)
     await driver.start()
     results = []
     try:
-        for i, (pokemon_format, seed) in enumerate(plan):
+        for i, (pokemon_format, seed) in enumerate(battle_plan(args, worker_id, jobs)):
+            if should_stop(args, stop_event):
+                break
             result = await run_one_battle(
                 driver,
                 observer,
@@ -132,9 +196,15 @@ async def _run_worker(args, plan, worker_id):
                 battle_timeout=args.battle_timeout,
                 out_dir=args.out_dir,
                 save_artifact=args.save_artifacts,
+                stop_severities=args.stop_on if args.until_finding else frozenset(),
             )
             results.append(asdict(result))
-            status = "FAIL" if result.errors else "ok"
+            if result.errors:
+                status = "FAIL"
+            elif result.stop_findings:
+                status = "FOUND"
+            else:
+                status = "ok"
             print(
                 "[{}] {} {} turns={} {}s {}".format(
                     status,
@@ -142,11 +212,15 @@ async def _run_worker(args, plan, worker_id):
                     seed,
                     result.turns,
                     result.duration_s,
-                    "; ".join(result.errors),
+                    "; ".join(result.errors or result.stop_findings),
                 ),
                 file=sys.stderr,
                 flush=True,
             )
+            if result.stop_findings:
+                # the other workers finish the battle they are in and stop too
+                stop_event.set()
+                break
     finally:
         await driver.close()
 
@@ -158,8 +232,8 @@ async def _run_worker(args, plan, worker_id):
     }
 
 
-def run_worker(args, plan, worker_id):
-    return asyncio.run(_run_worker(args, plan, worker_id))
+def run_worker(args, worker_id, jobs, stop_event):
+    return asyncio.run(_run_worker(args, worker_id, jobs, stop_event))
 
 
 def ps_version(ps_dir: str) -> str:
@@ -245,6 +319,18 @@ def print_summary(findings: list[Finding], results, out_dir):
         )
 
 
+def print_found(found):
+    print()
+    print("Stopped on:")
+    for r in found:
+        print("  {}".format(r["battle_id"]))
+        for finding in r["stop_findings"]:
+            print("      {}".format(finding))
+        # the finding may have come from either bot
+        for side in ("p1", "p2"):
+            print("    python -m fuzz.replay {} --side {}".format(r["artifact"], side))
+
+
 def main(argv=None):
     args = parse_args(argv)
     args.ps_dir = os.path.abspath(args.ps_dir)
@@ -262,23 +348,42 @@ def main(argv=None):
         )
     os.makedirs(args.out_dir, exist_ok=True)
 
-    plan = battle_plan(args)
-    jobs = max(1, min(args.jobs, len(plan)))
+    args.deadline = None if args.time_limit is None else time.time() + args.time_limit
+    if args.battle_seed:
+        jobs = 1
+    elif args.battles is None:
+        jobs = max(1, args.jobs)
+    else:
+        jobs = max(1, min(args.jobs, args.battles))
+
+    if args.battle_seed:
+        planned = "1 battle"
+    elif args.battles is None:
+        planned = "until a {} finding".format("/".join(sorted(args.stop_on)))
+    else:
+        planned = "{} battles".format(args.battles)
+        if args.until_finding:
+            planned += " or until a {} finding".format("/".join(sorted(args.stop_on)))
+    if args.time_limit is not None:
+        planned += ", at most {}s".format(args.time_limit)
     print(
-        "PS {} | {} battles | seed {} | {} jobs".format(
-            ps_version(args.ps_dir), len(plan), args.seed, jobs
+        "PS {} | {} | seed {} | {} jobs".format(
+            ps_version(args.ps_dir), planned, args.seed, jobs
         ),
         file=sys.stderr,
     )
 
     if jobs == 1:
-        outputs = [run_worker(args, plan, 0)]
+        outputs = [run_worker(args, 0, 1, multiprocessing.Event())]
     else:
-        with ProcessPoolExecutor(jobs) as pool:
-            futures = [
-                pool.submit(run_worker, args, plan[i::jobs], i) for i in range(jobs)
-            ]
-            outputs = [f.result() for f in futures]
+        with multiprocessing.Manager() as manager:
+            stop_event = manager.Event()
+            with ProcessPoolExecutor(jobs) as pool:
+                futures = [
+                    pool.submit(run_worker, args, i, jobs, stop_event)
+                    for i in range(jobs)
+                ]
+                outputs = [f.result() for f in futures]
 
     findings = Findings()
     message_counts = Counter()
@@ -315,7 +420,18 @@ def main(argv=None):
         )
 
     print_summary(ordered, results, args.out_dir)
-    return 1 if any(f.severity in FAILING_SEVERITIES for f in ordered) else 0
+    found = [r for r in results if r["stop_findings"]]
+    if found:
+        print_found(found)
+    elif args.until_finding:
+        print()
+        print(
+            "No {} finding in {} battles".format(
+                "/".join(sorted(args.stop_on)), len(results)
+            )
+        )
+    failed = any(f.severity in FAILING_SEVERITIES for f in ordered)
+    return 1 if failed or found else 0
 
 
 if __name__ == "__main__":

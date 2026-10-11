@@ -235,6 +235,8 @@ class BattleResult:
     winner: str | None = None
     turns: int | None = None
     errors: list[str] = field(default_factory=list)
+    # findings of a `stop_severities` severity that this battle added to, e.g. "info fp-log: battle/inference.py:667"
+    stop_findings: list[str] = field(default_factory=list)
     duration_s: float = 0.0
     artifact: str | None = None
 
@@ -260,10 +262,11 @@ async def run_one_battle(
     battle_timeout: float,
     out_dir: str,
     save_artifact: bool = False,
+    stop_severities: frozenset = frozenset(),
 ) -> BattleResult:
     battle_id = "{}:{}".format(pokemon_format, seed)
     observer.battle_id = battle_id
-    errors_before = {f.id: f.count for f in observer.findings if f.severity == "error"}
+    counts_before = {f.id: f.count for f in observer.findings}
     result = BattleResult(battle_id, pokemon_format, seed)
     loop = asyncio.get_running_loop()
     started = loop.time()
@@ -332,17 +335,23 @@ async def run_one_battle(
         except Exception:
             input_log = []
 
-    errors_after = {f.id: f for f in observer.findings if f.severity == "error"}
+    added = [f for f in observer.findings if f.count > counts_before.get(f.id, 0)]
     result.errors = sorted(
-        "{}: {}".format(*fid)
-        for fid, f in errors_after.items()
-        if f.count > errors_before.get(fid, 0)
+        "{}: {}".format(*f.id) for f in added if f.severity == "error"
+    )
+    result.stop_findings = sorted(
+        "{} {}: {}".format(f.severity, *f.id)
+        for f in added
+        if f.severity in stop_severities
     )
     result.duration_s = round(loop.time() - started, 2)
 
-    if result.errors or save_artifact:
+    if result.errors or result.stop_findings or save_artifact:
         # replay these with `python -m fuzz.replay <artifact>`
-        artifact_dir = os.path.join(out_dir, "failures" if result.errors else "battles")
+        artifact_dir = os.path.join(
+            out_dir,
+            "failures" if result.errors or result.stop_findings else "battles",
+        )
         result.artifact = os.path.join(
             artifact_dir, "{}-{}.json".format(pokemon_format, seed.replace(",", "-"))
         )
@@ -353,6 +362,7 @@ async def run_one_battle(
                     "format": pokemon_format,
                     "seed": seed,
                     "errors": result.errors,
+                    "stop_findings": result.stop_findings,
                     "tracebacks": tracebacks,
                     "input_log": input_log,
                     "frames": {side: c.frames for side, c in clients.items()},

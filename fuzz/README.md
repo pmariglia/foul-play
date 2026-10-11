@@ -23,7 +23,24 @@ python -m fuzz.run --ps-dir ../pokemon-showdown --battles 200 --jobs 8 \
     --formats gen9randombattle,gen8randombattle,gen7randombattle,gen4randombattle
 ```
 
-The exit code is non-zero when any `error`, `drift` or `new-signature` finding is reported.
+To find problems one at a time, run until the first battle with a finding instead of a fixed
+number of battles:
+
+```bash
+python -m fuzz.run --ps-dir ../pokemon-showdown --jobs 8 --formats gen9randombattle --until-finding
+python -m fuzz.run ... --until-finding --time-limit 600           # give up after 10 minutes
+python -m fuzz.run ... --until-finding --stop-on error,drift       # ignore foul-play's log warnings
+```
+
+`--stop-on` takes the severities that end the run (default `error,drift,info`; `new-signature`
+is only known once the run ends, so it cannot stop one). The battle that stopped the run always has
+its artifact written to `failures/`, and the summary prints the `fuzz.replay` commands for it. With
+`--jobs`, the other workers finish the battle they are in and stop. `--battles` still caps the run,
+and `--time-limit` also works without `--until-finding`. A given `--seed` plays the same battles
+either way.
+
+The exit code is non-zero when any `error`, `drift` or `new-signature` finding is reported, or
+when `--until-finding` stopped on a finding.
 `fuzz/out/<timestamp>-<seed>/report.json` holds every finding, per-battle results, message counts
 and signatures. Battles with errors also write `failures/<format>-<seed>.json` containing the
 tracebacks, every frame each bot received, every message each bot sent, and the PS input log.
