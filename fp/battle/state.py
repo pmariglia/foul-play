@@ -427,11 +427,12 @@ class Battler:
 
     def re_initialize_active_pokemon_from_request(self, request: Request):
         """
-        Re-initializes the active pokemon based on the last request JSON that was received
-        This is useful when the bot's active pkmn has mega-evolved. We need to get the new stats/hp
+        Re-initializes the active pokemon's stats based on the last request JSON that was received
+        This is useful when the bot's active pkmn has mega-evolved. We need to get the new stats
 
         The pokemon is found by nickname when it is known, because the request reflects the end of
-        the turn: a forme seen mid-turn may already have changed again (e.g. reverted on fainting)
+        the turn: a forme seen mid-turn may already have changed again (e.g. reverted on fainting).
+        For the same reason the hp is not taken from it: the protocol messages carry the bot's exact hp
         """
         pokedex_name = normalize_name(pokedex[self.active.name][constants.NAME])
         if self.active.nickname is not None:
@@ -453,7 +454,6 @@ class Battler:
         pkmn_info = request_active_pkmn[0]
         for stat, number in pkmn_info.stats.items():
             self.active.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
-        self.active.hp = pkmn_info.condition.hp
 
     def initialize_first_turn_user_from_request(self, request: Request):
         """

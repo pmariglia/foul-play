@@ -9348,6 +9348,53 @@ class TestUpdateBattle:
         assert "terapagos" == self.battle.user.active.name
         assert 0 == self.battle.user.active.hp
 
+    def test_user_forme_change_keeps_hp_from_the_turn_not_the_request(self):
+        # the request already has the hp after synthesis, at the end of the turn
+        ogerpon = Pokemon("ogerponcornerstone", 76)
+        ogerpon.nickname = "Ogerpon"
+        ogerpon.max_hp = 247
+        ogerpon.hp = 226
+        self.battle.user.active = ogerpon
+        request = {
+            "rqid": 12,
+            "side": {
+                "name": "Bot",
+                "id": "p1",
+                "pokemon": [
+                    {
+                        "ident": "p1: Ogerpon",
+                        "details": "Ogerpon-Cornerstone-Tera, L76, F, tera:Rock",
+                        "condition": "247/247",
+                        "active": True,
+                        "stats": {
+                            "atk": 226,
+                            "def": 172,
+                            "spa": 135,
+                            "spd": 190,
+                            "spe": 211,
+                        },
+                        "moves": ["ivycudgelrock", "synthesis"],
+                        "baseAbility": "sturdy",
+                        "item": "cornerstonemask",
+                        "ability": "sturdy",
+                        "teraType": "Rock",
+                    }
+                ],
+            },
+        }
+        self.battle.request = Request.from_json(request)
+        split_msg = [
+            "",
+            "detailschange",
+            "p1a: Ogerpon",
+            "Ogerpon-Cornerstone-Tera, L76, F, tera:Rock",
+        ]
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, split_msg))
+
+        assert "ogerponcornerstonetera" == self.battle.user.active.name
+        assert 226 == self.battle.user.active.hp
+        assert 172 == self.battle.user.active.stats[constants.DEFENSE]
+
     def test_non_request_messages_are_queued_and_false_is_returned(self):
         msg = "|move|p1a: Caterpie|Tackle|p2a: Pikachu\n|-damage|p2a: Pikachu|85/100"
         result = update_battle(self.battle, msg)
