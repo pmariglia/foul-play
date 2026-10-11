@@ -2059,6 +2059,21 @@ def cant(battle, msg: Cant):
         logger.info("Removing glaiverush from {}".format(side.active.name))
         remove_volatile(side.active, constants.GLAIVE_RUSH)
 
+    # a move prepared with `-prepare` is cancelled when the pokemon cannot move:
+    # a two-turn move's charge ends, and chilly reception's volatile only lasts the turn
+    # |-prepare|p1a: Slowking|Chilly Reception|[premajor]
+    # |cant|p1a: Slowking|par
+    for volatile in list(side.active.volatile_statuses):
+        if volatile == "chillyreception" or all_move_json.get(volatile, {}).get(
+            "flags", {}
+        ).get("charge"):
+            logger.info(
+                "{} could not move, removing prepared move {}".format(
+                    side.active.name, volatile
+                )
+            )
+            remove_volatile(side.active, volatile)
+
     reason = msg.reason
 
     # |cant|p1a: Slaking|ability: Truant

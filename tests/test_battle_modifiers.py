@@ -5356,6 +5356,32 @@ class TestCant:
         )
         assert Move("throatchop") not in self.battle.opponent.active.moves
 
+    def test_cant_removes_prepared_chillyreception(self):
+        # |-prepare|p1a: Slowking|Chilly Reception|[premajor]
+        # |cant|p1a: Slowking|par
+        self.battle.user.active.volatile_statuses = ["chillyreception", "confusion"]
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "par"]),
+        )
+        assert ["confusion"] == self.battle.user.active.volatile_statuses
+
+    def test_cant_removes_a_charged_two_turn_move(self):
+        self.battle.opponent.active.volatile_statuses = ["solarbeam"]
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p2a: Caterpie", "slp"]),
+        )
+        assert [] == self.battle.opponent.active.volatile_statuses
+
+    def test_cant_keeps_volatiles_that_are_not_prepared_moves(self):
+        self.battle.user.active.volatile_statuses = ["substitute", "leechseed"]
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "par"]),
+        )
+        assert ["substitute", "leechseed"] == self.battle.user.active.volatile_statuses
+
     def test_increments_sleep_turns_when_cant_from_sleep(self):
         self.battle.user.active.sleep_turns = 0
         self.battle.user.active.status = constants.Status.SLEEP
