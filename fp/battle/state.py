@@ -314,7 +314,7 @@ class Battler:
         if (
             self.active.item in constants.CHOICE_ITEMS
             and self.last_used_move.pokemon_name == self.active.name
-            and self.last_used_move.move not in ["trick", "switcheroo"]
+            and self.last_used_move.move not in constants.ITEM_SWAPPING_MOVES
         ):
             for m in self.active.moves:
                 if (

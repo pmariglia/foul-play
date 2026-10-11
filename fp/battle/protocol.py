@@ -832,12 +832,14 @@ def move(battle, msg: Move):
     # if this pokemon used two different moves without switching,
     # set a flag to signify that it cannot have a choice item
     # transform replaces the user's moves, which ends the choice lock on it
+    # trick and switcheroo end it as well: receiving a choice item resets the choice lock
     if (
         side is battle.opponent
         and used_move is not None
         and side.last_used_move.pokemon_name == side.active.name
         and side.last_used_move.move != move_name
         and side.last_used_move.move != "transform"
+        and side.last_used_move.move not in constants.ITEM_SWAPPING_MOVES
     ):
         logger.info(
             "{} used two different moves - it cannot have a choice item".format(
@@ -1571,6 +1573,9 @@ def set_item(battle, msg: Item):
 
     logger.info("Setting {}'s item to {}".format(side.active.name, item))
     side.active.item = item
+
+    # if we inferred an item but the item was overwritten, unset this flag
+    side.active.item_inferred = False
 
 
 def remove_item(battle, msg: EndItem):

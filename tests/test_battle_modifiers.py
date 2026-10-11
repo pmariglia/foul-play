@@ -4812,6 +4812,73 @@ class TestTransform:
         assert constants.TRANSFORM in self.battle.user.active.volatile_statuses
 
 
+class TestItemSwappingMoves:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+        self.battle.user.name = "p1"
+        self.battle.opponent.name = "p2"
+
+        self.battle.user.active = Pokemon("fluttermane", 74)
+        self.battle.opponent.active = Pokemon("seviper", 93)
+
+    def _apply(self, lines):
+        for line in lines:
+            apply_message(self.battle, parse_lines([line])[0])
+
+    def test_inferred_choice_item_is_kept_after_switcheroo_gives_a_choice_item(self):
+        # the choicescarf was inferred when seviper moved first with switcheroo
+        self.battle.opponent.active.item = "choicescarf"
+        self.battle.opponent.active.item_inferred = True
+
+        self._apply(
+            [
+                "|move|p2a: Seviper|Switcheroo|p1a: Flutter Mane",
+                "|-activate|p2a: Seviper|move: Trick|[of] p1a: Flutter Mane",
+                "|-item|p1a: Flutter Mane|Choice Scarf|[from] move: Switcheroo",
+                "|-item|p2a: Seviper|Choice Specs|[from] move: Switcheroo",
+                "|move|p2a: Seviper|Gunk Shot|p1a: Flutter Mane",
+            ]
+        )
+
+        assert "choicespecs" == self.battle.opponent.active.item
+        assert self.battle.opponent.active.can_have_choice_item
+
+    @pytest.mark.parametrize("item_swapping_move", ["Trick", "Switcheroo"])
+    def test_different_move_after_item_swapping_move_does_not_rule_out_choice_item(
+        self, item_swapping_move
+    ):
+        self._apply(
+            [
+                "|move|p2a: Seviper|{}|p1a: Flutter Mane".format(item_swapping_move),
+                "|move|p2a: Seviper|Gunk Shot|p1a: Flutter Mane",
+            ]
+        )
+
+        assert self.battle.opponent.active.can_have_choice_item
+
+    def test_different_moves_still_rule_out_choice_item(self):
+        self._apply(
+            [
+                "|move|p2a: Seviper|Gunk Shot|p1a: Flutter Mane",
+                "|move|p2a: Seviper|Flamethrower|p1a: Flutter Mane",
+            ]
+        )
+
+        assert not self.battle.opponent.active.can_have_choice_item
+
+    def test_revealed_item_is_not_inferred(self):
+        self.battle.opponent.active.item = "choicescarf"
+        self.battle.opponent.active.item_inferred = True
+
+        self._apply(["|-item|p2a: Seviper|Choice Specs|[from] move: Switcheroo"])
+
+        assert "choicespecs" == self.battle.opponent.active.item
+        assert not self.battle.opponent.active.item_inferred
+
+
 class TestCantAfterSwitchIn:
     @pytest.fixture(autouse=True)
     def _setup(self):

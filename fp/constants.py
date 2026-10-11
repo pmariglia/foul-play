@@ -209,3 +209,6 @@ CHOICE_SCARF = "choicescarf"
 CHOICE_BAND = "choiceband"
 CHOICE_SPECS = "choicespecs"
 CHOICE_ITEMS = {CHOICE_BAND, CHOICE_SPECS, CHOICE_SCARF}
+
+# receiving a choice item from one of these ends the user's choice lock
+ITEM_SWAPPING_MOVES = {"trick", "switcheroo"}
