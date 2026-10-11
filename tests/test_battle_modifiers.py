@@ -1603,6 +1603,70 @@ class TestMove:
 
         self.battle.user.active = Pokemon("clefable", 100)
 
+    def _dancer_copies(self, move_name):
+        # |-activate|p2a: Caterpie|ability: Dancer
+        # |move|p2a: Caterpie|Quiver Dance||[still]
+        activate(
+            self.battle,
+            parse_as(
+                protocol_messages.Activate,
+                ["", "-activate", "p2a: Caterpie", "ability: Dancer"],
+            ),
+        )
+        move(
+            self.battle,
+            parse_as(
+                protocol_messages.Move,
+                ["", "move", "p2a: Caterpie", move_name, "", "[still]"],
+            ),
+        )
+
+    def test_move_copied_by_dancer_is_not_added_to_the_pokemons_moves(self):
+        self.battle.opponent.active.add_move("tackle")
+        self.battle.opponent.last_used_move = LastUsedMove("caterpie", "tackle", 1)
+
+        self._dancer_copies("Quiver Dance")
+
+        assert ["tackle"] == [m.name for m in self.battle.opponent.active.moves]
+        assert "dancer" == self.battle.opponent.active.ability
+        # a copied dance does not break a choice lock
+        assert self.battle.opponent.active.can_have_choice_item
+        assert not self.battle.opponent.dancer_activated
+
+    def test_move_after_a_copied_dance_is_added(self):
+        self._dancer_copies("Quiver Dance")
+        move(
+            self.battle,
+            parse_as(
+                protocol_messages.Move,
+                ["", "move", "p2a: Caterpie", "Tackle", "p1a: Clefable"],
+            ),
+        )
+
+        assert ["tackle"] == [m.name for m in self.battle.opponent.active.moves]
+
+    def test_dance_stopped_by_cant_does_not_skip_the_next_move(self):
+        activate(
+            self.battle,
+            parse_as(
+                protocol_messages.Activate,
+                ["", "-activate", "p2a: Caterpie", "ability: Dancer"],
+            ),
+        )
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p2a: Caterpie", "slp"]),
+        )
+        move(
+            self.battle,
+            parse_as(
+                protocol_messages.Move,
+                ["", "move", "p2a: Caterpie", "Tackle", "p1a: Clefable"],
+            ),
+        )
+
+        assert ["tackle"] == [m.name for m in self.battle.opponent.active.moves]
+
     def test_infer_zoroark_from_move_not_possible_on_pkmn_battle_factory(self):
         self.battle.mode = BattleFactoryMode()
         self.battle.generation = "gen9"

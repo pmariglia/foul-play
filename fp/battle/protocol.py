@@ -690,6 +690,17 @@ def move(battle, msg: Move):
     #
     # Note "an opponent's damaging z-move":
     #   If the bot itself used Twinkle Tackle from Moonblast, both will be set to Moonblast
+    # a dance copied by dancer is not one of the pokemon's moves:
+    # it uses no pp and does not lock the pokemon into it
+    if side.dancer_activated:
+        side.dancer_activated = False
+        logger.info(
+            "{} copied {} with dancer, not adding it to its moves".format(
+                pkmn.name, msg.move_id
+            )
+        )
+        return
+
     used_move = get_used_move_id(battle, msg)
     move_name = used_move if used_move is not None else msg.move_id
     kwargs = msg.kwargs
@@ -1079,6 +1090,11 @@ def activate(battle, msg: Activate):
         ability = effect.id
         logger.info("Setting {}'s ability to {}".format(pkmn.name, ability))
         pkmn.ability = ability
+
+        # |-activate|p1a: Gardevoir|ability: Dancer
+        # |move|p1a: Gardevoir|Quiver Dance||[still]
+        if ability == "dancer":
+            side.dancer_activated = True
 
         if ability in ["mummy", "lingeringaroma"]:
             # |-activate|p2a: Cofagrigus|ability: Mummy|p1a: Garchomp|[ability] Rough Skin
@@ -2053,6 +2069,9 @@ def cant(battle, msg: Cant):
         turn=battle.turn,
     )
     side.active.acted_since_switch_in = True
+
+    # a dance copied by dancer can be stopped too, e.g. by sleep
+    side.dancer_activated = False
 
     # glaive rush's drawback ends before anything that stops the pokemon from moving
     if constants.GLAIVE_RUSH in side.active.volatile_statuses:
