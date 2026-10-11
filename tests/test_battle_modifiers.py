@@ -3519,6 +3519,31 @@ class TestStartVolatileStatus:
 
         assert ["fighting"] == self.battle.opponent.active.types
 
+    def test_typechange_shown_for_bots_disguised_zoroark_is_ignored(self):
+        # PS shows the disguise's types at the end of the turn
+        self.battle.user.active = Pokemon("zoroark", 83)
+        self.battle.user.active.nickname = "Zoroark"
+        split_msg = ["", "-start", "p1a: Dunsparce", "typechange", "Ground", "[silent]"]
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
+
+        assert ["dark"] == self.battle.user.active.types
+        assert constants.TYPECHANGE not in self.battle.user.active.volatile_statuses
+
+    def test_typechange_for_bots_own_pokemon_is_applied(self):
+        self.battle.user.active = Pokemon("cinderace", 100)
+        self.battle.user.active.nickname = "Cinderace"
+        split_msg = [
+            "",
+            "-start",
+            "p1a: Cinderace",
+            "typechange",
+            "Fighting",
+            "[from] ability: Libero",
+        ]
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
+
+        assert ["fighting"] == self.battle.user.active.types
+
     def test_typechange_works_with_reflect_type(self):
         # |-start|p1a: Starmie|typechange|[from] move: Reflect Type|[of] p2a: Dragapult
         self.battle.user.active = Pokemon("dragapult", 100)
@@ -4055,6 +4080,43 @@ class TestIllusionEnd:
 
         assert "meloetta" == self.battle.opponent.reserve[0].name
         assert self.battle.opponent.reserve[0].status is None
+
+    def test_wrongly_guessed_zoroark_forme_and_level_are_corrected(self):
+        # zoroark-hisui was guessed from a move, but it was regular zoroark
+        guessed = Pokemon("zoroarkhisui", 80)
+        guessed.zoroark_disguised_as = "florgesorange"
+        guessed.hp = guessed.max_hp / 2
+        guessed.boosts[constants.SPECIAL_ATTACK] = 2
+        guessed.add_move("focusblast")
+        self.battle.opponent.active = guessed
+        self.battle.opponent.reserve = []
+        split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L83, M"]
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
+
+        expected = Pokemon("zoroark", 83)
+        active = self.battle.opponent.active
+        assert active is guessed
+        assert "zoroark" == active.name
+        assert 83 == active.level
+        assert ["dark"] == active.types
+        assert expected.max_hp == active.max_hp
+        assert expected.max_hp / 2 == active.hp
+        assert expected.stats == active.stats
+        assert 2 == active.boosts[constants.SPECIAL_ATTACK]
+        assert [Move("focusblast")] == active.moves
+        assert active.zoroark_disguised_as is None
+
+    def test_correctly_guessed_zoroark_is_unchanged(self):
+        guessed = Pokemon("zoroark", 83)
+        guessed.zoroark_disguised_as = "florgesorange"
+        guessed.hp = 100
+        self.battle.opponent.active = guessed
+        self.battle.opponent.reserve = []
+        split_msg = ["", "replace", "p2a: Zoroark", "Zoroark, L83, M"]
+        illusion_end(self.battle, parse_as(protocol_messages.Replace, split_msg))
+
+        assert "zoroark" == self.battle.opponent.active.name
+        assert 100 == self.battle.opponent.active.hp
 
     def test_terastallizing_while_disguised_moves_tera_to_zoroark(self):
         meloetta = Pokemon("meloetta", 100)

@@ -1138,6 +1138,22 @@ def start_volatile_status(battle, msg: Start):
         side.future_sight = (3, pkmn.name)
         return
 
+    # gen7+ PS shows the active pokemon's types at the end of every turn. For the bot's own
+    # disguised zoroark those are the types of the pokemon it is disguised as, not its own
+    # |-start|p2a: Dunsparce|typechange|Ground|[silent]
+    if (
+        volatile_status == constants.TYPECHANGE
+        and side is battle.user
+        and pkmn.nickname is not None
+        and msg.pokemon.nickname != pkmn.nickname
+    ):
+        logger.info(
+            "Ignoring typechange for {}'s disguise {}".format(
+                pkmn.name, msg.pokemon.nickname
+            )
+        )
+        return
+
     if volatile_status.startswith("perish"):
         logger.info(
             "{} got {}. Removing other `perish` volatiles".format(
@@ -1819,7 +1835,34 @@ def illusion_end(battle, msg: Replace):
         side.active.status = previous_status
         side.active.item = previous_item
 
+    elif side is battle.opponent and side.active.name in ["zoroark", "zoroarkhisui"]:
+        # zoroark was inferred before its illusion ended, but the guess of which zoroark
+        # (and its level) can be wrong. The replace message has the real details
+        _correct_zoroark_details(side.active, Pokemon.from_details(msg.details))
+
     side.active.zoroark_disguised_as = None
+
+
+def _correct_zoroark_details(pkmn: Pokemon, actual: Pokemon):
+    if pkmn.name == actual.name and pkmn.level == actual.level:
+        return
+
+    logger.info(
+        "Correcting {} (level {}) to {} (level {})".format(
+            pkmn.name, pkmn.level, actual.name, actual.level
+        )
+    )
+    hp_percent = float(pkmn.hp) / pkmn.max_hp
+    pkmn.name = actual.name
+    pkmn.base_name = actual.base_name
+    pkmn.level = actual.level
+    pkmn.base_stats = actual.base_stats
+    pkmn.stats = calculate_stats(
+        pkmn.base_stats, pkmn.level, nature=pkmn.nature, evs=pkmn.evs
+    )
+    pkmn.max_hp = pkmn.stats.pop(constants.HITPOINTS)
+    pkmn.hp = hp_percent * pkmn.max_hp
+    pkmn.types = actual.types
 
 
 def form_change(battle, msg: FormeChange):
