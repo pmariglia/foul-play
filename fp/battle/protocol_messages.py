@@ -318,6 +318,11 @@ class MustRecharge(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class EndAbility(Message):
+    pokemon: PokemonIdent
+
+
+@dataclass(frozen=True, slots=True)
 class Cant(Message):
     pokemon: PokemonIdent
     reason: Effect
@@ -667,6 +672,7 @@ PARSERS = {
     "-clearallboost": _parse_no_args(ClearAllBoost),
     "-singleturn": _parse_pokemon_and_effect(SingleTurn),
     "-mustrecharge": _parse_pokemon_only(MustRecharge),
+`    "-endability": _parse_pokemon_only(EndAbility),
     "cant": _parse_cant,
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,

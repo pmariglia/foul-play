@@ -81,7 +81,11 @@ def _turn_order_is_unreliable(battle, messages: list[Message]) -> bool:
     Whether the order of the moves in these messages may not come from speed and priority alone,
     in which case it cannot be used to infer anything about speed
     """
-    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
+    if (
+        neutralizing_gas_is_active(battle)
+        or gastro_acid_is_active(battle)
+        or ditto_is_active(battle)
+    ):
         return True
 
     return any(
@@ -136,6 +140,15 @@ def neutralizing_gas_is_active(battle):
     # so turn order cannot be reasoned about without knowing exactly which are suppressed
     return any(
         side.active is not None and side.active.ability == "neutralizinggas"
+        for side in (battle.user, battle.opponent)
+    )
+
+
+def gastro_acid_is_active(battle):
+    # like neutralizing gas: a suppressed ability does not modify speed
+    return any(
+        side.active is not None
+        and constants.GASTRO_ACID in side.active.volatile_statuses
         for side in (battle.user, battle.opponent)
     )
 

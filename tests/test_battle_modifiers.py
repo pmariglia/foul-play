@@ -83,6 +83,7 @@ from fp.battle.protocol import anim
 from fp.battle.protocol import cureteam
 from fp.battle.protocol import sideend
 from fp.battle.protocol import mustrecharge
+from fp.battle.protocol import endability
 from fp.battle.protocol import mega
 from fp.battle.protocol import update_battle
 from fp.battle.protocol import async_update_battle
@@ -1026,6 +1027,29 @@ class TestSwitchOrDrag:
         assert 0 == self.battle.user.active.boosts[constants.SPEED]
         assert 0 == self.battle.user.active.boosts[constants.ATTACK]
         assert [constants.SUBSTITUTE] == self.battle.user.active.volatile_statuses
+
+    def test_baton_pass_keeps_gastroacid(self):
+        self.battle.user.active.volatile_statuses = [constants.GASTRO_ACID]
+
+        split_msg = [
+            "",
+            "switch",
+            "p1a: Pikachu",
+            "Pikachu, L100, M",
+            "100/100",
+            "[from] Baton Pass",
+        ]
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
+
+        assert [constants.GASTRO_ACID] == self.battle.user.active.volatile_statuses
+
+    def test_switching_out_removes_gastroacid(self):
+        self.battle.user.active.volatile_statuses = [constants.GASTRO_ACID]
+
+        split_msg = ["", "switch", "p1a: Pikachu", "Pikachu, L100, M", "100/100"]
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
+
+        assert [] == self.battle.user.active.volatile_statuses
 
 
 class TestHealOrDamage:
@@ -5688,6 +5712,20 @@ class TestCheckSpeedRanges:
         check_speed_ranges(self.battle, parse_lines(messages))
         assert speed_range == self.battle.opponent.active.speed_range
 
+    def test_gastroacid_makes_this_check_not_happen(self):
+        # a suppressed ability (e.g. swiftswim) no longer modifies speed
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.opponent.active.volatile_statuses.append(constants.GASTRO_ACID)
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
     def test_protosynthesis_speed_is_accounted_for_in_speed_range_check(self):
         self.battle.user.active.stats[constants.SPEED] = 300
         self.battle.user.active.boosts[constants.SPEED] = 1
@@ -8968,6 +9006,36 @@ class TestSideEnd:
         sideend(self.battle, parse_as(protocol_messages.SideEnd, split_msg))
 
         assert 0 == self.battle.user.side_conditions[constants.TOXIC_SPIKES]
+
+
+class TestEndAbility:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("caterpie", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("rotomwash", 100)
+        self.battle.opponent.active.ability = "levitate"
+
+    def test_gastroacid_volatile_is_added(self):
+        # |-endability|p2a: Rotom
+        split_msg = ["", "-endability", "p2a: Rotom"]
+        endability(self.battle, parse_as(protocol_messages.EndAbility, split_msg))
+
+        assert [constants.GASTRO_ACID] == self.battle.opponent.active.volatile_statuses
+        assert "levitate" == self.battle.opponent.active.ability
+
+    def test_gastroacid_volatile_is_not_added_twice(self):
+        split_msg = ["", "-endability", "p2a: Rotom"]
+        endability(self.battle, parse_as(protocol_messages.EndAbility, split_msg))
+        endability(self.battle, parse_as(protocol_messages.EndAbility, split_msg))
+
+        assert [constants.GASTRO_ACID] == self.battle.opponent.active.volatile_statuses
 
 
 class TestMustRecharge:

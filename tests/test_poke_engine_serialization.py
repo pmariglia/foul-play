@@ -211,6 +211,23 @@ class TestPokemonToPokeEnginePkmn:
         # the source pokemon's item is overwritten too
         assert "None" == pkmn.item
 
+    def test_gastroacid_suppresses_the_ability(self):
+        pkmn = real_pkmn("pikachu", 100, "static", "lightball", ["thunderbolt"])
+        pkmn.volatile_statuses.append(constants.GASTRO_ACID)
+        engine_pkmn = pokemon_to_poke_engine_pkmn(pkmn)
+        assert "none" == engine_pkmn.ability
+        assert "static" == engine_pkmn.base_ability
+        # foul-play keeps the real ability
+        assert "static" == pkmn.ability
+
+    def test_gastroacid_on_a_changed_ability_reverts_to_the_original(self):
+        pkmn = real_pkmn("pikachu", 100, "insomnia", "lightball", ["thunderbolt"])
+        pkmn.original_ability = "static"
+        pkmn.volatile_statuses.append(constants.GASTRO_ACID)
+        engine_pkmn = pokemon_to_poke_engine_pkmn(pkmn)
+        assert "none" == engine_pkmn.ability
+        assert "static" == engine_pkmn.base_ability
+
     def test_missing_item_becomes_none_string(self):
         pkmn = real_pkmn("pikachu", 100, "static", None, ["thunderbolt"])
         assert "None" == pokemon_to_poke_engine_pkmn(pkmn).item

@@ -29,6 +29,7 @@ from fp.battle.protocol_messages import (
     CureTeam,
     Damage,
     End,
+    EndAbility,
     EndItem,
     Fail,
     Faint,
@@ -250,6 +251,9 @@ def switch_or_drag(battle, msg: Switch):
             if constants.LEECH_SEED in side.active.volatile_statuses:
                 logger.info("Baton passing, preserving leechseed")
                 switch_keep_volatiles.append(constants.LEECH_SEED)
+            if constants.GASTRO_ACID in side.active.volatile_statuses:
+                logger.info("Baton passing, preserving gastroacid")
+                switch_keep_volatiles.append(constants.GASTRO_ACID)
         elif kwargs.is_from("shedtail"):
             side.shed_tailing = False
 
@@ -1965,6 +1969,15 @@ def singleturn(battle, msg: SingleTurn):
         )
 
 
+def endability(battle, msg: EndAbility):
+    # |-endability|p2a: Pawmot
+    # gastro acid suppresses the ability until the pokemon switches out
+    pkmn = battle.side(msg.pokemon.side).active
+    if constants.GASTRO_ACID not in pkmn.volatile_statuses:
+        logger.info("{}'s ability is suppressed by gastro acid".format(pkmn.name))
+        pkmn.volatile_statuses.append(constants.GASTRO_ACID)
+
+
 def mustrecharge(battle, msg: MustRecharge):
     # Bot's side does not get mustrecharge because the request JSON
     # will contain the only available `recharge` move
@@ -2444,6 +2457,7 @@ MESSAGE_HANDLERS = {
     ClearAllBoost: clearallboost,
     SingleTurn: singleturn,
     MustRecharge: mustrecharge,
+    EndAbility: endability,
     Upkeep: upkeep,
     Cant: cant,
     Inactive: inactive,

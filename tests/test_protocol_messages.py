@@ -6,6 +6,7 @@ from fp.battle.protocol_messages import (
     Ability,
     Activate,
     Anim,
+    EndAbility,
     Boost,
     Cant,
     ClearPositiveBoost,
@@ -131,6 +132,10 @@ class TestParseLine:
         assert isinstance(start, Start)
         assert ("Water",) == start.args
         assert isinstance(parse_line("|-singlemove|p1a: X|Destiny Bond"), Start)
+
+    def test_endability(self):
+        msg = parse_line("|-endability|p2a: Rotom")
+        assert EndAbility(PokemonIdent(SideId.P2, "a", "Rotom")) == msg
 
     def test_side_start(self):
         msg = parse_line("|-sidestart|p2: Username|move: Stealth Rock")

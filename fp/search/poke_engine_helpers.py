@@ -73,9 +73,15 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         pkmn_moves.append(PokeEngineMove(id="none", disabled=True, pp=0))
         num_moves += 1
 
+    ability = str(pkmn.ability)
     base_ability = ""
     if pkmn.original_ability:
         base_ability = str(pkmn.original_ability)
+
+    # gastro acid: the engine has no ability while suppressed and reverts to base_ability on switch-out
+    if constants.GASTRO_ACID in pkmn.volatile_statuses:
+        base_ability = base_ability or ability
+        ability = "none"
 
     return PokeEnginePokemon(
         id=str(pkmn.name),
@@ -84,7 +90,7 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         base_types=tuple(base_types),
         hp=int(pkmn.hp),
         maxhp=int(pkmn.max_hp),
-        ability=str(pkmn.ability),
+        ability=ability,
         base_ability=base_ability,
         item=str(pkmn.item),
         nature=pkmn.nature,

@@ -168,6 +168,7 @@ SWITCH_OUT_MOVES = {
 CONFUSION = "confusion"
 LEECH_SEED = "leechseed"
 SUBSTITUTE = "substitute"
+GASTRO_ACID = "gastroacid"
 TAUNT = "taunt"
 ROOST = "roost"
 PROTECT = "protect"
