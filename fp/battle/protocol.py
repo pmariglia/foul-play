@@ -1170,6 +1170,12 @@ def start_volatile_status(battle, msg: Start):
         )
         return
 
+    # PS cannot change a terastallized pokemon's types, but burn up and double shock still show it
+    # |-start|p2a: Pawmot|typechange|Electric|[from] move: Double Shock
+    if volatile_status == constants.TYPECHANGE and pkmn.terastallized:
+        logger.info("Ignoring typechange for {}: it is terastallized".format(pkmn.name))
+        return
+
     if volatile_status.startswith("perish"):
         logger.info(
             "{} got {}. Removing other `perish` volatiles".format(

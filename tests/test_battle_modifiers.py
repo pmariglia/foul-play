@@ -3574,6 +3574,24 @@ class TestStartVolatileStatus:
         assert ["dark"] == self.battle.user.active.types
         assert constants.TYPECHANGE not in self.battle.user.active.volatile_statuses
 
+    def test_typechange_on_a_terastallized_pokemon_is_ignored(self):
+        # PS fails to set the types but double shock still sends the message
+        self.battle.opponent.active = Pokemon("pawmot", 80)
+        self.battle.opponent.active.terastallized = True
+        self.battle.opponent.active.tera_type = "electric"
+        split_msg = [
+            "",
+            "-start",
+            "p2a: Pawmot",
+            "typechange",
+            "Electric",
+            "[from] move: Double Shock",
+        ]
+        start_volatile_status(self.battle, parse_as(protocol_messages.Start, split_msg))
+
+        assert ["electric", "fighting"] == self.battle.opponent.active.types
+        assert constants.TYPECHANGE not in self.battle.opponent.active.volatile_statuses
+
     def test_typechange_for_bots_own_pokemon_is_applied(self):
         self.battle.user.active = Pokemon("cinderace", 100)
         self.battle.user.active.nickname = "Cinderace"
