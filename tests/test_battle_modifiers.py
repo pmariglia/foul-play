@@ -1279,6 +1279,32 @@ class TestHealOrDamage:
         heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert amoongus_reserve.hp == int(amoongus_reserve.max_hp / 2)
 
+    @pytest.mark.parametrize(
+        "side_attr,ident,condition",
+        [
+            ("opponent", "p2a: Sus", "50/100"),
+            ("user", "p1a: Sus", "150/301"),
+        ],
+    )
+    def test_revivalblessing_clears_status_and_terastallization(
+        self, side_attr, ident, condition
+    ):
+        amoongus_reserve = Pokemon("amoonguss", 100)
+        amoongus_reserve.nickname = "Sus"
+        amoongus_reserve.hp = 0
+        amoongus_reserve.fainted = True
+        amoongus_reserve.status = constants.Status.BURN
+        amoongus_reserve.terastallized = True
+        amoongus_reserve.tera_type = "water"
+        getattr(self.battle, side_attr).reserve = [amoongus_reserve]
+
+        split_msg = ["", "-heal", ident, condition, "[from] move: Revival Blessing"]
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
+
+        assert amoongus_reserve.status is None
+        assert not amoongus_reserve.terastallized
+        assert "water" == amoongus_reserve.tera_type
+
     def test_gen1_pkmn_trapping_foe_releases_target_after_hitting_self_in_confusion(
         self,
     ):

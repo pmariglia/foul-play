@@ -556,6 +556,17 @@ def _heal_or_damage(battle, msg: Heal | Damage):
             pkmn.hp = condition.hp
             pkmn.max_hp = condition.max_hp
 
+    # a revived pokemon comes back without a status
+    # and fainting ends its terastallization
+    if kwargs.is_from("revivalblessing", EffectKind.MOVE):
+        logger.info(
+            "{} was revived - clearing its status and terastallization".format(
+                pkmn.name
+            )
+        )
+        pkmn.status = None
+        pkmn.terastallized = False
+
     # increase the amount of turns toxic has been active
     if condition.status == constants.Status.TOXIC and kwargs.is_from(
         constants.Status.POISON
