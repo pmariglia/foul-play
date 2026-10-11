@@ -36,6 +36,7 @@ class RandomBattleTeamDatasets(FullSetDatasets):
         self.raw_pkmn_sets = {}
         self.pkmn_sets = {}
         self.pkmn_mode = "uninitialized"
+        self.sets_by_pkmn = {}
 
     def _load_raw_sets(self, format_spec: FormatSpec):
         self.raw_pkmn_sets = get_randbats_sets_file(format_spec.base_name)
@@ -73,6 +74,7 @@ class RandomBattleTeamDatasets(FullSetDatasets):
         # always load entire JSON into memory
         self.raw_pkmn_sets = {}
         self.pkmn_sets = {}
+        self.sets_by_pkmn = {}
         self.pkmn_mode = format_spec.full_name
         self._load_raw_sets(format_spec)
         self._initialize_pkmn_sets()
@@ -125,6 +127,14 @@ class RandomBattleTeamDatasets(FullSetDatasets):
         return remaining_sets
 
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
+        # the same list is returned for the same pokemon so that sets removed from it
+        # (e.g. by the reverse damage calc) stay removed for the rest of the battle
+        key = (pkmn.name, pkmn.base_name, pkmn.mega_name)
+        if key not in self.sets_by_pkmn:
+            self.sets_by_pkmn[key] = self._get_pkmn_sets_from_pkmn_name(pkmn)
+        return self.sets_by_pkmn[key]
+
+    def _get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
         ret = []
         ret += self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets)
 

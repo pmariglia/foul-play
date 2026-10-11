@@ -152,6 +152,24 @@ class TestRandomBattleTeamDatasets:
         assert remaining_sets
         assert all(s.pkmn_set.ability == "battlebond" for s in remaining_sets)
 
+    def test_sets_removed_from_the_returned_list_stay_removed(self):
+        # the reverse damage calc removes sets from this list
+        pkmn = Pokemon("volcanion", 79)
+        sets = self.datasets.get_pkmn_sets_from_pkmn_name(pkmn)
+        removed = sets.pop(0)
+
+        assert removed not in self.datasets.get_pkmn_sets_from_pkmn_name(pkmn)
+        assert removed not in self.datasets.get_all_remaining_sets(pkmn)
+
+    def test_initialize_restores_removed_sets(self):
+        pkmn = Pokemon("volcanion", 79)
+        num_sets = len(self.datasets.get_pkmn_sets_from_pkmn_name(pkmn))
+        self.datasets.get_pkmn_sets_from_pkmn_name(pkmn).pop(0)
+
+        self.datasets.initialize(FormatSpec.from_format_string("gen9randombattle"))
+
+        assert num_sets == len(self.datasets.get_pkmn_sets_from_pkmn_name(pkmn))
+
 
 class TestPredictSet:
     def test_omits_impossible_ability_when_predicting_set(self):
