@@ -50,6 +50,14 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
     if pkmn.knocked_off or pkmn.item == "" or pkmn.item is None:
         pkmn.item = "None"
 
+    # eviolite only works on a pokemon that can evolve, e.g. one given it by trick may not.
+    # the engine applies it to any holder so pass an item that does nothing instead
+    # this is a hack: just remove the item before sending to poke-engine. i don't want to
+    # bother identifying which pokemon can evo and which can't in poke-engine
+    item = str(pkmn.item)
+    if item == "eviolite" and not pokedex[pkmn.name].get("evos"):
+        item = constants.UNKNOWN_ITEM
+
     base_types = pokedex[str(pkmn.name)][constants.TYPES]
     if len(base_types) == 1:
         base_types = (base_types[0], "typeless")
@@ -92,7 +100,7 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
         maxhp=int(pkmn.max_hp),
         ability=ability,
         base_ability=base_ability,
-        item=str(pkmn.item),
+        item=item,
         nature=pkmn.nature,
         evs=tuple(pkmn.evs),
         attack=pkmn.stats[constants.ATTACK],

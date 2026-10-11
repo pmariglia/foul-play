@@ -228,6 +228,17 @@ class TestPokemonToPokeEnginePkmn:
         assert "none" == engine_pkmn.ability
         assert "static" == engine_pkmn.base_ability
 
+    def test_eviolite_on_a_pokemon_that_can_evolve_is_kept(self):
+        pkmn = real_pkmn("piloswine", 100, "oblivious", "eviolite", ["earthquake"])
+        assert "eviolite" == pokemon_to_poke_engine_pkmn(pkmn).item
+
+    def test_eviolite_on_a_pokemon_that_cannot_evolve_does_nothing(self):
+        # e.g. given to it by trick
+        pkmn = real_pkmn("rotommow", 100, "levitate", "eviolite", ["leafstorm"])
+        assert constants.UNKNOWN_ITEM == pokemon_to_poke_engine_pkmn(pkmn).item
+        # foul-play still knows it holds eviolite
+        assert "eviolite" == pkmn.item
+
     def test_missing_item_becomes_none_string(self):
         pkmn = real_pkmn("pikachu", 100, "static", None, ["thunderbolt"])
         assert "None" == pokemon_to_poke_engine_pkmn(pkmn).item
