@@ -105,6 +105,15 @@ def neutralizing_gas_is_active(battle):
     )
 
 
+def ditto_is_active(battle):
+    # ditto's speed is unreliable: quick powder doubles it before it transforms,
+    # and transforming replaces its stats, so turn order says nothing useful about it
+    return any(
+        side.active is not None and side.active.name == "ditto"
+        for side in (battle.user, battle.opponent)
+    )
+
+
 def can_have_speed_modified(battle, pokemon):
     return (
         (
@@ -236,7 +245,7 @@ def check_speed_ranges(battle, messages: list[Message]):
             - Grassy Glide is used when Grassy Terrain is up
             - neutralizing gas is active
     """
-    if neutralizing_gas_is_active(battle):
+    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
         return
 
     for msg in messages:
@@ -435,7 +444,7 @@ def check_choicescarf(battle, messages: list[Message]):
     ) or battle.user.last_selected_move.move.startswith("switch "):
         return
 
-    if neutralizing_gas_is_active(battle):
+    if neutralizing_gas_is_active(battle) or ditto_is_active(battle):
         return
 
     moves = [get_move_information(battle, m) for m in messages if isinstance(m, Move)]

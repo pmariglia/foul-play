@@ -5880,6 +5880,34 @@ class TestCheckSpeedRanges:
         check_speed_ranges(self.battle, parse_lines(messages))
         assert speed_range == self.battle.opponent.active.speed_range
 
+    def test_opponent_ditto_makes_this_check_not_happen(self):
+        self.battle.opponent.active = Pokemon("ditto", 100)
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|move|p2a: Ditto|Transform|p1a: Caterpie",
+            "|-transform|p2a: Ditto|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Ditto",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
+    def test_bot_ditto_makes_this_check_not_happen(self):
+        self.battle.user.active = Pokemon("ditto", 100)
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove("ditto", "transform", 0)
+        speed_range = deepcopy(self.battle.opponent.active.speed_range)
+
+        messages = [
+            "|move|p2a: Caterpie|Tackle|p1a: Ditto",
+            "|move|p1a: Ditto|Transform|p2a: Caterpie",
+            "|-transform|p1a: Ditto|p2a: Caterpie",
+        ]
+        check_speed_ranges(self.battle, parse_lines(messages))
+        assert speed_range == self.battle.opponent.active.speed_range
+
 
 class TestGuessChoiceScarf:
     @pytest.fixture(autouse=True)
@@ -6444,6 +6472,22 @@ class TestGuessChoiceScarf:
             "|-zpower|p2a: Caterpie",
             "|move|p2a: Caterpie|Inferno Overdrive|p1a: Caterpie|[zeffect]",
             "|move|p1a: Caterpie|Tackle|p2a: Caterpie",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_opponent_ditto_does_not_infer_scarf(self):
+        # ditto can go first with quick powder instead of a choicescarf
+        self.battle.opponent.active = Pokemon("ditto", 100)
+        self.battle.user.active.stats[constants.SPEED] = 300
+        self.battle.user.last_selected_move = LastUsedMove("caterpie", "tackle", 0)
+
+        messages = [
+            "|move|p2a: Ditto|Transform|p1a: Caterpie",
+            "|-transform|p2a: Ditto|p1a: Caterpie",
+            "|move|p1a: Caterpie|Tackle|p2a: Ditto",
         ]
 
         check_choicescarf(self.battle, parse_lines(messages))
