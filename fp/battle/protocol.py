@@ -779,6 +779,11 @@ def move(battle, msg: Move):
         logger.info("Removing destinybond from {}".format(pkmn.name))
         remove_volatile(pkmn, "destinybond")
 
+    # glaive rush's drawback ends silently when the pokemon next tries to move
+    if constants.GLAIVE_RUSH in pkmn.volatile_statuses:
+        logger.info("Removing glaiverush from {}".format(pkmn.name))
+        remove_volatile(pkmn, constants.GLAIVE_RUSH)
+
     if "encore" in pkmn.volatile_statuses:
         pkmn.volatile_status_durations["encore"] += 1
         logger.info(
@@ -1986,6 +1991,11 @@ def cant(battle, msg: Cant):
         turn=battle.turn,
     )
     side.active.acted_since_switch_in = True
+
+    # glaive rush's drawback ends before anything that stops the pokemon from moving
+    if constants.GLAIVE_RUSH in side.active.volatile_statuses:
+        logger.info("Removing glaiverush from {}".format(side.active.name))
+        remove_volatile(side.active, constants.GLAIVE_RUSH)
 
     reason = msg.reason
 

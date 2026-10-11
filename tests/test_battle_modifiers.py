@@ -2195,6 +2195,25 @@ class TestMove:
 
         assert [] == self.battle.opponent.active.volatile_statuses
 
+    def test_removes_glaiverush_when_the_pkmn_moves_again(self):
+        self.battle.opponent.active.volatile_statuses = [constants.GLAIVE_RUSH]
+        split_msg = ["", "move", "p2a: Caterpie", "Tackle"]
+
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert [] == self.battle.opponent.active.volatile_statuses
+
+    def test_glaiverush_is_active_after_using_glaive_rush(self):
+        for msg in parse_lines(
+            [
+                "|move|p2a: Caterpie|Glaive Rush|p1a: Weedle",
+                "|-singlemove|p2a: Caterpie|Glaive Rush|[silent]",
+            ]
+        ):
+            apply_message(self.battle, msg)
+
+        assert constants.GLAIVE_RUSH in self.battle.opponent.active.volatile_statuses
+
     def test_sets_can_have_choice_item_to_false_if_two_different_moves_are_used_when_the_pkmn_has_an_unknown_item(
         self,
     ):
@@ -5272,6 +5291,14 @@ class TestCant:
             ),
         )
         assert Move("toxic") in self.battle.opponent.active.moves
+
+    def test_removes_glaiverush_when_the_pkmn_cannot_move(self):
+        self.battle.opponent.active.volatile_statuses = [constants.GLAIVE_RUSH]
+        cant(
+            self.battle,
+            parse_as(protocol_messages.Cant, ["", "cant", "p2a: Caterpie", "par"]),
+        )
+        assert [] == self.battle.opponent.active.volatile_statuses
 
     def test_does_not_add_move_from_throat_chop(self):
         # the pokemon that was hit by throat chop did not use throat chop
