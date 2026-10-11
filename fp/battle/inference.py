@@ -156,6 +156,13 @@ def check_speed_ranges(battle, msg_lines):
             - the opponent COULD have prankster and it used a status move
             - Grassy Glide is used when Grassy Terrain is up
     """
+    # The bot's last selection was a switch (e.g. the revive pick after Revival Blessing, which produces
+    # no |switch| line): there is no move of the bot's to compare speeds with, and looking the switch up
+    # as a move raised KeyError ('switchbanette') and crashed the bot mid-battle. Same guard as
+    # check_choicescarf.
+    if battle.user.last_selected_move.move.startswith("switch "):
+        return
+
     for ln in msg_lines:
         # If either side switched this turn - don't do this check
         if ln.startswith("|switch|"):
