@@ -8462,6 +8462,41 @@ class TestUpdateDatasetPossibilities:
         update_dataset_possibilities(self.battle, damage_dealt, "damage_received")
         assert self.dataset_possibilities_calls == 0
 
+    @pytest.mark.parametrize(
+        "percent_hp,expected_calls",
+        [
+            (34, 0),  # true HP is 33-34%: overgrow may or may not be active
+            (33, 1),  # true HP is at most 33%: overgrow is active and modelled
+            (40, 1),  # overgrow is not active
+        ],
+    )
+    def test_skips_pinch_ability_attacker_whose_hp_may_be_under_a_third(
+        self, percent_hp, expected_calls
+    ):
+        self.battle.opponent.active = Pokemon("meganium", 100)
+        self.battle.opponent.active.hp = (
+            self.battle.opponent.active.max_hp * percent_hp / 100
+        )
+        self.battle.opponent.last_used_move = LastUsedMove(
+            "meganium", "petalblizzard", 1
+        )
+        damage_dealt = DamageDealt(
+            attacker="meganium",
+            defender="caterpie",
+            move="petalblizzard",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, "damage_dealt")
+        assert self.dataset_possibilities_calls == expected_calls
+
+    def test_does_not_skip_attacker_without_a_pinch_ability_near_a_third_hp(self):
+        self.battle.opponent.active.hp = self.battle.opponent.active.max_hp * 0.34
+        update_dataset_possibilities(
+            self.battle, self._damage_dealt("tackle"), "damage_dealt"
+        )
+        assert self.dataset_possibilities_calls == 1
+
 
 class TestNoInit:
     @pytest.fixture(autouse=True)

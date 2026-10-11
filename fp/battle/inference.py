@@ -667,6 +667,23 @@ def _terastallized_low_base_power_move(attacker, move_name) -> bool:
     return attacker.terastallized and 0 < all_move_json[move_name]["basePower"] < 60
 
 
+def _pinch_ability_may_be_active(pkmn) -> bool:
+    # the opponent's HP is shown rounded up to a whole percent, so its true HP can be
+    # up to 1% of its max HP lower. When that range spans 1/3 we cannot tell whether
+    # overgrow, blaze, etc. boosted the move
+    pinch_abilities = {"overgrow", "blaze", "torrent", "swarm"}
+
+    if pkmn.ability:
+        abilities = {pkmn.ability}
+    else:
+        abilities = {
+            normalize_name(a) for a in pokedex[pkmn.name][constants.ABILITIES].values()
+        }
+    return bool(abilities & pinch_abilities) and (
+        pkmn.hp - 0.01 * pkmn.max_hp < pkmn.max_hp / 3 < pkmn.hp
+    )
+
+
 def update_dataset_possibilities(
     battle,
     damage_dealt,
@@ -701,6 +718,10 @@ def update_dataset_possibilities(
         or "multiaccuracy" in all_move_json[damage_dealt.move]
         or damage_dealt.move.startswith(constants.HIDDEN_POWER)
         or damage_dealt.percent_damage == 0
+        or (
+            check_type == "damage_dealt"
+            and _pinch_ability_may_be_active(battle.opponent.active)
+        )
         or (
             check_type == "damage_dealt"
             and _terastallized_low_base_power_move(
