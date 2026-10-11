@@ -451,7 +451,45 @@ class Battler:
         assert (
             len(request_active_pkmn) == 1
         ), f"Didn't find exactly 1 {pokedex_name}, pokemon: {request.side.pokemon}"
+        self._set_active_stats_if_same_forme(request_active_pkmn[0])
+
+    def sync_active_stats_from_request(self, request: Request):
+        """
+        Takes the active pokemon's stats from a request once the messages it summarizes have been
+        processed: the request and the battle then describe the same moment, so a temporary forme
+        that lasts across turns (e.g. aegislash-blade) gets its exact stats
+        """
+        request_active_pkmn = [p for p in request.side.pokemon if p.active]
+        if (
+            self.active is None
+            or len(request_active_pkmn) != 1
+            # PS keeps the pokemon's own stats in the request while it is transformed
+            or constants.TRANSFORM in self.active.volatile_statuses
+        ):
+            return
         pkmn_info = request_active_pkmn[0]
+        if (
+            self.active.nickname is not None
+            and pkmn_info.ident.nickname != self.active.nickname
+        ):
+            return
+
+        # no forme check: a temporary forme is not shown in the request's details,
+        # but here its stats are for the forme the pokemon is in
+        for stat, number in pkmn_info.stats.items():
+            self.active.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
+
+    def _set_active_stats_if_same_forme(self, pkmn_info: RequestPokemon):
+        # a temporary forme change (e.g. minior's shields down) is not shown in the request's details,
+        # so the request's stats can only be trusted when it is in the same forme as the active pokemon
+        if normalize_name(pkmn_info.details.species) != self.active.name:
+            logger.info(
+                "Not taking {}'s stats from the request: it is {} there".format(
+                    self.active.name, pkmn_info.details.species
+                )
+            )
+            return
+
         for stat, number in pkmn_info.stats.items():
             self.active.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
 
@@ -667,7 +705,9 @@ class Pokemon:
         self.name = new_pokemon.name
         self.hp = int(current_hp_percentage * self.max_hp)
         self.base_stats = new_pokemon.base_stats
-        self.stats = calculate_stats(self.base_stats, self.level)
+        self.stats = calculate_stats(
+            self.base_stats, self.level, nature=self.nature, evs=self.evs
+        )
         self.ability = new_pokemon.ability
         self.types = new_pokemon.types
         self.forme_changed = True

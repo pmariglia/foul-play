@@ -9395,6 +9395,127 @@ class TestUpdateBattle:
         assert 226 == self.battle.user.active.hp
         assert 172 == self.battle.user.active.stats[constants.DEFENSE]
 
+    def test_user_temporary_forme_change_does_not_take_stats_from_the_request(self):
+        # minior's shields down: meteor on switch-in, back to core after taking damage.
+        # the request has the core's stats because that is its forme at the end of the turn
+        minior = Pokemon("miniororange", 79)
+        minior.nickname = "Minior"
+        self.battle.user.active = minior
+        request = {
+            "rqid": 30,
+            "side": {
+                "name": "Bot",
+                "id": "p1",
+                "pokemon": [
+                    {
+                        "ident": "p1: Minior",
+                        "details": "Minior-Orange, L79",
+                        "condition": "98/224",
+                        "active": True,
+                        "stats": {
+                            "atk": 204,
+                            "def": 140,
+                            "spa": 204,
+                            "spd": 140,
+                            "spe": 235,
+                        },
+                        "moves": ["shellsmash", "earthquake"],
+                        "baseAbility": "shieldsdown",
+                        "item": "whiteherb",
+                        "ability": "shieldsdown",
+                        "teraType": "Water",
+                    }
+                ],
+            },
+        }
+        self.battle.request = Request.from_json(request)
+
+        meteor = [
+            "",
+            "-formechange",
+            "p1a: Minior",
+            "Minior-Meteor",
+            "",
+            "[from] ability: Shields Down",
+        ]
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, meteor))
+        assert "miniormeteor" == self.battle.user.active.name
+        assert 204 == self.battle.user.active.stats[constants.DEFENSE]
+        assert 140 == self.battle.user.active.stats[constants.SPEED]
+
+        core = [
+            "",
+            "-formechange",
+            "p1a: Minior",
+            "Minior-Orange",
+            "",
+            "[from] ability: Shields Down",
+        ]
+        form_change(self.battle, parse_as(protocol_messages.FormeChange, core))
+        assert "miniororange" == self.battle.user.active.name
+        assert 140 == self.battle.user.active.stats[constants.DEFENSE]
+        assert 235 == self.battle.user.active.stats[constants.SPEED]
+
+    def _aegislash_request(self, atk):
+        return {
+            "rqid": 5,
+            "wait": True,
+            "side": {
+                "name": "Bot",
+                "id": "p1",
+                "pokemon": [
+                    {
+                        "ident": "p1: Aegislash",
+                        # temporary formes are not shown in the request's details
+                        "details": "Aegislash, L80, M",
+                        "condition": "250/250",
+                        "active": True,
+                        "stats": {
+                            "atk": atk,
+                            "def": 123,
+                            "spa": 234,
+                            "spd": 123,
+                            "spe": 145,
+                        },
+                        "moves": ["shadowball", "kingsshield"],
+                        "baseAbility": "stancechange",
+                        "item": "leftovers",
+                        "ability": "stancechange",
+                        "teraType": "Ghost",
+                    }
+                ],
+            },
+        }
+
+    def test_user_temporary_forme_gets_its_stats_from_the_request_after_the_turn(self):
+        aegislash = Pokemon("aegislash", 80)
+        aegislash.nickname = "Aegislash"
+        self.battle.user.active = aegislash
+        msg = "\n".join(
+            [
+                "|-formechange|p1a: Aegislash|Aegislash-Blade|[from] ability: Stance Change",
+                "|move|p1a: Aegislash|Shadow Ball|p2a: Pikachu",
+                "|request|{}".format(json.dumps(self._aegislash_request(atk=234))),
+            ]
+        )
+        update_battle(self.battle, msg)
+
+        assert "aegislashblade" == self.battle.user.active.name
+        assert 234 == self.battle.user.active.stats[constants.ATTACK]
+        assert 123 == self.battle.user.active.stats[constants.DEFENSE]
+
+    def test_transformed_user_does_not_get_its_stats_from_the_request(self):
+        # PS keeps the pokemon's own stats in the request while it is transformed
+        aegislash = Pokemon("aegislash", 80)
+        aegislash.nickname = "Aegislash"
+        aegislash.volatile_statuses.append(constants.TRANSFORM)
+        aegislash.stats[constants.ATTACK] = 300
+        self.battle.user.active = aegislash
+        msg = "|request|{}".format(json.dumps(self._aegislash_request(atk=100)))
+        update_battle(self.battle, msg)
+
+        assert 300 == self.battle.user.active.stats[constants.ATTACK]
+
     def test_non_request_messages_are_queued_and_false_is_returned(self):
         msg = "|move|p1a: Caterpie|Tackle|p2a: Pikachu\n|-damage|p2a: Pikachu|85/100"
         result = update_battle(self.battle, msg)

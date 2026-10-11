@@ -2467,6 +2467,8 @@ def update_battle(battle: Battle, msg: str):
 
             request(battle, parsed)
             process_battle_updates(battle)
+            # the request describes the battle after the messages that came before it
+            battle.user.sync_active_stats_from_request(battle.request)
             return not battle.wait
         else:
             battle.msg_list.append(line)
