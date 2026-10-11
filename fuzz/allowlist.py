@@ -66,10 +66,7 @@ IGNORED_MESSAGE_TYPES = {
 
 # message types that DO change state foul-play tracks, but are not handled yet.
 # reported as known gaps rather than drift
-KNOWN_UNHANDLED_MESSAGE_TYPES = {
-    "-invertboost": "topsy-turvy inverts boosts",
-    "swap": "doubles only: allies swap positions",
-}
+KNOWN_UNHANDLED_MESSAGE_TYPES = {}
 
 # keyword arguments (`[key] value`) that PS is known to send
 KNOWN_KWARGS = {

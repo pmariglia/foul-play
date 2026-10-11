@@ -86,6 +86,7 @@ from fp.battle.protocol import mustrecharge
 from fp.battle.protocol import endability
 from fp.battle.protocol import copyboost
 from fp.battle.protocol import swapboost
+from fp.battle.protocol import invertboost
 from fp.battle.protocol import mega
 from fp.battle.protocol import update_battle
 from fp.battle.protocol import async_update_battle
@@ -9134,6 +9135,41 @@ class TestSwapBoost:
         assert 0 == self.battle.user.active.boosts[constants.EVASION]
         assert 0 == self.battle.opponent.active.boosts[constants.ATTACK]
         assert 1 == self.battle.opponent.active.boosts[constants.EVASION]
+
+
+class TestInvertBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("malamar", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("dragonite", 100)
+
+    def test_every_boost_is_inverted(self):
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+        self.battle.opponent.active.boosts[constants.SPEED] = -1
+        self.battle.opponent.active.boosts[constants.EVASION] = 1
+
+        split_msg = ["", "-invertboost", "p2a: Dragonite", "[from] move: Topsy-Turvy"]
+        invertboost(self.battle, parse_as(protocol_messages.InvertBoost, split_msg))
+
+        assert -2 == self.battle.opponent.active.boosts[constants.ATTACK]
+        assert 1 == self.battle.opponent.active.boosts[constants.SPEED]
+        assert -1 == self.battle.opponent.active.boosts[constants.EVASION]
+        assert 0 == self.battle.opponent.active.boosts[constants.DEFENSE]
+
+    def test_only_the_target_is_inverted(self):
+        self.battle.user.active.boosts[constants.ATTACK] = 2
+
+        split_msg = ["", "-invertboost", "p2a: Dragonite", "[from] move: Topsy-Turvy"]
+        invertboost(self.battle, parse_as(protocol_messages.InvertBoost, split_msg))
+
+        assert 2 == self.battle.user.active.boosts[constants.ATTACK]
 
 
 class TestEndAbility:

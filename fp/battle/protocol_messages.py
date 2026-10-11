@@ -332,6 +332,11 @@ class SwapBoost(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class InvertBoost(Message):
+    pokemon: PokemonIdent
+
+
+@dataclass(frozen=True, slots=True)
 class EndAbility(Message):
     pokemon: PokemonIdent
 
@@ -711,6 +716,7 @@ PARSERS = {
     "-endability": _parse_pokemon_only(EndAbility),
     "-copyboost": _parse_copy_boost,
     "-swapboost": _parse_swap_boost,
+    "-invertboost": _parse_pokemon_only(InvertBoost),
     "cant": _parse_cant,
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,

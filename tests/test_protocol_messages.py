@@ -5,6 +5,7 @@ from fp.battle.protocol import apply_message
 from fp.battle.protocol_messages import (
     Ability,
     Activate,
+    InvertBoost,
     Anim,
     CopyBoost,
     EndAbility,
@@ -151,6 +152,11 @@ class TestParseLine:
     def test_swapboost_without_stats_swaps_everything(self):
         msg = parse_line("|-swapboost|p1a: X|p2a: Y|[from] move: Heart Swap")
         assert msg.stats is None
+
+    def test_invertboost(self):
+        msg = parse_line("|-invertboost|p2a: Y|[from] move: Topsy-Turvy")
+        assert isinstance(msg, InvertBoost)
+        assert PokemonIdent(SideId.P2, "a", "Y") == msg.pokemon
 
     def test_endability(self):
         msg = parse_line("|-endability|p2a: Rotom")

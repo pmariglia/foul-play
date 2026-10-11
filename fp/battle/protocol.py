@@ -40,6 +40,7 @@ from fp.battle.protocol_messages import (
     Heal,
     Immune,
     Inactive,
+    InvertBoost,
     InactiveOff,
     Item,
     Mega,
@@ -2003,6 +2004,14 @@ def swapboost(battle, msg: SwapBoost):
     logger.info("{} and {} swapped boosts: {}".format(pkmn.name, target.name, stats))
 
 
+def invertboost(battle, msg: InvertBoost):
+    # |-invertboost|p2a: Dragonite|[from] move: Topsy-Turvy
+    pkmn = battle.side(msg.pokemon.side).active
+    for stat in list(pkmn.boosts):
+        pkmn.boosts[stat] = -pkmn.boosts[stat]
+    logger.info("{}'s boosts were inverted: {}".format(pkmn.name, dict(pkmn.boosts)))
+
+
 def endability(battle, msg: EndAbility):
     # |-endability|p2a: Pawmot
     # gastro acid suppresses the ability until the pokemon switches out
@@ -2494,6 +2503,7 @@ MESSAGE_HANDLERS = {
     EndAbility: endability,
     CopyBoost: copyboost,
     SwapBoost: swapboost,
+    InvertBoost: invertboost,
     Upkeep: upkeep,
     Cant: cant,
     Inactive: inactive,
