@@ -805,6 +805,7 @@ def update_dataset_possibilities(
             # double power if the user's last move failed, which is not tracked
             "stompingtantrum",
             "temperflare",
+            "acrobatics",
         ]
     ):
         return
