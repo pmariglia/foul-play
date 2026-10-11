@@ -6567,6 +6567,31 @@ class TestGuessChoiceScarf:
 
         assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
 
+    @pytest.mark.parametrize(
+        "move_name,expected_item",
+        [
+            # triage gives healing moves +3 priority, so going first says nothing about speed
+            ("Draining Kiss", constants.UNKNOWN_ITEM),
+            ("Play Rough", "choicescarf"),
+        ],
+    )
+    def test_choicescarf_guess_when_opponent_could_have_triage(
+        self, move_name, expected_item
+    ):
+        self.battle.opponent.active.name = "comfey"
+        self.battle.user.active.stats[constants.SPEED] = (
+            330  # opponent's speed should not be greater than 328 (max speed comfey)
+        )
+
+        messages = [
+            "|move|p2a: Comfey|{}|".format(move_name),
+            "|move|p1a: Caterpie|Tackle|",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert expected_item == self.battle.opponent.active.item
+
     def test_does_not_guess_choicescarf_when_opponent_is_speed_boosted(self):
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed should not be greater than 207 (max speed caterpie)

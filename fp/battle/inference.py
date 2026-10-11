@@ -118,6 +118,16 @@ def can_have_priority_modified(battle, pokemon, move_name):
                 for a in pokedex[pokemon.name][constants.ABILITIES].values()
             ]
         )
+        # triage gives healing moves, including draining moves like giga drain, +3 priority
+        or (
+            move_name in all_move_json
+            and all_move_json[move_name].get("flags", {}).get("heal")
+            and "triage"
+            in [
+                normalize_name(a)
+                for a in pokedex[pokemon.name][constants.ABILITIES].values()
+            ]
+        )
     )
 
 
