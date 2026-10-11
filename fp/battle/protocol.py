@@ -1648,6 +1648,8 @@ def immune(battle, msg: Immune):
         side is battle.opponent
         and not side.active.name.startswith("zoroark")
         and battle.user.last_used_move.move in all_move_json
+        and battle.user.last_used_move.move
+        not in constants.MOVES_SKIPPING_ZOROARK_IMMUNE_CHECK
         and all_move_json[battle.user.last_used_move.move][constants.CATEGORY]
         != constants.MoveCategory.STATUS
         and type_effectiveness_modifier(

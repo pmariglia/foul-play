@@ -7436,6 +7436,30 @@ class TestImmune:
         assert [] == self.battle.opponent.reserve[0].moves
         assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
+    @pytest.mark.parametrize("move", ["endeavor", "dreameater", "synchronoise"])
+    def test_randbats_does_not_infer_zoroark_from_non_type_immunity(self, move):
+        # e.g. endeavor gets '-immune' when the target's HP is not higher than the user's
+        self.battle.mode = RandomBattleMode()
+        self.battle.generation = "gen9"
+        self.battle.mode.datasets.initialize(
+            FormatSpec.from_format_string("gen9randombattle")
+        )
+        self.battle.opponent.reserve = []
+
+        self.battle.opponent.active = Pokemon("glalie", 100)
+        self.battle.user.active.hp = 1
+
+        self.battle.user.last_used_move = LastUsedMove("weedle", move, 0)
+        split_msg = [
+            "",
+            "-immune",
+            "p2a: Glalie",
+        ]
+        immune(self.battle, parse_as(protocol_messages.Immune, split_msg))
+
+        assert "glalie" == self.battle.opponent.active.name
+        assert 0 == len(self.battle.opponent.reserve)
+
     def test_gen4_does_not_infer_zoroark(self):
         self.battle.mode = RandomBattleMode()
         self.battle.generation = "gen4"

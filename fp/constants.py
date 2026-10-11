@@ -200,6 +200,14 @@ NON_VOLATILE_STATUSES = set(Status)
 
 IMMUNE_TO_POISON_ABILITIES = {"immunity", "pastelveil"}
 
+# damaging moves where PS sends '-immune' for reasons other than type immunity
+# an '-immune' from one of these says nothing about the target being a disguised zoroark
+MOVES_SKIPPING_ZOROARK_IMMUNE_CHECK = {
+    "endeavor",  # target's HP is not higher than the user's
+    "dreameater",  # target is not asleep
+    "synchronoise",  # target shares no type with the user
+}
+
 ASSAULT_VEST = "assaultvest"
 HEAVY_DUTY_BOOTS = "heavydutyboots"
 LEFTOVERS = "leftovers"
