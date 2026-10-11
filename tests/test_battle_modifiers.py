@@ -4869,6 +4869,70 @@ class TestItemSwappingMoves:
 
         assert not self.battle.opponent.active.can_have_choice_item
 
+    @pytest.mark.parametrize("item_swapping_move", ["Trick", "Switcheroo"])
+    def test_opponent_removed_item_is_the_item_the_bot_received(
+        self, item_swapping_move
+    ):
+        self._apply(
+            [
+                "|move|p2a: Seviper|{}|p1a: Flutter Mane".format(item_swapping_move),
+                "|-activate|p2a: Seviper|move: Trick|[of] p1a: Flutter Mane",
+                "|-item|p1a: Flutter Mane|Choice Scarf|[from] move: {}".format(
+                    item_swapping_move
+                ),
+                "|-item|p2a: Seviper|Choice Specs|[from] move: {}".format(
+                    item_swapping_move
+                ),
+            ]
+        )
+
+        assert "choicescarf" == self.battle.opponent.active.removed_item
+        assert "choicespecs" == self.battle.opponent.active.item
+
+    def _bot_tricks_choice_scarf_onto_opponent_after_gunkshot(self):
+        self.battle.opponent.active.add_move("gunkshot")
+        self.battle.opponent.active.add_move("flamethrower")
+        self._apply(
+            [
+                "|move|p2a: Seviper|Gunk Shot|p1a: Flutter Mane",
+                "|move|p1a: Flutter Mane|Trick|p2a: Seviper",
+                "|-activate|p1a: Flutter Mane|move: Trick|[of] p2a: Seviper",
+                "|-item|p2a: Seviper|Choice Scarf|[from] move: Trick",
+                "|-item|p1a: Flutter Mane|Leftovers|[from] move: Trick",
+            ]
+        )
+
+    def test_opponent_is_not_choice_locked_after_bot_tricks_a_choice_item_onto_it(
+        self,
+    ):
+        self._bot_tricks_choice_scarf_onto_opponent_after_gunkshot()
+
+        self.battle.opponent.choice_lock_moves()
+
+        assert not self.battle.opponent.active.get_move("gunkshot").disabled
+        assert not self.battle.opponent.active.get_move("flamethrower").disabled
+
+    def test_different_move_after_bot_tricks_a_choice_item_onto_opponent_keeps_the_item(
+        self,
+    ):
+        self._bot_tricks_choice_scarf_onto_opponent_after_gunkshot()
+
+        self._apply(["|move|p2a: Seviper|Flamethrower|p1a: Flutter Mane"])
+
+        assert "choicescarf" == self.battle.opponent.active.item
+        assert self.battle.opponent.active.can_have_choice_item
+
+    def test_opponent_is_choice_locked_into_the_move_it_uses_after_being_tricked(
+        self,
+    ):
+        self._bot_tricks_choice_scarf_onto_opponent_after_gunkshot()
+
+        self._apply(["|move|p2a: Seviper|Flamethrower|p1a: Flutter Mane"])
+        self.battle.opponent.choice_lock_moves()
+
+        assert self.battle.opponent.active.get_move("gunkshot").disabled
+        assert not self.battle.opponent.active.get_move("flamethrower").disabled
+
     def test_revealed_item_is_not_inferred(self):
         self.battle.opponent.active.item = "choicescarf"
         self.battle.opponent.active.item_inferred = True

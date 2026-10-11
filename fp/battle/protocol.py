@@ -1552,6 +1552,11 @@ def set_item(battle, msg: Item):
     other_side = battle.other_side(side)
 
     item = normalize_name(msg.item)
+    from_item_swapping_move = (
+        kwargs.from_ is not None
+        and kwargs.from_.kind == EffectKind.MOVE
+        and kwargs.from_.id in constants.ITEM_SWAPPING_MOVES
+    )
 
     if (
         kwargs.from_ is not None
@@ -1559,17 +1564,29 @@ def set_item(battle, msg: Item):
         and item != side.active.item
         and side.active.item not in [constants.UNKNOWN_ITEM]
     ):
-        logger.info("{}'s removed item is {}".format(side.active.name, item))
+        logger.info(
+            "{}'s removed item is {}".format(side.active.name, side.active.item)
+        )
         side.active.removed_item = side.active.item
 
     # when the bot gets tricked we set the opponent's removed item
     if (
-        kwargs.is_from("trick", EffectKind.MOVE)
+        from_item_swapping_move
         and side is battle.user
         and other_side.active.removed_item is None
     ):
         logger.info("Setting opponent's removed_item to {}".format(item))
         other_side.active.removed_item = item
+
+    # receiving an item from trick/switcheroo ends any choice lock,
+    # so the move used before it no longer locks this pokemon
+    if from_item_swapping_move:
+        logger.info("{} is no longer locked into a move".format(side.active.name))
+        side.last_used_move = LastUsedMove(
+            pokemon_name=None,
+            move=side.last_used_move.move,
+            turn=side.last_used_move.turn,
+        )
 
     logger.info("Setting {}'s item to {}".format(side.active.name, item))
     side.active.item = item

@@ -308,9 +308,6 @@ class Battler:
 
     def choice_lock_moves(self):
         # if the active pokemon has a choice item and their last used move was by this pokemon -> lock their other moves
-        #
-        # known bug: the bot tricking a choice item onto the opponent will lock their move when it shouldn't.
-        # this will only happen if the bot tricks the opponent after the opponent has already used a move
         if (
             self.active.item in constants.CHOICE_ITEMS
             and self.last_used_move.pokemon_name == self.active.name
