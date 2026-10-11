@@ -84,6 +84,7 @@ from fp.battle.protocol import cureteam
 from fp.battle.protocol import sideend
 from fp.battle.protocol import mustrecharge
 from fp.battle.protocol import endability
+from fp.battle.protocol import copyboost
 from fp.battle.protocol import mega
 from fp.battle.protocol import update_battle
 from fp.battle.protocol import async_update_battle
@@ -9006,6 +9007,68 @@ class TestSideEnd:
         sideend(self.battle, parse_as(protocol_messages.SideEnd, split_msg))
 
         assert 0 == self.battle.user.side_conditions[constants.TOXIC_SPIKES]
+
+
+class TestCopyBoost:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = StandardBattleMode()
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("dragonite", 100)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("garchomp", 100)
+
+    def _copyboost(self, source, target):
+        split_msg = ["", "-copyboost", source, target, "[from] move: Psych Up"]
+        copyboost(self.battle, parse_as(protocol_messages.CopyBoost, split_msg))
+
+    def test_user_of_psych_up_copies_the_targets_boosts(self):
+        self.battle.user.active.boosts[constants.SPEED] = 1
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+        self.battle.opponent.active.boosts[constants.EVASION] = -1
+
+        self._copyboost("p1a: Dragonite", "p2a: Garchomp")
+
+        assert 2 == self.battle.user.active.boosts[constants.ATTACK]
+        assert -1 == self.battle.user.active.boosts[constants.EVASION]
+        assert 0 == self.battle.user.active.boosts[constants.SPEED]
+        # the target keeps its boosts
+        assert 2 == self.battle.opponent.active.boosts[constants.ATTACK]
+
+    def test_opponent_using_psych_up_copies_the_bots_boosts(self):
+        self.battle.user.active.boosts[constants.SPECIAL_ATTACK] = 2
+
+        self._copyboost("p2a: Garchomp", "p1a: Dragonite")
+
+        assert 2 == self.battle.opponent.active.boosts[constants.SPECIAL_ATTACK]
+
+    def test_copied_boosts_are_not_shared(self):
+        self.battle.opponent.active.boosts[constants.ATTACK] = 2
+
+        self._copyboost("p1a: Dragonite", "p2a: Garchomp")
+        self.battle.user.active.boosts[constants.ATTACK] = 6
+
+        assert 2 == self.battle.opponent.active.boosts[constants.ATTACK]
+
+    def test_crit_volatiles_are_copied(self):
+        self.battle.user.active.volatile_statuses = ["laserfocus", "confusion"]
+        self.battle.opponent.active.volatile_statuses = ["focusenergy"]
+
+        self._copyboost("p1a: Dragonite", "p2a: Garchomp")
+
+        assert ["confusion", "focusenergy"] == self.battle.user.active.volatile_statuses
+
+    def test_crit_volatiles_are_not_copied_in_gen5(self):
+        self.battle.generation = "gen5"
+        self.battle.user.active.volatile_statuses = ["focusenergy"]
+
+        self._copyboost("p1a: Dragonite", "p2a: Garchomp")
+
+        assert ["focusenergy"] == self.battle.user.active.volatile_statuses
 
 
 class TestEndAbility:

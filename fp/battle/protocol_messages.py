@@ -318,6 +318,12 @@ class MustRecharge(Message):
 
 
 @dataclass(frozen=True, slots=True)
+class CopyBoost(Message):
+    pokemon: PokemonIdent
+    target: PokemonIdent
+
+
+@dataclass(frozen=True, slots=True)
 class EndAbility(Message):
     pokemon: PokemonIdent
 
@@ -578,6 +584,15 @@ def _parse_transform(args, kwargs, raw, _):
     )
 
 
+def _parse_copy_boost(args, kwargs, raw, _):
+    return CopyBoost(
+        PokemonIdent.parse(args[0]),
+        PokemonIdent.parse(args[1]),
+        kwargs=kwargs,
+        raw=raw,
+    )
+
+
 def _parse_mega(args, kwargs, raw, _):
     return Mega(
         PokemonIdent.parse(args[0]),
@@ -672,7 +687,8 @@ PARSERS = {
     "-clearallboost": _parse_no_args(ClearAllBoost),
     "-singleturn": _parse_pokemon_and_effect(SingleTurn),
     "-mustrecharge": _parse_pokemon_only(MustRecharge),
-`    "-endability": _parse_pokemon_only(EndAbility),
+    "-endability": _parse_pokemon_only(EndAbility),
+    "-copyboost": _parse_copy_boost,
     "cant": _parse_cant,
     "upkeep": _parse_no_args(Upkeep),
     "turn": _parse_turn,

@@ -56,6 +56,9 @@ class GenerationMechanics:
     # gen1 swordsdance/agility nullify the effects of burn/paralysis
     stat_modification_glitches: bool = False
 
+    # gen6+ psych up also copies focus energy, dragon cheer and laser focus
+    copyboost_copies_crit_volatiles: bool = True
+
     # champions has no regenerator healing on switch-out
     regenerator_heals_on_switch_out: bool = True
 
@@ -94,6 +97,7 @@ GEN5 = replace(
     ability_weather_is_permanent=True,
     rest_turns_reset_on_switch=True,
     hidden_power_base_damage_string="70",
+    copyboost_copies_crit_volatiles=False,
 )
 GEN4 = replace(
     GEN5,

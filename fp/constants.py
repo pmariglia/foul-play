@@ -169,6 +169,7 @@ CONFUSION = "confusion"
 LEECH_SEED = "leechseed"
 SUBSTITUTE = "substitute"
 GASTRO_ACID = "gastroacid"
+CRIT_VOLATILES = ("focusenergy", "dragoncheer", "laserfocus")
 TAUNT = "taunt"
 ROOST = "roost"
 PROTECT = "protect"

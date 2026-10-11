@@ -25,6 +25,7 @@ from fp.battle.protocol_messages import (
     ClearBoost,
     ClearNegativeBoost,
     ClearPositiveBoost,
+    CopyBoost,
     CureStatus,
     CureTeam,
     Damage,
@@ -1969,6 +1970,24 @@ def singleturn(battle, msg: SingleTurn):
         )
 
 
+def copyboost(battle, msg: CopyBoost):
+    # |-copyboost|p1a: Dragonite|p2a: Garchomp|[from] move: Psych Up
+    # the first pokemon takes the second pokemon's boosts
+    pkmn = battle.side(msg.pokemon.side).active
+    target = battle.side(msg.target.side).active
+    pkmn.boosts = deepcopy(target.boosts)
+    logger.info(
+        "{} copied {}'s boosts: {}".format(pkmn.name, target.name, dict(pkmn.boosts))
+    )
+
+    # PS removes the crit volatiles silently and re-adds the copied ones with a [silent] `-start`
+    if battle.gen.copyboost_copies_crit_volatiles:
+        for volatile in constants.CRIT_VOLATILES:
+            remove_volatile(pkmn, volatile)
+            if volatile in target.volatile_statuses:
+                pkmn.volatile_statuses.append(volatile)
+
+
 def endability(battle, msg: EndAbility):
     # |-endability|p2a: Pawmot
     # gastro acid suppresses the ability until the pokemon switches out
@@ -2458,6 +2477,7 @@ MESSAGE_HANDLERS = {
     SingleTurn: singleturn,
     MustRecharge: mustrecharge,
     EndAbility: endability,
+    CopyBoost: copyboost,
     Upkeep: upkeep,
     Cant: cant,
     Inactive: inactive,

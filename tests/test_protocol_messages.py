@@ -6,6 +6,7 @@ from fp.battle.protocol_messages import (
     Ability,
     Activate,
     Anim,
+    CopyBoost,
     EndAbility,
     Boost,
     Cant,
@@ -132,6 +133,12 @@ class TestParseLine:
         assert isinstance(start, Start)
         assert ("Water",) == start.args
         assert isinstance(parse_line("|-singlemove|p1a: X|Destiny Bond"), Start)
+
+    def test_copyboost(self):
+        msg = parse_line("|-copyboost|p1a: X|p2a: Y|[from] move: Psych Up")
+        assert isinstance(msg, CopyBoost)
+        assert PokemonIdent(SideId.P1, "a", "X") == msg.pokemon
+        assert PokemonIdent(SideId.P2, "a", "Y") == msg.target
 
     def test_endability(self):
         msg = parse_line("|-endability|p2a: Rotom")

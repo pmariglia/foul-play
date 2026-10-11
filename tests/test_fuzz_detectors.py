@@ -1,5 +1,6 @@
 import json
 
+from fuzz.allowlist import KNOWN_UNHANDLED_MESSAGE_TYPES
 from fuzz.detectors import ProtocolObserver, Severity, request_signatures
 
 
@@ -27,9 +28,10 @@ class TestProtocolObserver:
             (Severity.DRIFT, "unrecognized-message", "-newthing")
         }
 
-    def test_known_unhandled_message_type_is_known_gap(self):
-        assert observe("|-copyboost|p1a: Pikachu|p2a: Pidgey") == {
-            (Severity.KNOWN_GAP, "unhandled-message", "-copyboost")
+    def test_known_unhandled_message_type_is_known_gap(self, monkeypatch):
+        monkeypatch.setitem(KNOWN_UNHANDLED_MESSAGE_TYPES, "-newthing", "a known gap")
+        assert observe("|-newthing|p1a: Pikachu") == {
+            (Severity.KNOWN_GAP, "unhandled-message", "-newthing")
         }
 
     def test_unrecognized_kwarg_is_drift(self):
