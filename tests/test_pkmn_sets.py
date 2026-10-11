@@ -7,6 +7,7 @@ from fp.data.sets import (
     PredictedPokemonSet,
     PokemonSet,
     PokemonMoveset,
+    RandomBattleTeamDatasets,
 )
 from fp.battle.state import Pokemon, Move
 from fp.format_spec import FormatSpec
@@ -124,6 +125,32 @@ class TestSmogonDatasets:
             FormatSpec.from_format_string("gen4ou"), {"dragonite"}
         )
         assert isinstance(self.smogon_sets.get_raw_count("dragonite"), int)
+
+
+class TestRandomBattleTeamDatasets:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.datasets = RandomBattleTeamDatasets()
+        self.datasets.initialize(FormatSpec.from_format_string("gen9randombattle"))
+
+    def test_greninja_includes_greninjabond_sets(self):
+        # PS reports Greninja-Bond as "Greninja"
+        pkmn = Pokemon("greninja", 80)
+
+        abilities = {
+            s.pkmn_set.ability for s in self.datasets.get_pkmn_sets_from_pkmn_name(pkmn)
+        }
+
+        assert {"protean", "battlebond"} == abilities
+
+    def test_revealed_battlebond_leaves_only_greninjabond_sets(self):
+        pkmn = Pokemon("greninja", 80)
+        pkmn.ability = "battlebond"
+
+        remaining_sets = self.datasets.get_all_remaining_sets(pkmn)
+
+        assert remaining_sets
+        assert all(s.pkmn_set.ability == "battlebond" for s in remaining_sets)
 
 
 class TestPredictSet:

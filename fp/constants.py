@@ -208,6 +208,13 @@ MOVES_SKIPPING_ZOROARK_IMMUNE_CHECK = {
     "synchronoise",  # target shares no type with the user
 }
 
+# formes that PS reports as their base species in protocol messages (Pokemon.getUpdatedDetails)
+# a pokemon seen as the key may actually be any of these formes
+PS_HIDDEN_FORMES = {
+    "greninja": ["greninjabond"],
+    "rockruff": ["rockruffdusk"],
+}
+
 ASSAULT_VEST = "assaultvest"
 HEAVY_DUTY_BOOTS = "heavydutyboots"
 LEFTOVERS = "leftovers"

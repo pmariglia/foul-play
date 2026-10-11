@@ -5,6 +5,7 @@ import os
 import typing
 from copy import deepcopy
 
+from fp import constants
 from fp.battle.helpers import random_battles_evs
 from fp.data.sets.base import (
     PKMN_SETS_CACHE_DIR,
@@ -126,6 +127,10 @@ class RandomBattleTeamDatasets(FullSetDatasets):
     def get_pkmn_sets_from_pkmn_name(self, pkmn: Pokemon):
         ret = []
         ret += self.get_pkmn_by_name_in_dict(pkmn, self.pkmn_sets)
+
+        # PS reports some formes as their base species, so the sets of those formes are possible too
+        for hidden_forme in constants.PS_HIDDEN_FORMES.get(pkmn.name, []):
+            ret += self.pkmn_sets.get(hidden_forme, [])
 
         # for randbats there is no outer layer that sets `pkmn.mega_name`.
         # so instead: explicitly check if the mega is in the sets
