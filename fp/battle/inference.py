@@ -27,6 +27,7 @@ from fp.battle.protocol_messages import (
     Message,
     Miss,
     Move,
+    Replace,
     Resisted,
     Status,
     SuperEffective,
@@ -519,6 +520,7 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
     attacking_side = battle.side(msg.user.side)
     defending_side = battle.other_side(attacking_side)
 
+    damage_dealt = None
     for next_msg in next_messages:
         # exit out since we are done with this pokemon's move
         if _is_end_of_move(next_msg):
@@ -527,9 +529,18 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
         elif isinstance(next_msg, Crit):
             critical_hit = True
 
+        # the hit broke an illusion: the damage was dealt to zoroark, not the pokemon it was disguised as
+        elif (
+            isinstance(next_msg, Replace)
+            and next_msg.pokemon.side == defending_side.name
+        ):
+            logger.info("Illusion broken by {}, ignoring its damage".format(move_name))
+            return None
+
         # if '-damage' appears, we want to parse the percentage damage dealt
         elif (
-            isinstance(next_msg, Damage)
+            damage_dealt is None
+            and isinstance(next_msg, Damage)
             and next_msg.pokemon.side == defending_side.name
         ):
             condition = next_msg.condition
@@ -540,10 +551,10 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
             if maxhp == 0:
                 maxhp = defending_side.active.max_hp
 
-            damage_dealt = (
+            damage_amount = (
                 defending_side.active.hp / defending_side.active.max_hp
             ) * maxhp - final_health
-            damage_percentage = round(damage_dealt / maxhp, 4)
+            damage_percentage = round(damage_amount / maxhp, 4)
 
             logger.info(
                 "{} did {}% damage to {} with {}".format(
@@ -553,13 +564,15 @@ def get_damage_dealt(battle, msg: Move, next_messages: list[Message]):
                     move_name,
                 )
             )
-            return DamageDealt(
+            damage_dealt = DamageDealt(
                 attacker=attacking_side.active.name,
                 defender=defending_side.active.name,
                 move=move_name,
                 percent_damage=damage_percentage,
                 crit=critical_hit,
             )
+
+    return damage_dealt
 
 
 def _do_check(

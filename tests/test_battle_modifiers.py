@@ -8301,6 +8301,27 @@ class TestGetDamageDealt:
 
         assert damage_dealt is None
 
+    def test_returns_none_when_the_damage_breaks_an_illusion(self):
+        self.battle.user.active.max_hp = 250
+        self.battle.user.active.hp = 250
+
+        messages = [
+            "|move|p1a: Caterpie|Ice Beam|p2a: Pikachu",
+            "|-damage|p2a: Pikachu|33/100",
+            "|replace|p2a: Zoroark|Zoroark-Hisui, L80, M",
+            "|-end|p2a: Zoroark|Illusion",
+            "|",
+            "|move|p2a: Zoroark|Bitter Malice|p1a: Caterpie",
+        ]
+
+        damage_dealt = get_damage_dealt(
+            self.battle,
+            parse_lines(messages)[0],
+            parse_lines(messages[1:]),
+        )
+
+        assert damage_dealt is None
+
 
 class TestUpdateDatasetPossibilities:
     @pytest.fixture(autouse=True)
