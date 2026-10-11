@@ -588,6 +588,9 @@ def _do_check(
 ):
     actual_damage_dealt = damage_dealt.percent_damage * battle_copy.user.active.max_hp
 
+    # the bot sees its own HP exactly, so damage dealt to it has no rounding
+    hp_display_allowance = 0
+
     indicies_to_remove = []
     num_starting_possibilites = len(possibilites)
     for i in range(num_starting_possibilites):
@@ -606,6 +609,10 @@ def _do_check(
             actual_damage_dealt = (
                 damage_dealt.percent_damage * battle_copy.opponent.active.max_hp
             )
+
+            # the opponent's HP is shown as a whole percentage, so the true damage
+            # can be up to 1% of its max HP either side of what was computed
+            hp_display_allowance = 0.01 * battle_copy.opponent.active.max_hp
 
             if bot_went_first:
                 opponent_move = constants.DO_NOTHING_MOVE
@@ -633,9 +640,10 @@ def _do_check(
 
         damage = [max_damage * 0.85, max_damage]
         lower_bound_violated = check_lower_bound and (
-            actual_damage_dealt < (damage[0] * 0.975 - constant_hp_errror_allowance)
+            actual_damage_dealt + hp_display_allowance
+            < (damage[0] * 0.975 - constant_hp_errror_allowance)
         )
-        upper_bound_violated = actual_damage_dealt > (
+        upper_bound_violated = actual_damage_dealt - hp_display_allowance > (
             damage[1] * 1.025 + constant_hp_errror_allowance
         )
         if lower_bound_violated or upper_bound_violated:
