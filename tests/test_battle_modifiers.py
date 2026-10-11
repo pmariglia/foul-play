@@ -1075,6 +1075,22 @@ class TestHealOrDamage:
         heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
         assert 0 == self.battle.opponent.side_conditions[constants.HEALING_WISH]
 
+    @pytest.mark.parametrize("side", ["p1", "p2"])
+    @pytest.mark.parametrize("move", ["Healing Wish", "Lunar Dance"])
+    def test_heal_from_healing_wish_or_lunar_dance_cures_status(self, side, move):
+        # |-heal|p2a: Caterpie|100/100|[from] move: Healing Wish
+        pkmn = self.battle.side(side).active
+        pkmn.status = constants.Status.BURN
+        split_msg = [
+            "",
+            "-heal",
+            f"{side}a: Caterpie",
+            "100/100",
+            f"[from] move: {move}",
+        ]
+        heal(self.battle, parse_as(protocol_messages.Heal, split_msg))
+        assert pkmn.status is None
+
     def test_sets_ability_when_the_information_is_present(self):
         split_msg = [
             "",

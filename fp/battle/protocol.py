@@ -579,6 +579,11 @@ def _heal_or_damage(battle, msg: Heal | Damage):
         )
         side.side_conditions[constants.HEALING_WISH] = 0
 
+    # healing wish and lunar dance cure status without a '-curestatus' message
+    if kwargs.is_from("healingwish") or kwargs.is_from("lunardance"):
+        logger.info("Curing {}'s status".format(pkmn.name))
+        pkmn.status = None
+
     # set the ability for the other side (the side not taking damage, '-damage' only)
     if (
         kwargs.from_ is not None
