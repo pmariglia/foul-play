@@ -170,6 +170,34 @@ class TestRandomBattleTeamDatasets:
 
         assert num_sets == len(self.datasets.get_pkmn_sets_from_pkmn_name(pkmn))
 
+    @pytest.mark.parametrize("name", ["charizard", "rayquaza", "venusaur"])
+    def test_megas_without_sets_do_not_duplicate_base_sets(self, name):
+        # gen9 randombattle has no mega sets, but the pokedex has these megas
+        sets = self.datasets.get_pkmn_sets_from_pkmn_name(Pokemon(name, 80))
+
+        assert self.datasets.pkmn_sets[name] == sets
+
+    def test_greninja_sets_are_not_duplicated(self):
+        sets = self.datasets.get_pkmn_sets_from_pkmn_name(Pokemon("greninja", 80))
+
+        expected = (
+            self.datasets.pkmn_sets["greninja"]
+            + self.datasets.pkmn_sets["greninjabond"]
+        )
+        assert expected == sets
+
+    def test_mega_sets_are_included_when_the_format_has_them(self):
+        self.datasets.initialize(FormatSpec.from_format_string("gen7randombattle"))
+
+        sets = self.datasets.get_pkmn_sets_from_pkmn_name(Pokemon("charizard", 80))
+
+        expected = (
+            self.datasets.pkmn_sets["charizard"]
+            + self.datasets.pkmn_sets["charizardmegax"]
+            + self.datasets.pkmn_sets["charizardmegay"]
+        )
+        assert expected == sets
+
 
 class TestPredictSet:
     def test_omits_impossible_ability_when_predicting_set(self):

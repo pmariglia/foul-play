@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import typing
-from copy import deepcopy
 
 from fp import constants
 from fp.battle.helpers import random_battles_evs
@@ -144,12 +143,12 @@ class RandomBattleTeamDatasets(FullSetDatasets):
 
         # for randbats there is no outer layer that sets `pkmn.mega_name`.
         # so instead: explicitly check if the mega is in the sets
+        # the lookup is exact: a mega without sets must not fall back to the base species' sets,
+        # which are already included above
         if not pkmn.mega_name:
-            pkmn_mega_info = pkmn.get_mega_pkmn_info()
-            for pkmn_mega_name, _ in pkmn_mega_info:
-                new_pkmn = deepcopy(pkmn)
-                new_pkmn.name = pkmn_mega_name
-                ret += self.get_pkmn_by_name_in_dict(new_pkmn, self.pkmn_sets)
+            for pkmn_mega_name, _ in pkmn.get_mega_pkmn_info():
+                if pkmn_mega_name != pkmn.name:
+                    ret += self.pkmn_sets.get(pkmn_mega_name, [])
 
         return ret
 
