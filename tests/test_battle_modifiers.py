@@ -8377,6 +8377,35 @@ class TestUpdateDatasetPossibilities:
         )
         assert self.dataset_possibilities_calls == 0
 
+    @pytest.mark.parametrize(
+        "move,expected_calls",
+        [
+            ("tackle", 0),  # 40 base power
+            ("bodyslam", 1),  # 85 base power
+        ],
+    )
+    def test_skips_low_base_power_moves_from_terastallized_attacker(
+        self, move, expected_calls
+    ):
+        self.battle.opponent.active.terastallized = True
+        update_dataset_possibilities(
+            self.battle, self._damage_dealt(move), "damage_dealt"
+        )
+        assert self.dataset_possibilities_calls == expected_calls
+
+    def test_skips_low_base_power_moves_from_terastallized_bot(self):
+        self.battle.user.active.terastallized = True
+        self.battle.user.last_used_move = LastUsedMove("caterpie", "tackle", 1)
+        damage_dealt = DamageDealt(
+            attacker="caterpie",
+            defender="pikachu",
+            move="tackle",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, "damage_received")
+        assert self.dataset_possibilities_calls == 0
+
 
 class TestNoInit:
     @pytest.fixture(autouse=True)

@@ -663,6 +663,10 @@ def _do_check(
         possibilites.pop(i)
 
 
+def _terastallized_low_base_power_move(attacker, move_name) -> bool:
+    return attacker.terastallized and 0 < all_move_json[move_name]["basePower"] < 60
+
+
 def update_dataset_possibilities(
     battle,
     damage_dealt,
@@ -683,6 +687,18 @@ def update_dataset_possibilities(
         or "multiaccuracy" in all_move_json[damage_dealt.move]
         or damage_dealt.move.startswith(constants.HIDDEN_POWER)
         or damage_dealt.percent_damage == 0
+        or (
+            check_type == "damage_dealt"
+            and _terastallized_low_base_power_move(
+                battle.opponent.active, damage_dealt.move
+            )
+        )
+        or (
+            check_type == "damage_received"
+            and _terastallized_low_base_power_move(
+                battle.user.active, damage_dealt.move
+            )
+        )
         or (
             check_type == "damage_dealt"
             and battle.opponent.last_used_move.move != damage_dealt.move
