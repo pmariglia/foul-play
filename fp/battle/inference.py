@@ -833,6 +833,11 @@ def check_heavydutyboots(battle, messages: list[Message]):
             for a in pokedex[side_to_check.active.name][constants.ABILITIES].values()
         ]
         and side_to_check.active.ability not in constants.IMMUNE_TO_POISON_ABILITIES
+        # the ability may not be revealed yet, e.g. comatose is announced after the switch
+        and not any(
+            normalize_name(a) in constants.IMMUNE_TO_POISON_ABILITIES
+            for a in pokedex[side_to_check.active.name][constants.ABILITIES].values()
+        )
     ):
         pkmn_took_toxicspikes_poison = False
         for msg in messages:

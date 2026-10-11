@@ -198,7 +198,7 @@ class Status(StrEnum):
 TOXIC_COUNT = "toxic_count"
 NON_VOLATILE_STATUSES = set(Status)
 
-IMMUNE_TO_POISON_ABILITIES = {"immunity", "pastelveil"}
+IMMUNE_TO_POISON_ABILITIES = {"immunity", "pastelveil", "comatose", "purifyingsalt"}
 
 # damaging moves where PS sends '-immune' for reasons other than type immunity
 # an '-immune' from one of these says nothing about the target being a disguised zoroark

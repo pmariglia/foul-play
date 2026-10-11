@@ -6983,6 +6983,28 @@ class TestCheckHeavyDutyBoots:
 
         assert "heavydutyboots" == self.battle.opponent.active.item
 
+    def test_comatose_does_not_trigger_heavydutyboots_check_on_toxicspikes(self):
+        self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
+        self.battle.msg_list = [
+            "|switch|p2a: Komala|Komala, F|100/100",
+            "|-ability|p2a: Komala|Comatose",
+        ]
+
+        process_battle_updates(self.battle)
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
+    def test_purifyingsalt_does_not_trigger_heavydutyboots_check_on_toxicspikes(self):
+        # purifying salt is not announced on switch-in
+        self.battle.opponent.side_conditions[constants.TOXIC_SPIKES] = 1
+        self.battle.msg_list = [
+            "|switch|p2a: Garganacl|Garganacl, M|100/100",
+        ]
+
+        process_battle_updates(self.battle)
+
+        assert constants.UNKNOWN_ITEM == self.battle.opponent.active.item
+
     def test_not_getting_poisoned_by_toxicspikes_does_not_set_heavydutyboots_if_already_poisoned(
         self,
     ):
