@@ -1,7 +1,7 @@
 import contextvars
 
 from fp.constants import BattleType
-from fuzz.harness import USERNAME, USERNAMES, bot_battle_mode
+from fuzz.harness import USERNAME, USERNAMES, bot_battle_mode, prepare_format
 
 
 def _mode_for(username, battle_type):
@@ -25,3 +25,14 @@ def test_a_bot_keeps_the_same_battle_mode():
     assert _mode_for(USERNAMES["p1"], BattleType.RANDOM_BATTLE) is _mode_for(
         USERNAMES["p1"], BattleType.RANDOM_BATTLE
     )
+
+
+def test_prepare_format_applies_the_generations_data_mods(monkeypatch):
+    applied = []
+    monkeypatch.setattr(
+        "fuzz.harness.apply_mods", lambda format_spec: applied.append(format_spec)
+    )
+
+    prepare_format("gen4randombattle")
+
+    assert ["gen4"] == [f.generation for f in applied]

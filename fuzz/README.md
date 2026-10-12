@@ -19,9 +19,16 @@ git clone https://github.com/smogon/pokemon-showdown ../pokemon-showdown
 ## Running
 
 ```bash
-python -m fuzz.run --ps-dir ../pokemon-showdown --battles 200 --jobs 8 \
-    --formats gen9randombattle,gen8randombattle,gen7randombattle,gen4randombattle
+python -m fuzz.run --ps-dir ../pokemon-showdown --battles 200 --jobs 8 --formats gen9randombattle
+python -m fuzz.run --ps-dir ../pokemon-showdown --battles 200 --jobs 8 --formats gen4randombattle,gen4ou
 ```
+
+Like `fp/main.py`, the fuzzer applies the generation's data mods (`fp/data/mods/apply_mods.py`:
+pokedex, move and type chart changes) before the battles. They change foul-play's data for the
+whole process, so all the formats of one run must be from the same generation; run each
+generation separately. poke-engine is built for one generation too: build it for the generation
+being fuzzed (`make poke_engine_local GEN=gen4` from the foul-play root, which builds
+`../poke-engine`), or damage calcs use the wrong generation's mechanics.
 
 To find problems one at a time, run until the first battle with a finding instead of a fixed
 number of battles:
@@ -111,8 +118,8 @@ in foul-play's other logic, and occasionally in the fuzzer itself.
 ### Before you start
 
 - Use `venv/bin/python` from the foul-play root for everything. That venv has a local poke-engine
-  build (`make poke_engine_local GEN=terastallization` in `../poke-engine`) rather than the
-  version pinned in `requirements.txt`.
+  build (`make poke_engine_local GEN=terastallization` from the foul-play root, which builds
+  `../poke-engine`) rather than the version pinned in `requirements.txt`.
 - `fuzz.run` needs a built Pokemon Showdown checkout at `../pokemon-showdown` (or `$PS_DIR`).
   `fuzz.replay` does not need PS at all.
 - poke-engine's source is in `../poke-engine`, if you need to check how the search treats something.

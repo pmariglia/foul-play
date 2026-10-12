@@ -5,7 +5,13 @@ import multiprocessing
 import pytest
 
 from fuzz.detectors import Severity
-from fuzz.run import battle_plan, parse_args, parse_severities, should_stop
+from fuzz.run import (
+    battle_plan,
+    check_one_generation,
+    parse_args,
+    parse_severities,
+    should_stop,
+)
 
 
 def _args(*argv):
@@ -65,3 +71,20 @@ def test_should_stop_when_the_event_is_set_or_the_deadline_passed():
     args.deadline = None
     event.set()
     assert should_stop(args, event)
+
+
+@pytest.mark.parametrize(
+    "formats",
+    [
+        ["gen9randombattle"],
+        ["gen9randombattle", "gen9ou"],
+        ["gen4randombattle", "gen4ou"],
+    ],
+)
+def test_formats_from_one_generation_are_allowed(formats):
+    check_one_generation(formats)
+
+
+def test_formats_from_different_generations_are_rejected():
+    with pytest.raises(SystemExit, match="gen4, gen9"):
+        check_one_generation(["gen9randombattle", "gen4randombattle"])

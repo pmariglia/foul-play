@@ -20,6 +20,7 @@ import fp.modes.random_battle
 import fp.modes.standard_battle
 import fp.run_battle
 from fp.config import FoulPlayConfig, SaveReplay
+from fp.data.mods.apply_mods import apply_mods
 from fp.format_spec import FormatSpec
 from fp.modes import BATTLE_MODES, battle_mode
 
@@ -76,6 +77,9 @@ def prepare_format(pokemon_format: str):
     """Load (and download, if not cached) any set data the battle mode needs"""
     FoulPlayConfig.pokemon_format = pokemon_format
     format_spec = FormatSpec.from_format_string(pokemon_format)
+    # what fp/main.py does at startup: the generation's pokedex, move and type chart changes.
+    # These change module-level data for the whole process, see `check_one_generation`
+    apply_mods(format_spec)
     mode = battle_mode(format_spec.battle_type)
     if not mode.requires_team and hasattr(mode, "datasets"):
         mode.datasets.initialize(format_spec)

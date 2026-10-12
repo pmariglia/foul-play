@@ -133,6 +133,23 @@ def parse_formats(args) -> list[str]:
     return [f.strip() for f in args.formats.split(",") if f.strip()]
 
 
+def check_one_generation(formats: list[str]):
+    """
+    foul-play's per-generation data mods (`apply_mods`) change module-level data and cannot be
+    undone, so every battle in a process has to be from the same generation
+    """
+    from fp.format_spec import FormatSpec
+
+    generations = {FormatSpec.from_format_string(f).generation for f in formats}
+    if len(generations) > 1:
+        sys.exit(
+            "--formats mixes generations ({}): foul-play's per-generation data mods apply to "
+            "the whole process, so run each generation separately".format(
+                ", ".join(sorted(generations))
+            )
+        )
+
+
 def battle_plan(args, worker_id=0, jobs=1):
     """
     The (format, seed) of every battle this worker runs. Battle `i` of the run always has the
@@ -340,6 +357,7 @@ def main(argv=None):
                 args.ps_dir
             )
         )
+    check_one_generation(parse_formats(args))
     if args.seed is None:
         args.seed = str(random.randrange(2**32))
     if args.out_dir is None:
