@@ -9121,6 +9121,113 @@ class TestUpdateDatasetPossibilities:
         assert self.dataset_possibilities_calls == 1
 
 
+class TestReverseDamageCalcOpponentMove:
+    # which move the reverse damage calc gives the opponent when the bot attacks it
+    @pytest.fixture(autouse=True)
+    def _setup(self, monkeypatch):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.mode = RandomBattleMode()
+        self.battle.mode.dataset_possibilities = lambda _battle: (
+            [
+                PredictedPokemonSet(
+                    pkmn_set=PokemonSet(
+                        ability="pressure",
+                        item="leftovers",
+                        nature="serious",
+                        evs=(85,) * 6,
+                        count=1,
+                        level=75,
+                    ),
+                    pkmn_moveset=PokemonMoveset(moves=["rest"]),
+                )
+            ],
+            None,
+            False,
+        )
+
+        self.opponent_moves = []
+
+        def get_damage_rolls(_battle, _user_move, opponent_move, _bot_went_first):
+            self.opponent_moves.append(opponent_move)
+            return [100, 150], [0, 0]
+
+        monkeypatch.setattr(
+            "fp.battle.inference.poke_engine_get_damage_rolls", get_damage_rolls
+        )
+
+        self.battle.user.name = "p1"
+        self.battle.user.active = Pokemon("spidops", 96)
+        self.battle.user.active.ability = "stakeout"
+        self.battle.user.last_selected_move = LastUsedMove("spidops", "knockoff", 0)
+
+        self.battle.opponent.name = "p2"
+        self.battle.opponent.active = Pokemon("yanmega", 82)
+        self.battle.opponent.reserve = [Pokemon("giratina", 75)]
+        self.battle.turn = 15
+
+    def _process(self, msg_list):
+        self.battle.msg_list = msg_list
+        process_battle_updates(self.battle)
+
+    def test_pkmn_dragged_in_last_turn_that_cannot_move_did_not_switch_in(self):
+        self._process(
+            [
+                "|move|p1a: Spidops|Circle Throw|p2a: Yanmega",
+                "|-damage|p2a: Yanmega|88/100",
+                "|drag|p2a: Giratina|Giratina, L75|100/100 slp",
+                "|upkeep",
+                "|turn|16",
+            ]
+        )
+        self.opponent_moves.clear()
+
+        self._process(
+            [
+                "|cant|p2a: Giratina|slp",
+                "|move|p1a: Spidops|Knock Off|p2a: Giratina",
+                "|-supereffective|p2a: Giratina",
+                "|-damage|p2a: Giratina|76/100 slp",
+                "|upkeep",
+                "|turn|17",
+            ]
+        )
+
+        assert [constants.DO_NOTHING_MOVE] == self.opponent_moves
+        # `cant` still keeps the switch as the opponent's last used move
+        assert "switch giratina" == self.battle.opponent.last_used_move.move
+
+    def test_pkmn_switching_in_this_turn_switched_in(self):
+        # stakeout applies to a pokemon that switched in this turn
+        self._process(
+            [
+                "|switch|p2a: Giratina|Giratina, L75|100/100",
+                "|move|p1a: Spidops|Knock Off|p2a: Giratina",
+                "|-supereffective|p2a: Giratina",
+                "|-damage|p2a: Giratina|52/100",
+                "|upkeep",
+                "|turn|16",
+            ]
+        )
+
+        assert ["switch giratina"] == self.opponent_moves
+
+    def test_pkmn_that_moved_first_used_its_move(self):
+        self.battle.opponent.active = self.battle.opponent.reserve.pop()
+        self._process(
+            [
+                "|move|p2a: Giratina|Rest|p2a: Giratina",
+                "|move|p1a: Spidops|Knock Off|p2a: Giratina",
+                "|-supereffective|p2a: Giratina",
+                "|-damage|p2a: Giratina|76/100",
+                "|upkeep",
+                "|turn|16",
+            ]
+        )
+
+        assert ["rest"] == self.opponent_moves
+
+
 class TestNoInit:
     @pytest.fixture(autouse=True)
     def _setup(self):

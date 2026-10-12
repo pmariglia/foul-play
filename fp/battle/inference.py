@@ -665,6 +665,18 @@ def _do_check(
             else:
                 opponent_move = battle_copy.opponent.last_used_move.move
 
+            # a pokemon that could not move keeps a switch from an earlier turn as its
+            # last used move. It did nothing this turn: it must not look like it switched in,
+            # e.g. for stakeout
+            # |drag|p1a: Giratina|Giratina, L75|100/100 slp
+            # |turn|16
+            # |cant|p1a: Giratina|slp
+            if (
+                opponent_move.startswith(constants.SWITCH_STRING + " ")
+                and battle_copy.opponent.active.acted_since_switch_in
+            ):
+                opponent_move = constants.DO_NOTHING_MOVE
+
             damage, _ = poke_engine_get_damage_rolls(
                 battle_copy, damage_dealt.move, opponent_move, bot_went_first
             )
