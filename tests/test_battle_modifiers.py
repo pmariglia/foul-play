@@ -1567,6 +1567,12 @@ class TestPrepare:
         prepare(self.battle, parse_as(protocol_messages.Prepare, split_msg))
         assert "phantomforce" in self.battle.opponent.active.volatile_statuses
 
+    def test_prepare_does_not_set_chillyreception_volatile(self):
+        # |-prepare|p2a: Slowking|Chilly Reception|[premajor]
+        split_msg = ["", "-prepare", "p2a: Caterpie", "Chilly Reception", "[premajor]"]
+        prepare(self.battle, parse_as(protocol_messages.Prepare, split_msg))
+        assert [] == self.battle.opponent.active.volatile_statuses
+
 
 class TestClearAllBoosts:
     @pytest.fixture(autouse=True)
@@ -2307,14 +2313,6 @@ class TestMove:
     def test_removes_volatilestatus_if_pkmn_has_it_when_using_move(self):
         self.battle.opponent.active.volatile_statuses = ["phantomforce"]
         split_msg = ["", "move", "p2a: Caterpie", "Phantom Force", "[from] lockedmove"]
-
-        move(self.battle, parse_as(protocol_messages.Move, split_msg))
-
-        assert [] == self.battle.opponent.active.volatile_statuses
-
-    def test_removes_chillyreception_volatile_from_prepare_when_using_move(self):
-        self.battle.opponent.active.volatile_statuses = ["chillyreception"]
-        split_msg = ["", "move", "p2a: Caterpie", "Chilly Reception", "p2a: Caterpie"]
 
         move(self.battle, parse_as(protocol_messages.Move, split_msg))
 
@@ -5505,16 +5503,6 @@ class TestCant:
             ),
         )
         assert Move("throatchop") not in self.battle.opponent.active.moves
-
-    def test_cant_removes_prepared_chillyreception(self):
-        # |-prepare|p1a: Slowking|Chilly Reception|[premajor]
-        # |cant|p1a: Slowking|par
-        self.battle.user.active.volatile_statuses = ["chillyreception", "confusion"]
-        cant(
-            self.battle,
-            parse_as(protocol_messages.Cant, ["", "cant", "p1a: Weedle", "par"]),
-        )
-        assert ["confusion"] == self.battle.user.active.volatile_statuses
 
     def test_cant_removes_a_charged_two_turn_move(self):
         self.battle.opponent.active.volatile_statuses = ["solarbeam"]

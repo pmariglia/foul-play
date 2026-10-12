@@ -1147,6 +1147,13 @@ def prepare(battle, msg: Prepare):
     pkmn = battle.side(msg.pokemon.side).active
 
     being_prepared = normalize_name(msg.move)
+
+    # chilly reception's volatile only announces the move and ends with the turn,
+    # it does nothing that needs to be tracked
+    # |-prepare|p1a: Slowking|Chilly Reception|[premajor]
+    if being_prepared == "chillyreception":
+        return
+
     if being_prepared in pkmn.volatile_statuses:
         logger.warning(
             "{} already has the volatile status {}".format(pkmn.name, being_prepared)
@@ -2085,14 +2092,11 @@ def cant(battle, msg: Cant):
         logger.info("Removing glaiverush from {}".format(side.active.name))
         remove_volatile(side.active, constants.GLAIVE_RUSH)
 
-    # a move prepared with `-prepare` is cancelled when the pokemon cannot move:
-    # a two-turn move's charge ends, and chilly reception's volatile only lasts the turn
-    # |-prepare|p1a: Slowking|Chilly Reception|[premajor]
-    # |cant|p1a: Slowking|par
+    # a two-turn move's charge ends when the pokemon cannot move
+    # |-prepare|p1a: Venusaur|Solar Beam
+    # |cant|p1a: Venusaur|par
     for volatile in list(side.active.volatile_statuses):
-        if volatile == "chillyreception" or all_move_json.get(volatile, {}).get(
-            "flags", {}
-        ).get("charge"):
+        if all_move_json.get(volatile, {}).get("flags", {}).get("charge"):
             logger.info(
                 "{} could not move, removing prepared move {}".format(
                     side.active.name, volatile
