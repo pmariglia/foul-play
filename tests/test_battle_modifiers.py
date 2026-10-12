@@ -6815,6 +6815,31 @@ class TestGuessChoiceScarf:
 
         assert expected_item == self.battle.opponent.active.item
 
+    @pytest.mark.parametrize(
+        "move_name,expected_item",
+        [
+            # gale wings gives flying moves +1 priority, so going first says nothing about speed
+            ("Brave Bird", constants.UNKNOWN_ITEM),
+            ("Flare Blitz", "choicescarf"),
+        ],
+    )
+    def test_choicescarf_guess_when_opponent_could_have_galewings(
+        self, move_name, expected_item
+    ):
+        self.battle.opponent.active.name = "talonflame"
+        self.battle.user.active.stats[constants.SPEED] = (
+            390  # opponent's speed should not be greater than 386 (max speed talonflame)
+        )
+
+        messages = [
+            "|move|p2a: Talonflame|{}|".format(move_name),
+            "|move|p1a: Caterpie|Tackle|",
+        ]
+
+        check_choicescarf(self.battle, parse_lines(messages))
+
+        assert expected_item == self.battle.opponent.active.item
+
     def test_does_not_guess_choicescarf_when_opponent_is_speed_boosted(self):
         self.battle.user.active.stats[constants.SPEED] = (
             210  # opponent's speed should not be greater than 207 (max speed caterpie)
