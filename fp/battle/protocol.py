@@ -381,6 +381,13 @@ def switch_or_drag(battle, msg: Switch):
         if pkmn.name != temp_pkmn.name:
             logger.info("Renaming {} -> {}".format(pkmn.name, temp_pkmn.name))
             pkmn.name = temp_pkmn.name
+            # a temporary forme reverts on switch-out and has different stats,
+            # e.g. minior-meteor switching back in as minior
+            pkmn.base_stats = temp_pkmn.base_stats
+            pkmn.types = temp_pkmn.types
+            pkmn.stats = calculate_stats(
+                pkmn.base_stats, pkmn.level, nature=pkmn.nature, evs=pkmn.evs
+            )
         pkmn.nickname = temp_pkmn.nickname
 
         # Zoroark edge-case nonsense

@@ -994,6 +994,29 @@ class TestSwitchOrDrag:
 
         assert ["normal"] == ditto.types
 
+    def test_temporary_forme_switching_back_in_gets_the_formes_stats(self):
+        # minior turned into minior-meteor on its first switch-in
+        # and is minior (its core forme) again when it switches back in
+        minior = Pokemon("minior", 79)
+        minior.forme_change("Minior-Meteor")
+        assert "miniormeteor" == minior.name
+        self.battle.opponent.reserve = [minior]
+
+        split_msg = ["", "switch", "p2a: Minior", "Minior, L79", "26/100"]
+        switch_or_drag(self.battle, parse_as(protocol_messages.Switch, split_msg))
+
+        core = Pokemon("minior", 79)
+        assert "minior" == self.battle.opponent.active.name
+        assert core.base_stats == self.battle.opponent.active.base_stats
+        assert (
+            core.stats[constants.SPECIAL_ATTACK]
+            == self.battle.opponent.active.stats[constants.SPECIAL_ATTACK]
+        )
+        assert (
+            core.stats[constants.SPEED]
+            == self.battle.opponent.active.stats[constants.SPEED]
+        )
+
     def test_shed_tail_switching_in_gets_shed_tailing_flag_set_to_false(self):
         self.battle.user.shed_tailing = True
 
