@@ -3393,6 +3393,49 @@ class TestSetItem:
         self.user_active = Pokemon("weedle", 100)
         self.battle.user.active = self.user_active
 
+    @pytest.mark.parametrize(
+        "thief_ident,victim_side,thief_side",
+        [
+            ("p1a: Weedle", "opponent", "user"),
+            ("p2a: Caterpie", "user", "opponent"),
+        ],
+    )
+    def test_magician_removes_the_item_from_the_pokemon_it_was_taken_from(
+        self, thief_ident, victim_side, thief_side
+    ):
+        # |-item|p1a: Hoopa|Silk Scarf|[from] ability: Magician|[of] p2a: Ambipom
+        victim_ident = "p2a: Caterpie" if victim_side == "opponent" else "p1a: Weedle"
+        getattr(self.battle, victim_side).active.item = "silkscarf"
+        getattr(self.battle, thief_side).active.item = None
+        split_msg = [
+            "",
+            "-item",
+            thief_ident,
+            "Silk Scarf",
+            "[from] ability: Magician",
+            "[of] {}".format(victim_ident),
+        ]
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
+
+        victim = getattr(self.battle, victim_side).active
+        assert "silkscarf" == getattr(self.battle, thief_side).active.item
+        assert victim.item is None
+        assert "silkscarf" == victim.removed_item
+
+    def test_frisk_does_not_remove_the_item_of_the_pokemon_it_reveals(self):
+        self.battle.opponent.active.item = constants.UNKNOWN_ITEM
+        split_msg = [
+            "",
+            "-item",
+            "p2a: Caterpie",
+            "Leftovers",
+            "[from] ability: Frisk",
+            "[of] p1a: Weedle",
+        ]
+        set_item(self.battle, parse_as(protocol_messages.Item, split_msg))
+
+        assert "leftovers" == self.battle.opponent.active.item
+
     def test_gen5_frisk_from_opponent_sets_user_item(self):
         split_msg = [
             "",

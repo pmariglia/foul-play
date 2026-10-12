@@ -1678,13 +1678,24 @@ def set_item(battle, msg: Item):
     # if we inferred an item but the item was overwritten, unset this flag
     side.active.item_inferred = False
 
+    # magician takes the item without an `-enditem` for the pokemon it was taken from
+    # |-item|p1a: Hoopa|Silk Scarf|[from] ability: Magician|[of] p2a: Ambipom
+    if kwargs.is_from("magician", EffectKind.ABILITY) and kwargs.of is not None:
+        _remove_active_item(battle.side(kwargs.of.side), item)
+
 
 def remove_item(battle, msg: EndItem):
     """Remove the opponent's item"""
     side = battle.side(msg.pokemon.side)
 
-    item = normalize_name(msg.item)
+    _remove_active_item(side, normalize_name(msg.item))
 
+    if msg.kwargs.is_from("knockoff"):
+        logger.info("Knockoff removed {}'s item".format(side.active.name))
+        side.active.knocked_off = True
+
+
+def _remove_active_item(side, item):
     logger.info("Removing {}'s item: {}".format(side.active.name, item))
     side.active.item = None
 
@@ -1698,10 +1709,6 @@ def remove_item(battle, msg: EndItem):
     ]:
         logger.info("Adding unburden volatile to {}".format(side.active.name))
         side.active.volatile_statuses.append("unburden")
-
-    if msg.kwargs.is_from("knockoff"):
-        logger.info("Knockoff removed {}'s item".format(side.active.name))
-        side.active.knocked_off = True
 
 
 def immune(battle, msg: Immune):
