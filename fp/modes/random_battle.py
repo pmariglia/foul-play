@@ -2,7 +2,7 @@ import logging
 
 from fp import constants
 from fp.battle.protocol_messages import Move
-from fp.battle.protocol import process_battle_updates
+from fp.battle.protocol import _correct_zoroark_details, process_battle_updates
 from fp.battle.helpers import random_battles_evs, type_effectiveness_modifier
 from fp.battle.state import Pokemon
 from fp.config import FoulPlayConfig
@@ -112,6 +112,26 @@ class RandomBattleMode(BattleMode):
                 in self.datasets.get_all_possible_moves(zoroark_from_reserves)
             ):
                 actual_zoroark = zoroark_from_reserves
+
+            # if we already saw a zoroark in the reserves, use that one
+            # this will trigger if the _previously_ guessed zoroark was the wrong forme
+            # correct that bad guess here
+            elif zoroark_from_reserves is not None:
+                other_forme = (
+                    zoroark_regular
+                    if zoroark_from_reserves.name == zoroark_hisui.name
+                    else zoroark_hisui
+                )
+                if other_forme.name in self.datasets.pkmn_sets:
+                    other_forme_moves = self.datasets.get_all_possible_moves(
+                        other_forme
+                    )
+                    if move_name in other_forme_moves and all(
+                        m.name in other_forme_moves for m in zoroark_from_reserves.moves
+                    ):
+                        other_forme.level = self.datasets.predicted_level(other_forme)
+                        _correct_zoroark_details(zoroark_from_reserves, other_forme)
+                        actual_zoroark = zoroark_from_reserves
 
             elif (
                 battle.gen.has_team_preview

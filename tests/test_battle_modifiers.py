@@ -1860,6 +1860,69 @@ class TestMove:
         assert [] == self.battle.opponent.reserve[0].moves
         assert {} == dict(self.battle.opponent.reserve[0].boosts)
 
+    def test_infer_zoroark_corrects_wrongly_guessed_zoroarkhisui_in_reserves(
+        self,
+    ):
+        # zoroarkhisui was guessed from a u-turn that both zoroark formes can have,
+        # but only regular zoroark gets dark pulse
+        self.battle.mode = RandomBattleMode()
+        self.battle.generation = "gen9"
+        self.battle.mode.datasets.initialize(
+            FormatSpec.from_format_string("gen9randombattle")
+        )
+
+        guessed_zoroark = Pokemon("zoroarkhisui", 100)
+        guessed_zoroark.add_move("uturn")
+        self.battle.opponent.reserve.append(guessed_zoroark)
+        self.battle.opponent.active = Pokemon("ironmoth", 78)
+        for mv in ["sludgewave", "fierydance", "energyball", "morningsun"]:
+            self.battle.opponent.active.add_move(mv)
+
+        split_msg = [
+            "",
+            "move",
+            "p2a: Iron Moth",
+            "Dark Pulse",
+            "p1a: Chimecho",
+        ]
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert "zoroark" == self.battle.opponent.active.name
+        assert guessed_zoroark is self.battle.opponent.active
+        assert 100 != self.battle.opponent.active.level
+        assert ["uturn", "darkpulse"] == [
+            m.name for m in self.battle.opponent.active.moves
+        ]
+        assert ["ironmoth"] == [p.name for p in self.battle.opponent.reserve]
+        assert 4 == len(self.battle.opponent.reserve[0].moves)
+
+    def test_does_not_correct_zoroark_in_reserves_if_other_forme_cannot_have_its_moves(
+        self,
+    ):
+        self.battle.mode = RandomBattleMode()
+        self.battle.generation = "gen9"
+        self.battle.mode.datasets.initialize(
+            FormatSpec.from_format_string("gen9randombattle")
+        )
+
+        # poltergeist is only on zoroarkhisui, so it cannot be regular zoroark
+        zoroark_hisui = Pokemon("zoroarkhisui", 100)
+        zoroark_hisui.add_move("poltergeist")
+        self.battle.opponent.reserve.append(zoroark_hisui)
+        self.battle.opponent.active = Pokemon("ironmoth", 78)
+
+        split_msg = [
+            "",
+            "move",
+            "p2a: Iron Moth",
+            "Dark Pulse",
+            "p1a: Chimecho",
+        ]
+        move(self.battle, parse_as(protocol_messages.Move, split_msg))
+
+        assert "ironmoth" == self.battle.opponent.active.name
+        assert "zoroarkhisui" == self.battle.opponent.reserve[0].name
+
     def test_infer_zoroark_regular_from_move_in_gen7_randbats_without_zoroarkhisui(
         self,
     ):
