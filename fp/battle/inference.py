@@ -698,8 +698,24 @@ def _do_check(
         possibilites.pop(i)
 
 
-def _terastallized_low_base_power_move(attacker, move_name) -> bool:
-    return attacker.terastallized and 0 < all_move_json[move_name]["basePower"] < 60
+def _terastallized_low_base_power_move(battle, attacker, move_name) -> bool:
+    if not attacker.terastallized:
+        return False
+
+    base_power = all_move_json[move_name]["basePower"]
+
+    # grassy terrain halves these moves' base power before it is raised to 60
+    if battle.field == constants.Terrain.GRASSY and move_name in [
+        "earthquake",
+        "bulldoze",
+        "magnitude",
+    ]:
+        # magnitude's base power is random, so it is listed as 0
+        if move_name == "magnitude":
+            return True
+        base_power /= 2
+
+    return 0 < base_power < 60
 
 
 def _pinch_ability_may_be_active(pkmn) -> bool:
@@ -763,13 +779,13 @@ def update_dataset_possibilities(
         or (
             check_type == "damage_dealt"
             and _terastallized_low_base_power_move(
-                battle.opponent.active, damage_dealt.move
+                battle, battle.opponent.active, damage_dealt.move
             )
         )
         or (
             check_type == "damage_received"
             and _terastallized_low_base_power_move(
-                battle.user.active, damage_dealt.move
+                battle, battle.user.active, damage_dealt.move
             )
         )
         or (

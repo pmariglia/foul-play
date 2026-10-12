@@ -8823,6 +8823,42 @@ class TestUpdateDatasetPossibilities:
         assert self.dataset_possibilities_calls == 0
 
     @pytest.mark.parametrize(
+        "move,field,terastallized,expected_calls",
+        [
+            ("earthquake", constants.Terrain.GRASSY, True, 0),
+            ("bulldoze", constants.Terrain.GRASSY, True, 0),
+            ("magnitude", constants.Terrain.GRASSY, True, 0),
+            ("earthquake", constants.Terrain.GRASSY, False, 1),
+            ("earthquake", None, True, 1),
+            ("earthquake", constants.Terrain.ELECTRIC, True, 1),
+            ("highhorsepower", constants.Terrain.GRASSY, True, 1),
+        ],
+    )
+    def test_skips_moves_weakened_by_grassy_terrain_from_terastallized_attacker(
+        self, move, field, terastallized, expected_calls
+    ):
+        self.battle.field = field
+        self.battle.opponent.active.terastallized = terastallized
+        update_dataset_possibilities(
+            self.battle, self._damage_dealt(move), "damage_dealt"
+        )
+        assert self.dataset_possibilities_calls == expected_calls
+
+    def test_skips_move_weakened_by_grassy_terrain_from_terastallized_bot(self):
+        self.battle.field = constants.Terrain.GRASSY
+        self.battle.user.active.terastallized = True
+        self.battle.user.last_used_move = LastUsedMove("caterpie", "earthquake", 1)
+        damage_dealt = DamageDealt(
+            attacker="caterpie",
+            defender="pikachu",
+            move="earthquake",
+            percent_damage=0.2,
+            crit=False,
+        )
+        update_dataset_possibilities(self.battle, damage_dealt, "damage_received")
+        assert self.dataset_possibilities_calls == 0
+
+    @pytest.mark.parametrize(
         "move,expected_calls",
         [
             ("tackle", 0),  # 40 base power
